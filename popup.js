@@ -676,17 +676,17 @@ function renderFindings() {
   const openWhy = new Set([...slot.querySelectorAll('details.sub[open]')].map((d) => d.dataset.fid));
   const overlayOn = $('toggle-issues')?.getAttribute('aria-pressed') === 'true';
   rerender(slot, `<details class="card collapsible" id="findings-card"${wasOpen ? ' open' : ''}>
-    <summary id="findings-summary"><h3 class="card-title">Fix this first</h3>
+    <summary id="findings-summary"><h2 class="card-title">Fix this first</h2>
       ${f.length ? counts.map(([sv, n]) => tag(`${n} ${SEVERITY_LABEL[sv].toLowerCase()}`, SEV_KIND[sv])).join(' ') : tag('nothing found', 'good')}</summary>
     <div class="card-body">
       ${f.length ? `<ol class="finding-list">${shown.map((x, i) => {
         const targets = x.targets || [];
         const locate = targets.length === 1
-          ? `<button type="button" class="locate" id="loc-${escapeHtml(x.id)}" data-highlight="${escapeHtml(JSON.stringify(targets[0]))}" aria-label="Show on the page">${ICON.locate}</button>`
-          : targets.length > 1 ? `<button type="button" class="link-btn" id="show-${escapeHtml(x.id)}" data-finding-show="${i}">Show ${targets.length} on page</button>` : '';
+          ? `<button type="button" class="locate" id="loc-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-highlight="${escapeHtml(JSON.stringify(targets[0]))}" aria-label="Show on the page">${ICON.locate}</button>`
+          : targets.length > 1 ? `<button type="button" class="link-btn" id="show-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-finding-show="${i}">Show ${targets.length} on page</button>` : '';
         return `<li class="finding">
-          <div class="finding-head">${tag(SEVERITY_LABEL[x.severity], SEV_KIND[x.severity])} <span class="finding-title">${escapeHtml(x.title)}</span> ${locate}</div>
-          <details class="sub" data-fid="${escapeHtml(x.id)}"${openWhy.has(x.id) ? ' open' : ''}><summary id="why-${escapeHtml(x.id)}">Why and how · ${escapeHtml(x.area)}</summary>
+          <div class="finding-head">${tag(SEVERITY_LABEL[x.severity], SEV_KIND[x.severity])} <span class="finding-title" id="ft-${escapeHtml(x.id)}">${escapeHtml(x.title)}</span> ${locate}</div>
+          <details class="sub" data-fid="${escapeHtml(x.id)}"${openWhy.has(x.id) ? ' open' : ''}><summary id="why-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}">Why and how · ${escapeHtml(x.area)}</summary>
             <p>${escapeHtml(x.why)}</p><p><strong>Fix:</strong> ${escapeHtml(x.fix)}</p>
             ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${x.examples.length - 8} more</p>` : ''}` : ''}
           </details>
@@ -737,7 +737,7 @@ async function showChanges(score, gen = auditGen) {
   if (gen !== auditGen || !slot || !res.changes.length) return;
   const fmt = (v) => (v === '' || v == null ? '(empty)' : String(v));
   rerender(slot, `<details class="card collapsible" open>
-    <summary><h3 class="card-title">Changed since ${escapeHtml(timeAgo(res.since))}</h3> ${tag(`${res.changes.length} change${res.changes.length === 1 ? '' : 's'}`, 'neutral')}</summary>
+    <summary><h2 class="card-title">Changed since ${escapeHtml(timeAgo(res.since))}</h2> ${tag(`${res.changes.length} change${res.changes.length === 1 ? '' : 's'}`, 'neutral')}</summary>
     <div class="card-body"><table class="data-table"><thead><tr><th scope="col">What</th><th scope="col">Before</th><th scope="col">Now</th></tr></thead><tbody>
       ${res.changes.map((c) => `<tr><th scope="row">${escapeHtml(c.label)}</th><td>${escapeHtml(fmt(c.before))}</td><td>${escapeHtml(fmt(c.after))}</td></tr>`).join('')}
     </tbody></table><p class="muted">Compared with your previous audit of this URL in this browser.</p></div>
@@ -825,9 +825,9 @@ async function loadGEO(gen = auditGen) {
 
   rerender(slot, `
     <div class="card">
-      <h3>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h3>
+      <h2>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h2>
       <p class="muted">Can AI search engines reach and quote this page? Only blocks of AI search bots lower the score; blocking training bots doesn't affect answers.</p>
-      <h4>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI search bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI search bots allowed', 'good')}</h4>
+      <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI search bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI search bots allowed', 'good')}</h3>
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
           <li>
@@ -838,13 +838,13 @@ async function loadGEO(gen = auditGen) {
             <span class="bot-purpose">${escapeHtml(b.purpose)}</span>
           </li>`).join('')}
       </ul>
-      <h4>llms.txt <span class="muted">(information only)</span></h4>
+      <h3>llms.txt <span class="muted">(information only)</span></h3>
       ${row('/llms.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.summary?.ok ? tag(llmsTxt.summary.size ? `found, ${(llmsTxt.summary.size / 1024).toFixed(1)} KB` : 'found', 'good') : tag('not found', 'neutral'))}
       ${row('/llms-full.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.full?.ok ? tag('found', 'good') : tag('not found', 'neutral'))}
       <p class="muted">A proposed file that points AI tools to your key pages. Google says no special file is needed for its AI features.</p>
-      <h4>Trust signals (E-E-A-T)</h4>
+      <h3>Trust signals (E-E-A-T)</h3>
       ${signalRows(eeat, 'missing')}
-      <h4>Easy to quote</h4>
+      <h3>Easy to quote</h3>
       ${signalRows(citability, 'low')}
     </div>`);
 }
@@ -888,7 +888,7 @@ async function runPsi(force = false) {
   if (!psiKey) {
     rerender($('psi-result'), `<div class="notice"><strong>Add a free PageSpeed Insights API key</strong>
       <div>Google only answers requests that carry a key. It is free: create one in Google Cloud, then paste it in Settings.</div>
-      <div class="actions"><button type="button" class="primary-btn" data-action="open-options">Open Settings</button>
+      <div class="actions"><button type="button" class="primary-btn" data-action="open-options" data-section="h-psi">Open Settings</button>
         <a class="link-btn" href="https://pagespeed.web.dev/analysis?url=${encodeURIComponent(pageUrl)}" target="_blank" rel="noopener noreferrer">Test on the PageSpeed Insights website ${ICON.external}</a></div></div>`);
     return;
   }
@@ -911,7 +911,7 @@ async function runPsi(force = false) {
     offpageData.psiError = e.message;
     const keyMissing = /API key/.test(e.message);
     rerender($('psi-result'), errorBox('The speed test did not finish', e.message,
-      keyMissing ? `<button type="button" class="primary-btn" data-action="open-options">Add a key in Settings</button>
+      keyMissing ? `<button type="button" class="primary-btn" data-action="open-options" data-section="h-psi">Add a key in Settings</button>
         <a class="link-btn" href="https://pagespeed.web.dev/analysis?url=${encodeURIComponent(pageUrl)}" target="_blank" rel="noopener">Open PageSpeed Insights ${ICON.external}</a>` : ''));
   } finally {
     if (tg === tabGen) {
@@ -929,7 +929,7 @@ async function runDfs(force = false) {
   if (!dfsLogin || !dfsPassword) {
     rerender($('dfs-result'), `<div class="notice"><strong>Add your DataForSEO login first</strong>
       <div>DataForSEO is a pay-per-use data provider. Needle uses your own account; it has no account of its own.</div>
-      <div class="actions"><button type="button" class="primary-btn" data-action="open-options">Open Settings</button></div></div>`);
+      <div class="actions"><button type="button" class="primary-btn" data-action="open-options" data-section="h-dfs">Open Settings</button></div></div>`);
     return;
   }
   if (tg !== tabGen) return;
@@ -953,7 +953,7 @@ async function runDfs(force = false) {
     } else {
       offpageData.dfsError = e.message;
       rerender($('dfs-result'), errorBox('The keyword lookup failed', e.message,
-        `<button type="button" class="link-btn" data-action="open-options">Check Settings</button>`));
+        `<button type="button" class="link-btn" data-action="open-options" data-section="h-dfs">Check Settings</button>`));
     }
   } finally {
     if (tg === tabGen) {
@@ -1004,7 +1004,7 @@ async function runCrux() {
   const { psiKey } = await getSecrets();
   if (!psiKey) {
     rerender($('crux-result'), `<div class="notice"><strong>Add a Google API key first</strong><div>The same key as for PageSpeed, with the Chrome UX Report API turned on.</div>
-      <div class="actions"><button type="button" class="primary-btn" data-action="open-options">Open Settings</button></div></div>`);
+      <div class="actions"><button type="button" class="primary-btn" data-action="open-options" data-section="h-psi">Open Settings</button></div></div>`);
     return;
   }
   const tg = tabGen;
@@ -1025,7 +1025,7 @@ async function runBing() {
   const { bingKey } = await getSecrets();
   if (!bingKey) {
     rerender($('bing-result'), `<div class="notice"><strong>Add your Bing Webmaster Tools API key</strong><div>In Bing Webmaster Tools: Settings, then API Access. Settings in Needle shows the steps.</div>
-      <div class="actions"><button type="button" class="primary-btn" data-action="open-options">Open Settings</button></div></div>`);
+      <div class="actions"><button type="button" class="primary-btn" data-action="open-options" data-section="h-bing">Open Settings</button></div></div>`);
     return;
   }
   const tg = tabGen;
@@ -1067,7 +1067,7 @@ function renderPsi(d, age) {
   const scoreTag = (n) => n == null ? tag('—', 'neutral') : tag(String(n), n >= 90 ? 'good' : n >= 50 ? 'warn' : 'bad');
   const col = (p, label) => {
     if (!p) return '';
-    if (p.error) return `<div class="psi-col"><h4>${label}</h4>${errorBox('Not available', p.error)}</div>`;
+    if (p.error) return `<div class="psi-col"><h3>${label}</h3>${errorBox('Not available', p.error)}</div>`;
     const field = p.hasFieldData ? `
       ${p.originFallback ? `<p class="muted">Not enough real-user data for this page; these are whole-site numbers.</p>` : ''}
       ${row('LCP', p.lcp != null ? `${(p.lcp / 1000).toFixed(2)} s ${cwvTag(p.lcpCategory)}` : 'no data')}
@@ -1075,7 +1075,7 @@ function renderPsi(d, age) {
       ${row('CLS', p.cls != null ? `${p.cls.toFixed(2)} ${cwvTag(p.clsCategory)}` : 'no data')}`
       : `<p class="muted">No real-user (Chrome UX Report) data for this page.</p>`;
     return `<div class="psi-col">
-      <h4>${label}</h4>
+      <h3>${label}</h3>
       ${row('Performance', scoreTag(p.performanceScore))}
       ${row('Accessibility', scoreTag(p.accessibilityScore))}
       ${row('Best practices', scoreTag(p.bestPracticesScore))}
@@ -1094,10 +1094,10 @@ function renderDfs(d, age) {
   const locName = LOCATIONS.find((l) => l.code === d.locationCode)?.name || d.locationCode;
   const langName = LANGUAGES.find((l) => l.code === d.languageCode)?.name || d.languageCode;
   return `${cachedBanner(age, null)}
-    <h4>${escapeHtml(bareHost(pageUrl))} in ${escapeHtml(locName)}, ${escapeHtml(langName)}</h4>
+    <h3>${escapeHtml(bareHost(pageUrl))} in ${escapeHtml(locName)}, ${escapeHtml(langName)}</h3>
     ${row('Organic keywords (whole site)', fmtNum(d.organicKeywords))}
     ${row('Estimated monthly organic visits', fmtNum(d.organicTraffic))}
-    <h4>Top keywords for this page</h4>
+    <h3>Top keywords for this page</h3>
     ${d.topKeywords?.length
       ? `<table class="data-table"><thead><tr><th scope="col">Keyword</th><th scope="col">Position</th><th scope="col">Volume</th></tr></thead><tbody>
           ${d.topKeywords.map((k) => `<tr><td>${escapeHtml(k.keyword)}</td><td>${k.pos ? `#${k.pos}${k.isFeaturedSnippet ? ' <span class="muted">snippet</span>' : ''}` : '—'}</td><td>${fmtNum(k.volume)}</td></tr>`).join('')}
@@ -1135,7 +1135,7 @@ function renderExternalTools() {
     ['Social card preview (opengraph.xyz)', `https://www.opengraph.xyz/url/${enc}`]
   ];
   el.innerHTML = `<details class="card collapsible">
-    <summary><h3 class="card-title">Open in other tools</h3></summary>
+    <summary><h2 class="card-title">Open in other tools</h2></summary>
     <p class="muted">These open the tool's own site in a new tab with this URL filled in. Some need an account there.</p>
     <ul class="plain-list">${links.map(([label, href]) => `<li><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)} ${ICON.external}</a></li>`).join('')}</ul>
   </details>`;
@@ -1175,7 +1175,7 @@ async function loadSerp(force = false) {
   if (!dfsLogin || !dfsPassword) {
     rerender(result, `<div class="notice"><strong>Add your DataForSEO login first</strong>
       <div>Google results come from DataForSEO, a pay-per-use provider, through your own account.</div>
-      <div class="actions"><button type="button" class="primary-btn" data-action="open-options">Open Settings</button></div></div>`);
+      <div class="actions"><button type="button" class="primary-btn" data-action="open-options" data-section="h-dfs">Open Settings</button></div></div>`);
     return;
   }
   serpRunning = true;
@@ -1213,9 +1213,9 @@ $('serp-keyword').addEventListener('keydown', (e) => { if (e.key === 'Enter') lo
 
 function renderAiOverview(ai, me) {
   if (!ai) return '';
-  if (!ai.present) return `<div class="card"><h3>AI Overview</h3><p class="muted">Google showed no AI Overview for this search (one that loads later may be missed).</p></div>`;
+  if (!ai.present) return `<div class="card"><h2>AI Overview</h2><p class="muted">Google showed no AI Overview for this search (one that loads later may be missed).</p></div>`;
   const cited = me && ai.references.some((r) => (r.domain || '').replace(/^www\./, '') === me);
-  return `<div class="card"><h3>AI Overview</h3>
+  return `<div class="card"><h2>AI Overview</h2>
     ${me ? `<p>${cited ? tag(`${me} is cited`, 'good') : tag(`${me} is not cited`, 'warn')}</p>` : ''}
     ${ai.references.length ? `<p class="muted">Sources it cites:</p><ol class="plain-list">${ai.references.slice(0, 15).map((r) => `<li>${escapeHtml(r.domain)} ${isSafeHttpUrl(r.url) ? `<a href="${escapeHtml(r.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.title || r.url)}</a>` : ''}</li>`).join('')}</ol>` : '<p class="muted">No cited sources were returned.</p>'}
   </div>`;
@@ -1242,10 +1242,10 @@ function renderSerp(d, myDomain, age) {
     <p class="muted">${escapeHtml(d.keyword)} · ${escapeHtml(locName)} · ${escapeHtml(langName)} · ${escapeHtml(d.device)}${d.cost ? ` · cost ${usd(d.cost)}` : ''}</p>
     ${banner}
     ${intent ? `<p>Search intent: ${tag(intent.label, 'neutral')} <span class="muted">${escapeHtml(intent.description)} (${escapeHtml(intent.confidence)} confidence)</span></p>` : ''}
-    ${features.length ? `<div class="card"><h3>On this results page</h3><p>${features.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join(' ')}</p></div>` : ''}
+    ${features.length ? `<div class="card"><h2>On this results page</h2><p>${features.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join(' ')}</p></div>` : ''}
     ${renderAiOverview(d.aiOverview, me)}
     <div class="card">
-      <h3>Top ${d.organic.length} results</h3>
+      <h2>Top ${d.organic.length} results</h2>
       <div class="actions"><button type="button" class="secondary-btn" data-serp-copy>Copy results as table</button></div>
       <ol class="serp-list">
         ${d.organic.map((o) => {
@@ -1394,7 +1394,7 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
   if (active.length < 2) return errorBox('Nothing to compare', 'At least two pages must load.');
 
   const headers = active.map((s) => `<th scope="col" class="${s.isMe ? 'you' : ''}">${escapeHtml(s.label)}<small>${escapeHtml(bareHost(s.data.url))}</small></th>`).join('');
-  const table = (title, rowsHtml) => `<div class="card compare-scroll"><h3>${escapeHtml(title)}</h3>
+  const table = (title, rowsHtml) => `<div class="card compare-scroll"><h2>${escapeHtml(title)}</h2>
     <table class="compare-table"><thead><tr><th scope="col"><span class="visually-hidden">Metric</span></th>${headers}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
 
   const textRow = (label, get) => `<tr><th scope="row">${escapeHtml(label)}</th>${active.map((s) => `<td>${escapeHtml(String(get(s.data) ?? '—').slice(0, 300))}</td>`).join('')}</tr>`;
@@ -1427,7 +1427,7 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
       const hit = ai.references.find((r) => normUrl(r.url) === normUrl(s.data.url)) || ai.references.find((r) => (r.domain || '').replace(/^www\./, '') === host);
       return `<td>${hit ? tag(normUrl(hit.url) === normUrl(s.data.url) ? 'this page' : 'same site', 'good') : '<span class="muted">no</span>'}</td>`;
     }).join('')}</tr>` : '';
-    serpBlock = `<div class="card compare-scroll"><h3>Google for "${escapeHtml(keyword)}"</h3>
+    serpBlock = `<div class="card compare-scroll"><h2>Google for "${escapeHtml(keyword)}"</h2>
       ${intent ? `<p>Search intent: ${tag(intent.label, 'neutral')}</p>` : ''}
       ${ai ? `<p class="muted">${ai.present ? 'Google shows an AI Overview for this search.' : 'No AI Overview for this search.'}</p>` : ''}
       <table class="compare-table"><thead><tr><th scope="col"><span class="visually-hidden">Metric</span></th>${headers}</tr></thead><tbody>${posRow}${aiRow}</tbody></table></div>`;
@@ -1467,7 +1467,7 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
     ${allTypes.length ? `${table('Structured data', schemaRows)}
       ${missing.length ? `<p class="muted">Competitors use ${missing.length} type${missing.length === 1 ? '' : 's'} you don't: ${missing.map((m) => `<strong>${escapeHtml(m)}</strong>`).join(', ')}</p>` : ''}` : ''}
     <div class="card">
-      <h3>Export</h3>
+      <h2>Export</h2>
       <div class="actions">
         <button type="button" class="secondary-btn" data-compare-export="copy-csv">Copy CSV</button>
         <button type="button" class="secondary-btn" data-compare-export="copy-md">Copy Markdown</button>
@@ -1759,7 +1759,10 @@ async function measureImages() {
     applyImageRules(onpageData.images, imageRules);
     renderImagesCard();
     renderVerdict();
-    announce('Image sizes measured');
+    const got = missing.filter((u) => sizes[u] != null).length;
+    const result = got === missing.length ? `Measured ${plural(got, 'image')}` : `Measured ${fmtNum(got)} of ${plural(missing.length, 'image')}; the server gave no size for the rest`;
+    if ($('image-size-status')) $('image-size-status').textContent = result;
+    announce(result);
     // The button is gone once every size is known: keep focus in the images card.
     if (hadFocus) ($('measure-images') || $('images-card')?.querySelector('summary'))?.focus();
   } catch (e) {
@@ -1862,7 +1865,7 @@ function renderOnpage(d, age) {
     <div id="changes-slot"></div>
 
     <details class="card collapsible" open>
-      <summary><h3 class="card-title">Title and description</h3></summary>
+      <summary><h2 class="card-title">Title and description</h2></summary>
       <div class="card-body">
         ${metaField('Title', d.title ? escapeHtml(d.title) : missing('No title'),
           `${charTag(titleLen, 30, 60, 70)} ${pixelTag(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx)} ${d.title ? `<button type="button" class="icon-only copy-btn" data-copy-fn="title" aria-label="Copy title" title="Copy title">${ICON.copy}</button>` : ''}`)}
@@ -1892,7 +1895,7 @@ function renderOnpage(d, age) {
     </details>
 
     <details class="card collapsible" id="headings-card">
-      <summary><h3 class="card-title">Headings (${fmtNum(d.headings.length)})</h3>
+      <summary><h2 class="card-title">Headings (${fmtNum(d.headings.length)})</h2>
         ${h1Count === 1 ? tag('one H1', 'good') : h1Count === 0 ? tag('no H1', 'bad') : tag(`${h1Count} H1s`, 'warn')}</summary>
       <div class="card-body">
         <p class="muted">${[1, 2, 3, 4, 5, 6].map((l) => `H${l}: ${fmtNum(d.headings.filter((h) => h.level === l).length)}`).join(' · ')}</p>
@@ -1905,7 +1908,7 @@ function renderOnpage(d, age) {
     </details>
 
     <details class="card collapsible" id="links-card">
-      <summary><h3 class="card-title">Links (${fmtNum(d.links.total)})</h3>
+      <summary><h2 class="card-title">Links (${fmtNum(d.links.total)})</h2>
         <span class="muted">${fmtNum(d.links.internal)} internal · ${fmtNum(d.links.external)} external</span></summary>
       <div class="card-body">
         ${d.links.total ? `<div class="actions">
@@ -1915,25 +1918,25 @@ function renderOnpage(d, age) {
           <span id="highlight-count" class="muted" role="status"></span>
         </div>` : ''}
         <div id="link-check-status" aria-live="polite"></div>
-        ${filterButtons('kind', [['all', 'All'], ['internal', `Internal ${fmtNum(d.links.internal)}`], ['external', `External ${fmtNum(d.links.external)}`], ['nofollow', `Nofollow ${fmtNum(d.links.nofollow)}`], ...(d.links.broken ? [['broken', `Empty href ${fmtNum(d.links.broken)}`]] : [])], 'all')}
-        ${filterButtons('ctx', [['all', 'Anywhere'], ...ctxOrder.filter((c) => d.links.byContext[c]).map((c) => [c, `${ctxMark(c)}${CONTEXT_NAME[c]} ${fmtNum(d.links.byContext[c])}`])], 'all')}
+        ${d.links.total ? `${filterButtons('kind', [['all', 'All'], ['internal', `Internal ${fmtNum(d.links.internal)}`], ['external', `External ${fmtNum(d.links.external)}`], ['nofollow', `Nofollow ${fmtNum(d.links.nofollow)}`], ...(d.links.broken ? [['broken', `Empty href ${fmtNum(d.links.broken)}`]] : [])], 'all')}
+        ${filterButtons('ctx', [['all', 'Anywhere'], ...ctxOrder.filter((c) => d.links.byContext[c]).map((c) => [c, `${ctxMark(c)}${CONTEXT_NAME[c]} ${fmtNum(d.links.byContext[c])}`])], 'all')}` : ''}
         <div id="check-filters"></div>
         <div id="link-list"></div>
       </div>
     </details>
 
     <details class="card collapsible" id="images-card">
-      <summary><h3 class="card-title">Content images</h3> <span class="card-sum"></span></summary>
+      <summary><h2 class="card-title">Content images</h2> <span class="card-sum"></span></summary>
       <div class="card-body"></div>
     </details>
 
     <details class="card collapsible" id="schema-card">
-      <summary><h3 class="card-title">Structured data</h3>
+      <summary><h2 class="card-title">Structured data</h2>
         ${validated.length === 0 && !microdataTypes.length ? tag('none found', 'warn') : schemaErrors ? tag(`${schemaErrors} error${schemaErrors === 1 ? '' : 's'}`, 'bad') : tag('valid', 'good')}
         ${suggestions.length ? tag(`${suggestions.length} suggestion${suggestions.length === 1 ? '' : 's'}`, 'neutral') : ''}</summary>
       <div class="card-body">
         ${allTypes.length ? `<p>${allTypes.map((t) => `<span class="chip">${escapeHtml(t)}${microdataTypes.includes(t) && !jsonLdTypes.includes(t) ? ' <span class="muted">microdata</span>' : ''}</span>`).join(' ')}</p>` : '<p class="muted">No JSON-LD, microdata or RDFa on this page.</p>'}
-        ${suggestions.length ? `<h4>Worth adding</h4><ul class="plain-list">${suggestions.map((s) => `<li><strong>${escapeHtml(s.type)}</strong> <span class="muted">${escapeHtml(s.priority)} priority</span><div class="hint">${escapeHtml(s.reason)}</div></li>`).join('')}</ul>` : ''}
+        ${suggestions.length ? `<h3>Worth adding</h3><ul class="plain-list">${suggestions.map((s) => `<li><strong>${escapeHtml(s.type)}</strong> <span class="muted">${escapeHtml(s.priority)} priority</span><div class="hint">${escapeHtml(s.reason)}</div></li>`).join('')}</ul>` : ''}
         ${faqDupes.length ? `<div class="notice"><strong>${faqDupes.length} repeated FAQ question${faqDupes.length === 1 ? '' : 's'}</strong>
           <ul class="plain-list">${faqDupes.map((q) => `<li>"${escapeHtml(q.question)}" appears ${q.count} times</li>`).join('')}</ul>
           <div class="hint">Usually a template or plugin mistake. Keep each question once.</div></div>` : ''}
@@ -1955,18 +1958,18 @@ function renderOnpage(d, age) {
 
     ${d.hreflang.length || d.hreflangOutsideHead ? `
     <details class="card collapsible">
-      <summary><h3 class="card-title">Hreflang (${d.hreflang.length})</h3></summary>
+      <summary><h2 class="card-title">Hreflang (${d.hreflang.length})</h2></summary>
       <div class="card-body">${renderHreflang(d)}</div>
     </details>` : ''}
 
     <details class="card collapsible" id="content-card">
-      <summary><h3 class="card-title">Content and keywords</h3> <span class="muted">${fmtNum(d.mainContentWordCount ?? d.wordCount)} words</span></summary>
+      <summary><h2 class="card-title">Content and keywords</h2> <span class="muted">${fmtNum(d.mainContentWordCount ?? d.wordCount)} words</span></summary>
       <div class="card-body">
         ${row('Words in the main content', d.mainContentWordCount != null ? `${fmtNum(d.mainContentWordCount)} <span class="muted">(${escapeHtml(d.mainContentSelector)})</span>` : '<span class="muted">main content not detected</span>')}
         ${row('Words on the whole page', `${fmtNum(d.wordCount)} <span class="muted">incl. menus and footer</span>`)}
         ${row('Text to HTML ratio', `${d.textRatio}%`)}
         <div id="text-analysis"><div class="loading" role="status">Reading the text…</div></div>
-        <h4>Check a keyword</h4>
+        <h3>Check a keyword</h3>
         <div class="inline-form">
           <label class="field"><span>Keyword or phrase</span><input type="text" id="kw-input" placeholder="e.g. trail running shoes" autocomplete="off"></label>
           <button type="button" class="secondary-btn" id="kw-check">Check</button>
@@ -1976,7 +1979,7 @@ function renderOnpage(d, age) {
     </details>
 
     <details class="card collapsible">
-      <summary><h3 class="card-title">Social previews</h3>
+      <summary><h2 class="card-title">Social previews</h2>
         ${ogImage ? (ogSize ? tag(ogSize[1], ogSize[0]) : tag('image size unknown', 'neutral')) : tag('no og:image', 'warn')}</summary>
       <div class="card-body social-grid">
         <figure class="social-card">
@@ -2012,10 +2015,10 @@ async function loadTextAnalysis() {
          ${row('Average sentence', `${read.avgSentence} words`)}
          ${row('Long sentences (25+ words)', `${fmtNum(read.longSentences)} of ${fmtNum(read.sentences)}`)}`;
     const list = (items) => items.length ? `<ol class="plain-list">${items.map((x) => `<li>${escapeHtml(x.term)} <span class="muted">${x.count}× (${x.pct}%)</span></li>`).join('')}</ol>` : '<p class="muted">None repeated.</p>';
-    rerender(box, `<h4>Readability</h4>${readHtml}
+    rerender(box, `<h3>Readability</h3>${readHtml}
       <p class="muted">A rough guide from sentence and word length. Plain language helps every reader.</p>
       <details class="sub"><summary>Most used words and phrases</summary>
-        <div class="term-grid"><div><h4>Words</h4>${list(tf.words)}</div><div><h4>2-word phrases</h4>${list(tf.phrases2)}</div><div><h4>3-word phrases</h4>${list(tf.phrases3)}</div></div>
+        <div class="term-grid"><div><h3>Words</h3>${list(tf.words)}</div><div><h3>2-word phrases</h3>${list(tf.phrases2)}</div><div><h3>3-word phrases</h3>${list(tf.phrases3)}</div></div>
       </details>`);
   } catch (e) {
     if (gen === auditGen) rerender(box, `<p class="muted">Could not read the text: ${escapeHtml(e.message)}</p>`);
@@ -2032,7 +2035,7 @@ async function checkKeyword() {
   const found = rows.filter((r) => r.found).length;
   rerender($('kw-result'), `<p>"${escapeHtml(phrase)}" appears in ${found} of ${rows.length} places.</p>
     ${rows.map((r) => row(escapeHtml(r.place), `${r.found ? tag('yes', 'good') : tag('no', 'warn')} <span class="muted">${escapeHtml(r.detail)}</span>`)).join('')}
-    <p class="muted">Use the phrase where it reads naturally; repeating it more doesn't help.</p>`);
+    <p class="muted">Plural forms count too. Use the phrase where it reads naturally; repeating it more doesn't help.</p>`);
 }
 
 /** Load every hreflang alternate and check status, canonical, noindex and return links. */
@@ -2188,7 +2191,7 @@ function renderTechnical(d, age) {
   return `
     ${cachedBanner(age, 'onpage')}
     <div class="card">
-      <h3>Server answer</h3>
+      <h2>Server answer</h2>
       ${d.fetchError ? `<p class="muted">${escapeHtml(d.fetchError)}</p>` : ''}
       ${row('HTTP status', statusTag)}
       ${row('Final URL', `<span class="mono">${escapeHtml(d.finalUrl)}</span>`)}
@@ -2207,7 +2210,7 @@ function renderTechnical(d, age) {
       const dirs = snippetDirectives(onpageData.robots, xrt);
       const limited = dirs.some((x) => x === 'nosnippet' || /^max-snippet:(0|[1-9]\d?)$/.test(x)) || onpageData.dataNosnippetCount > 0;
       return `<div class="card">
-      <h3>Snippet and AI controls</h3>
+      <h2>Snippet and AI controls</h2>
       <p class="muted">These limit what Google may quote in results and in AI Overviews.</p>
       ${row('Directives', dirs.length ? dirs.map((x) => tag(x, /nosnippet|max-snippet/.test(x) ? 'warn' : 'neutral')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
       ${row('data-nosnippet', onpageData.dataNosnippetCount ? `${fmtNum(onpageData.dataNosnippetCount)} element${onpageData.dataNosnippetCount === 1 ? '' : 's'} kept out of snippets` : '<span class="muted">none</span>')}
@@ -2216,7 +2219,7 @@ function renderTechnical(d, age) {
     })() : ''}
 
     <div class="card">
-      <h3>robots.txt</h3>
+      <h2>robots.txt</h2>
       ${row('File', robots.ok ? tag('found', 'good') : robots.status >= 400 && robots.status < 500 ? '<span class="muted">none (everything allowed)</span>' : tag(robots.status ? `HTTP ${robots.status}` : 'not reachable', 'warn'))}
       ${robots.pathAllowed ? row('This URL for Googlebot', robots.pathAllowed.allowed ? tag('allowed', 'good') : `${tag('blocked', 'bad')} <span class="mono">${escapeHtml(robots.pathAllowed.rule || '')}</span>`) : ''}
       ${row('Sitemaps listed', robots.sitemaps?.length ? fmtNum(robots.sitemaps.length) : '<span class="muted">none</span>')}
@@ -2225,14 +2228,14 @@ function renderTechnical(d, age) {
     </div>
 
     <div class="card">
-      <h3>XML sitemap</h3>
+      <h2>XML sitemap</h2>
       ${row(sitemapPath, d.sitemap?.ok ? tag('valid', 'good') : tag(d.sitemap?.reason || 'not found', 'warn'))}
       ${d.sitemap?.urlCount != null ? row(d.sitemap.isIndex ? 'Sitemaps in this index' : 'URLs listed', `${fmtNum(d.sitemap.urlCount)}${d.sitemap.truncated ? ' <span class="muted">(first 5 MB)</span>' : ''}`) : ''}
       ${d.sitemap?.ok || robots.sitemaps?.length ? `<div class="actions"><button type="button" class="secondary-btn" id="sitemap-check">Is this page in the sitemap?</button></div><div id="sitemap-result" aria-live="polite"></div>` : ''}
     </div>
 
     <div class="card">
-      <h3>Response headers</h3>
+      <h2>Response headers</h2>
       ${Object.keys(d.headers).length ? Object.entries(d.headers).map(([k, v]) => row(`<span class="mono">${escapeHtml(k)}</span>`, `<span class="mono">${escapeHtml(v)}</span>`)).join('') : '<p class="muted">None of the usual SEO headers were sent.</p>'}
     </div>
 
@@ -2291,7 +2294,7 @@ function renderComparison(raw, rendered) {
   const level = Math.abs(pct) > 50 ? ['mostly built by JavaScript', 'warn'] : Math.abs(pct) > 20 ? ['partly built by JavaScript', 'neutral'] : ['mostly in the HTML', 'good'];
   const wordsLost = raw.wordCount < rendered.wordCount * 0.7;
   return `<details class="card collapsible">
-    <summary><h3 class="card-title">JavaScript rendering</h3> ${tag(level[0], level[1])}</summary>
+    <summary><h2 class="card-title">JavaScript rendering</h2> ${tag(level[0], level[1])}</summary>
     <div class="card-body">
       <p class="muted">The HTML the server sends, next to the page after JavaScript ran. Search engines and AI crawlers that don't run JavaScript only see the first.</p>
       <table class="data-table"><thead><tr><th scope="col"></th><th scope="col">Server HTML</th><th scope="col">After JavaScript</th></tr></thead><tbody>
@@ -2400,7 +2403,11 @@ $('toggle-theme').addEventListener('click', async () => {
   announce(dark ? 'Light theme' : 'Dark theme');
 });
 document.addEventListener('click', (e) => {
-  if (e.target.closest("[data-action='open-options']")) chrome.runtime.openOptionsPage();
+  const opt = e.target.closest("[data-action='open-options']");
+  if (!opt) return;
+  // Straight to the right section (Google key, DataForSEO, Bing) instead of the top of Settings.
+  if (opt.dataset.section) chrome.tabs.create({ url: chrome.runtime.getURL(`options.html#${opt.dataset.section}`) });
+  else chrome.runtime.openOptionsPage();
 });
 
 document.addEventListener('click', (e) => {
@@ -2454,6 +2461,7 @@ $('export-audit-header').addEventListener('click', async () => {
     verdict: computeIndexability(onpageData, technicalData),
     theme,
     version: chrome.runtime.getManifest().version,
+    findings: currentFindings,
     storeLink: await storeUrl(),
     fontCss: await reportFontCss()
   });
