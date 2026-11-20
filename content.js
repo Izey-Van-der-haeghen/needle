@@ -362,7 +362,10 @@
         if (!bg || bg === "none") continue;
         for (const m of bg.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
           const u = resolveUrl(m[1]);
-          if (!bgIndex.has(u)) bgIndex.set(u, cands[i]);
+          if (bgIndex.has(u)) continue;
+          // A 0×0 box paints nothing a reader sees; the analysis skips those too.
+          const r = cands[i].getBoundingClientRect();
+          if (r.width || r.height) bgIndex.set(u, cands[i]);
         }
       }
     }

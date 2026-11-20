@@ -5,6 +5,7 @@ import { hasOrigins, requestOrigins, removeOrigins, ALL_SITES, DATAFORSEO } from
 import { TTL, isExpired, clearCache } from "./lib/cache.js";
 import { withStoreLock } from "./lib/store-lock.js";
 import { confirmClick } from "./lib/confirm-button.js";
+import { BING_ORIGINS } from "./lib/bing.js";
 import { storeUrl } from "./lib/links.js";
 
 const $ = (id) => document.getElementById(id);
@@ -112,14 +113,14 @@ $("test-dfs").addEventListener("click", async () => {
 $("save-bing").addEventListener("click", async () => {
   const key = $("bingKey").value.trim();
   if (!key) { say("bing-status", "Paste a key first.", "bad"); return; }
-  const allowed = await requestOrigins(["https://ssl.bing.com/*"]);
+  const allowed = await requestOrigins(BING_ORIGINS);
   await setSecrets({ bingKey: key });
   say("bing-status", allowed ? "Saved." : "Saved. Chrome did not allow access to Bing yet; Needle will ask again.", allowed ? "good" : "bad");
 });
 
 confirmClick($("clear-bing"), async () => {
   await setSecrets({ bingKey: "" });
-  await removeOrigins(["https://ssl.bing.com/*"]);
+  await removeOrigins(BING_ORIGINS);
   $("bingKey").value = "";
   say("bing-status", "Key removed from this device.");
 });

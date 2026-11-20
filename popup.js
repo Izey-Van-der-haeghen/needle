@@ -47,8 +47,9 @@ const ICON = {
 };
 
 const DFS_LOOKUP_COST = DFS_COST.rankedKeywords + DFS_COST.domainOverview;
-/** Dollar amount with at most 3 decimals and no trailing zeros, e.g. $0.025. */
+/** "1 link", "1,280 links". */
 const plural = (n, word) => `${fmtNum(n)} ${word}${n === 1 ? '' : 's'}`;
+/** Dollar amount with at most 3 decimals and no trailing zeros, e.g. $0.025. */
 const usd = (n) => `$${Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`;
 
 // ---------------------------------------------------------------------------
@@ -824,13 +825,13 @@ async function loadGEO(gen = auditGen) {
 
   rerender(slot, `
     <div class="card">
-      <h3>AI search readiness ${tag(`${score.score}/100`, score.level)}</h3>
+      <h3>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h3>
       <p class="muted">Can AI search engines reach and quote this page? Only blocks of AI search bots lower the score; blocking training bots doesn't affect answers.</p>
       <h4>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI search bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI search bots allowed', 'good')}</h4>
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
           <li>
-            ${b.allowed ? tag('allowed', 'good') : tag('blocked', b.kind === 'search' ? 'bad' : 'neutral')}
+            ${!robotsKnown ? tag('unknown', 'neutral') : b.allowed ? tag('allowed', 'good') : tag('blocked', b.kind === 'search' ? 'bad' : 'neutral')}
             <span class="bot-name">${escapeHtml(b.ua)}</span>
             <span class="muted">${escapeHtml(b.vendor)} · ${kindLabel[b.kind]}</span>
             ${!b.allowed && b.rule ? `<span class="mono bot-rule">${escapeHtml(b.rule)}</span>` : ''}
@@ -1559,18 +1560,12 @@ function renderLinkList() {
   }).join('')}</ul>${filtered.length > 200 ? `<p class="muted">First 200 of ${fmtNum(filtered.length)} links.</p>` : ''}`;
 }
 
-async function runLinkCheck(force) {
+async function runLinkCheck() {
   const btn = $('check-broken');
   if (!onpageData?.links?.details || !btn) return;
   const urls = [...new Set(onpageData.links.details.filter((l) => /^https?:/.test(l.href)).map((l) => l.href))];
   if (!urls.length) return;
   const key = cacheKey('linkcheck', pageId(pageUrl));
-  if (!force) {
-    const gen = auditGen;
-    const hit = await getCache(key);
-    if (gen !== auditGen) return;
-    if (hit) { applyLinkCheckResults(hit.data, hit.age); return; }
-  }
   if (!(await hasOrigins(ALL_SITES))) {
     rerender($('link-check-status'), permissionNotice('To check whether links work, Needle has to request each linked page.').replace('data-grant="all-sites"', 'data-grant="all-sites" data-retry="check-broken"'));
     return;
@@ -2118,7 +2113,7 @@ $('panel-onpage').addEventListener('click', async (e) => {
   const t = e.target.closest('button');
   if (!t) return;
   if (t.id === 'toggle-links') setLinkHighlight(t.getAttribute('aria-pressed') !== 'true');
-  else if (t.id === 'check-broken') runLinkCheck(true);
+  else if (t.id === 'check-broken') runLinkCheck();
   else if (t.id === 'measure-images') measureImages();
   else if (t.id === 'kw-check') checkKeyword();
   else if (t.id === 'findings-more') { showAllFindings = !showAllFindings; renderFindings(); }
@@ -2156,7 +2151,7 @@ const copyFunctions = {
   metaTsv: () => {
     if (!onpageData) return '';
     const d = onpageData;
-    const h1s = d.headings.filter((h) => h.level === 1);
+    const h1s = d.headings.filter((h) => h.level === 1 && !h.hidden);
     return [
       ['url', d.url], ['title', d.title], ['title_length', d.title.length],
       ['description', d.description], ['description_length', d.description.length],
@@ -2277,7 +2272,7 @@ async function runVariantsCheck() {
   const gen = auditGen;
   const r = await checkHostVariants(pageUrl);
   if (gen !== auditGen) return;
-  rerender(box, `<p>${r.consistent ? tag(`All versions end on ${r.target}`, 'good') : tag('Versions end on different URLs', 'bad')}</p>
+  rerender(box, `<p>${r.consistent ? tag(`All versions end on ${r.target}`, 'good') : r.target ? tag(`${plural(r.variants.filter((v) => v.error || !v.status).length, 'version')} could not be checked; the others end on ${r.target}`, 'warn') : tag('Versions end on different URLs', 'bad')}</p>
     <table class="data-table"><thead><tr><th scope="col">You type</th><th scope="col">You end on</th></tr></thead><tbody>
     ${r.variants.map((v) => `<tr><td class="mono">${escapeHtml(v.url)}</td><td class="mono">${v.error ? tag(v.error, 'bad') : `${escapeHtml(v.finalUrl)} <span class="muted">${v.status}</span>`}</td></tr>`).join('')}
     </tbody></table>
@@ -2380,7 +2375,7 @@ async function toggleHistory() {
 $('open-history').addEventListener('click', toggleHistory);
 $('close-history').addEventListener('click', closeHistory);
 confirmClick($('clear-history'), async () => {
-  await withStoreLock('history', () => chrome.storage.local.set({ history: [] }));
+  await withStoreLock('history', () => withStoreLock('snapshots', () => chrome.storage.local.set({ history: [], snapshots: {} })));
   $('history-list').innerHTML = '<p class="muted">History cleared.</p>';
   announce('History cleared');
 });

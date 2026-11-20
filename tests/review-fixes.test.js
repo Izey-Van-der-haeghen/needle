@@ -8,7 +8,7 @@ import { fetchCompetitor } from "../lib/compare.js";
 
 describe("cache size", () => {
   const now = Date.now();
-  it("keeps the newest entries within the byte budget, and always the newest one", () => {
+  it("keeps the newest entries within the byte budget, and always the entry just written", () => {
     const big = "x".repeat(600);
     const cache = {
       "onpage::a": { data: big, ts: now - 3 },
@@ -17,6 +17,8 @@ describe("cache size", () => {
     };
     expect(Object.keys(pruneCache(cache, 1400))).toEqual(["onpage::c", "onpage::b"]);
     expect(Object.keys(pruneCache(cache, 10))).toEqual(["onpage::c"]);
+    const withPaid = { ...cache, "serp::big": { data: "x".repeat(2000), ts: now - 5 } };
+    expect(Object.keys(pruneCache(withPaid, 10, "onpage::c"))).toEqual(["onpage::c"]);
   });
 
   it("drops expired entries", () => {

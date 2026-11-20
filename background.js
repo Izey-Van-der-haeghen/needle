@@ -21,7 +21,7 @@ chrome.runtime.onStartup?.addListener(restrictStorage);
 // reload (development) keeps them, so paid results survive.
 chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
   migrateSecrets().catch(() => {});
-  if (reason === "update" && previousVersion !== chrome.runtime.getManifest().version) clearCache();
+  if (reason === "update" && previousVersion !== chrome.runtime.getManifest().version) clearCache().catch(() => {});
 });
 
 // Keyed results depend on the credentials but their cache key does not: when a key
@@ -114,7 +114,8 @@ const handlers = {
     const { psiKey } = await getSecrets();
     // Google gives keyless requests no quota, so don't send the URL anywhere without a key.
     if (!psiKey) throw new UserError("PageSpeed Insights needs a free API key. Add one in Settings.");
-    return cachedCall(cacheKey("psi", pageId(msg.url)), () => withController(msg.viewId, signal => runPageSpeed(pageId(msg.url), psiKey, signal)), { force: !!msg.force });
+    // Not tied to one view: two views may share this request, and the result is cached.
+    return cachedCall(cacheKey("psi", pageId(msg.url)), () => runPageSpeed(pageId(msg.url), psiKey), { force: !!msg.force });
   },
 
   async RUN_DFS(msg) {

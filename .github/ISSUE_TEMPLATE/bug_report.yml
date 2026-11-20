@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in Needle doesn't work or shows a wrong result
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. Please don't post API keys, logins or private pages here. Security problems go by email, see SECURITY.md.
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: The public page you audited, if you can share it.
+      placeholder: https://example.com/page
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you expect, and what did Needle show? A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the page
+        2. Click Needle, Technical tab
+        3. …
+  - type: input
+    id: version
+    attributes:
+      label: Needle and Chrome version
+      description: Needle's version is at the top of Settings; Chrome's is at chrome://version.
+      placeholder: Needle 1.0.0, Chrome 131
+  - type: dropdown
+    id: view
+    attributes:
+      label: Where
+      options:
+        - Popup
+        - Side panel
+        - Settings
+        - Downloaded report
+        - Right-click menu

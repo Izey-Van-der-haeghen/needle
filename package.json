@@ -3,6 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "description": "Needle: all-in-one SEO & GEO tool for Chrome",
+  "author": "Izey Van der Haeghen",
+  "license": "MIT",
+  "homepage": "https://github.com/Izey-Van-der-haeghen/needle#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Izey-Van-der-haeghen/needle.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Izey-Van-der-haeghen/needle/issues"
+  },
   "type": "module",
   "scripts": {
     "test": "vitest run",

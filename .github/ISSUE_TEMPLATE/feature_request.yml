@@ -1,0 +1,23 @@
+name: Idea or feature request
+description: Suggest a check or an improvement
+labels: [idea]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like Needle to help with?
+      description: Describe the problem or the question you have about a page.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How could Needle show or solve it? Links to sources (Google documentation, RFCs) are welcome.
+  - type: checkboxes
+    id: promises
+    attributes:
+      label: Needle's promises
+      description: See CONTRIBUTING.md.
+      options:
+        - label: This works without a new required permission and without sending data anywhere unless the user starts it.
