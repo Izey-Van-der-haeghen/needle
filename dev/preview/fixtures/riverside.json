@@ -1,0 +1,461 @@
+{
+ "name": "riverside",
+ "url": "https://www.riverside-bikes.example/repairs/",
+ "title": "Bike Repairs and Servicing in Riverside | Same-Day Fixes | Riverside Bikes Workshop",
+ "onpage": {
+  "url": "https://www.riverside-bikes.example/repairs/",
+  "title": "Bike Repairs and Servicing in Riverside | Same-Day Fixes | Riverside Bikes Workshop",
+  "generator": "",
+  "description": "Book a bike service or repair at Riverside Bikes. Puncture repairs while you wait, full services from £45 and e-bike checks by trained mechanics.",
+  "descriptionOutsideHead": false,
+  "keywords": "",
+  "canonical": "https://www.riverside-bikes.example/repairs/",
+  "canonicalOutsideHead": false,
+  "canonicalDistinct": 1,
+  "robots": "",
+  "lang": "en-GB",
+  "viewport": "width=device-width, initial-scale=1",
+  "publisherMeta": "",
+  "og": {
+   "title": "Bike repairs and servicing in Riverside",
+   "description": "Puncture repairs while you wait and full services by trained mechanics.",
+   "image": "https://www.riverside-bikes.example/img/workshop-og.jpg",
+   "imageWidth": 0,
+   "imageHeight": 0,
+   "type": "website",
+   "url": "",
+   "siteName": ""
+  },
+  "twitter": {
+   "card": "summary_large_image",
+   "title": "",
+   "description": "",
+   "image": "",
+   "site": ""
+  },
+  "headings": [
+   {
+    "level": 1,
+    "text": "Bike repairs and servicing in Riverside",
+    "hidden": false
+   },
+   {
+    "level": 2,
+    "text": "What does a service include?",
+    "hidden": false
+   },
+   {
+    "level": 2,
+    "text": "Prices",
+    "hidden": false
+   },
+   {
+    "level": 4,
+    "text": "Parts",
+    "hidden": false
+   },
+   {
+    "level": 2,
+    "text": "Questions",
+    "hidden": false
+   },
+   {
+    "level": 3,
+    "text": "How long does a repair take?",
+    "hidden": false
+   },
+   {
+    "level": 3,
+    "text": "Do you repair e-bikes?",
+    "hidden": false
+   }
+  ],
+  "links": {
+   "internal": 10,
+   "external": 2,
+   "nofollow": 1,
+   "broken": 1,
+   "total": 13,
+   "byContext": {
+    "header": 1,
+    "nav": 5,
+    "breadcrumb": 1,
+    "main": 3,
+    "sidebar": 0,
+    "footer": 3,
+    "other": 0
+   },
+   "details": [
+    {
+     "index": 0,
+     "href": "https://www.riverside-bikes.example/",
+     "text": "Riverside Bikes",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "header"
+    },
+    {
+     "index": 1,
+     "href": "https://www.riverside-bikes.example/bikes/",
+     "text": "Bikes",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "nav"
+    },
+    {
+     "index": 2,
+     "href": "https://www.riverside-bikes.example/repairs/",
+     "text": "Repairs",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "nav"
+    },
+    {
+     "index": 3,
+     "href": "https://www.riverside-bikes.example/e-bikes/",
+     "text": "E-bikes",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "nav"
+    },
+    {
+     "index": 4,
+     "href": "https://www.riverside-bikes.example/contact/",
+     "text": "Contact",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "nav"
+    },
+    {
+     "index": 5,
+     "href": "https://www.riverside-bikes.example/nl/herstellingen/",
+     "text": "Nederlands",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "nav"
+    },
+    {
+     "index": 6,
+     "href": "https://www.riverside-bikes.example/",
+     "text": "Home",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "breadcrumb"
+    },
+    {
+     "index": 7,
+     "href": "https://www.riverside-bikes.example/book/",
+     "text": "Book a repair",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "main"
+    },
+    {
+     "index": 8,
+     "href": "https://www.example.org/brands",
+     "text": "well-known brands",
+     "internal": false,
+     "external": true,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "main"
+    },
+    {
+     "index": 9,
+     "href": "https://www.riverside-bikes.example/repairs/",
+     "text": "Read more",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": true,
+     "context": "main"
+    },
+    {
+     "index": 10,
+     "href": "https://www.riverside-bikes.example/privacy/",
+     "text": "Privacy",
+     "internal": true,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "footer"
+    },
+    {
+     "index": 11,
+     "href": "https://www.instagram.com/riversidebikes.example",
+     "text": "Instagram",
+     "internal": false,
+     "external": true,
+     "nofollow": true,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "footer"
+    },
+    {
+     "index": 12,
+     "href": "tel:+440000000000",
+     "text": "Call us",
+     "internal": false,
+     "external": false,
+     "nofollow": false,
+     "ugc": false,
+     "sponsored": false,
+     "broken": false,
+     "context": "footer"
+    }
+   ]
+  },
+  "images": [
+   {
+    "domIndex": 0,
+    "missingDims": false,
+    "src": "https://www.riverside-bikes.example/img/logo.svg",
+    "alt": "Riverside Bikes",
+    "altMissing": false,
+    "naturalWidth": 160,
+    "naturalHeight": 40,
+    "displayedWidth": 160,
+    "displayedHeight": 40,
+    "lazy": false,
+    "format": "svg",
+    "bytes": 0,
+    "oversized": false,
+    "downscaled": false,
+    "upscaled": false,
+    "aboveFold": false,
+    "lazyAboveFold": false,
+    "brokenLoad": false,
+    "context": "header",
+    "isBackground": false
+   },
+   {
+    "domIndex": 1,
+    "missingDims": false,
+    "src": "https://www.riverside-bikes.example/img/workshop-hero.jpg",
+    "alt": "Mechanic truing a wheel in the Riverside Bikes workshop",
+    "altMissing": false,
+    "naturalWidth": 1600,
+    "naturalHeight": 900,
+    "displayedWidth": 375,
+    "displayedHeight": 211,
+    "lazy": true,
+    "format": "jpg",
+    "bytes": 412000,
+    "oversized": true,
+    "downscaled": true,
+    "upscaled": false,
+    "aboveFold": true,
+    "lazyAboveFold": true,
+    "brokenLoad": false,
+    "context": "main",
+    "isBackground": false
+   },
+   {
+    "domIndex": 2,
+    "missingDims": false,
+    "src": "https://www.riverside-bikes.example/img/IMG_4821.jpg",
+    "alt": "",
+    "altMissing": true,
+    "naturalWidth": 1200,
+    "naturalHeight": 800,
+    "displayedWidth": 375,
+    "displayedHeight": 250,
+    "lazy": false,
+    "format": "jpg",
+    "bytes": 96000,
+    "oversized": false,
+    "downscaled": true,
+    "upscaled": false,
+    "aboveFold": false,
+    "lazyAboveFold": false,
+    "brokenLoad": false,
+    "context": "main",
+    "isBackground": false
+   }
+  ],
+  "imagesByContext": {
+   "header": 1,
+   "nav": 0,
+   "breadcrumb": 0,
+   "main": 2,
+   "sidebar": 0,
+   "footer": 0,
+   "other": 0
+  },
+  "schema": [
+   {
+    "type": "BikeStore",
+    "raw": {
+     "@context": "https://schema.org",
+     "@type": "BikeStore",
+     "name": "Riverside Bikes",
+     "url": "https://www.riverside-bikes.example/",
+     "logo": "https://www.riverside-bikes.example/img/logo.png",
+     "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "12 Mill Lane",
+      "addressLocality": "Riverside",
+      "addressCountry": "GB"
+     },
+     "sameAs": [
+      "https://www.instagram.com/riversidebikes.example"
+     ]
+    }
+   },
+   {
+    "type": "BreadcrumbList",
+    "raw": {
+     "@context": "https://schema.org",
+     "@type": "BreadcrumbList",
+     "itemListElement": [
+      {
+       "@type": "ListItem",
+       "position": 1,
+       "name": "Home",
+       "item": "https://www.riverside-bikes.example/"
+      },
+      {
+       "@type": "ListItem",
+       "position": 2,
+       "name": "Repairs"
+      }
+     ]
+    }
+   },
+   {
+    "type": "Service",
+    "raw": {
+     "@context": "https://schema.org",
+     "@type": "Service",
+     "name": "Bike repairs and servicing",
+     "provider": {
+      "@id": "https://www.riverside-bikes.example/#store"
+     }
+    }
+   }
+  ],
+  "microdataTypes": [],
+  "hreflang": [
+   {
+    "lang": "en-GB",
+    "href": "https://www.riverside-bikes.example/repairs/"
+   },
+   {
+    "lang": "nl-BE",
+    "href": "https://www.riverside-bikes.example/nl/herstellingen/"
+   },
+   {
+    "lang": "x-default",
+    "href": "https://www.riverside-bikes.example/repairs/"
+   }
+  ],
+  "hreflangOutsideHead": 0,
+  "wordCount": 160,
+  "mainContentWordCount": 148,
+  "mainContentSelector": "main",
+  "textRatio": 22,
+  "authorMeta": "",
+  "authorByline": "",
+  "publishedMeta": "",
+  "modifiedMeta": "",
+  "externalLinkCount": 2,
+  "listCount": 1,
+  "tableCount": 1,
+  "dataNosnippetCount": 0,
+  "mixedContent": [],
+  "schemaSignals": {
+   "hasBreadcrumb": true,
+   "hasVideoEmbed": false,
+   "hasArticleTag": false,
+   "faqQuestionCount": 3,
+   "hasPricing": true,
+   "hasCartButton": false,
+   "hasRating": false,
+   "hasAddress": false,
+   "hasPhone": true,
+   "hasOpeningHours": false,
+   "hasAuthorByline": false,
+   "hasPublishDate": false,
+   "isHomepage": false,
+   "ingredientHints": false,
+   "stepsListed": false,
+   "jobSignals": false
+  }
+ },
+ "rendered": {
+  "htmlLen": 4339,
+  "wordCount": 160,
+  "headings": 7,
+  "links": 13,
+  "schema": 1
+ },
+ "main": {
+  "text": "Bike repairs and servicing in Riverside\n\nBring your bike to our workshop on Mill Lane and we will tell you what it needs before we start. Most punctures are fixed while you wait. A full service takes one working day.\n\nBook a repair or call in without an appointment.\n\nWhat does a service include?\nGears and brakes adjusted\nChain cleaned and lubricated\nWheels checked and trued\nSafety check of frame, bolts and tyres\nPrices\nRepair\tPrice\nPuncture repair\t£12\nFull service\t£45\nE-bike check\t£55\nParts\n\nParts are charged separately. We use parts from well-known brands and always show you the old part we replaced.\n\nQuestions\nHow long does a repair take?\n\nPunctures take about twenty minutes. Brake and gear repairs are usually ready the same day.\n\nDo you repair e-bikes?\n\nYes. Our mechanics are trained for the motors and batteries of the common e-bike systems.\n\nRead more",
+  "lang": "en-GB"
+ },
+ "pages": {
+  "https://www.riverside-bikes.example/repairs/": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "max-age=600",
+    "strict-transport-security": "max-age=31536000",
+    "server": "demo"
+   },
+   "text": "<!DOCTYPE html>\n<!-- Fictional demo page for Needle's preview and store screenshots. Riverside Bikes does not exist. -->\n<html lang=\"en-GB\">\n<head>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <title>Bike Repairs and Servicing in Riverside | Same-Day Fixes | Riverside Bikes Workshop</title>\n  <meta name=\"description\" content=\"Book a bike service or repair at Riverside Bikes. Puncture repairs while you wait, full services from £45 and e-bike checks by trained mechanics.\">\n  <link rel=\"canonical\" href=\"https://www.riverside-bikes.example/repairs/\">\n  <link rel=\"alternate\" hreflang=\"en-GB\" href=\"https://www.riverside-bikes.example/repairs/\">\n  <link rel=\"alternate\" hreflang=\"nl-BE\" href=\"https://www.riverside-bikes.example/nl/herstellingen/\">\n  <link rel=\"alternate\" hreflang=\"x-default\" href=\"https://www.riverside-bikes.example/repairs/\">\n  <meta property=\"og:title\" content=\"Bike repairs and servicing in Riverside\">\n  <meta property=\"og:description\" content=\"Puncture repairs while you wait and full services by trained mechanics.\">\n  <meta property=\"og:image\" content=\"https://www.riverside-bikes.example/img/workshop-og.jpg\">\n  <meta property=\"og:type\" content=\"website\">\n  <meta name=\"twitter:card\" content=\"summary_large_image\">\n  <script type=\"application/ld+json\">\n  {\"@context\": \"https://schema.org\", \"@graph\": [\n    {\"@type\": \"BikeStore\", \"name\": \"Riverside Bikes\", \"url\": \"https://www.riverside-bikes.example/\",\n     \"logo\": \"https://www.riverside-bikes.example/img/logo.png\",\n     \"address\": {\"@type\": \"PostalAddress\", \"streetAddress\": \"12 Mill Lane\", \"addressLocality\": \"Riverside\", \"addressCountry\": \"GB\"},\n     \"sameAs\": [\"https://www.instagram.com/riversidebikes.example\"]},\n    {\"@type\": \"BreadcrumbList\", \"itemListElement\": [\n      {\"@type\": \"ListItem\", \"position\": 1, \"name\": \"Home\", \"item\": \"https://www.riverside-bikes.example/\"},\n      {\"@type\": \"ListItem\", \"position\": 2, \"name\": \"Repairs\"}]},\n    {\"@type\": \"Service\", \"name\": \"Bike repairs and servicing\", \"provider\": {\"@id\": \"https://www.riverside-bikes.example/#store\"}}\n  ]}\n  </script>\n</head>\n<body>\n  <header class=\"site-header\">\n    <a href=\"/\"><img src=\"/img/logo.svg\" alt=\"Riverside Bikes\" width=\"160\" height=\"40\"></a>\n    <nav aria-label=\"Main\">\n      <a href=\"/bikes/\">Bikes</a>\n      <a href=\"/repairs/\">Repairs</a>\n      <a href=\"/e-bikes/\">E-bikes</a>\n      <a href=\"/contact/\">Contact</a>\n      <a href=\"/nl/herstellingen/\" hreflang=\"nl-BE\">Nederlands</a>\n    </nav>\n  </header>\n  <nav class=\"breadcrumb\" aria-label=\"Breadcrumb\"><a href=\"/\">Home</a> › <span>Repairs</span></nav>\n  <main>\n    <h1>Bike repairs and servicing in Riverside</h1>\n    <img src=\"/img/workshop-hero.jpg\" alt=\"Mechanic truing a wheel in the Riverside Bikes workshop\" width=\"1600\" height=\"900\" loading=\"lazy\" data-test-rect=\"0,180,375,211\">\n    <p>Bring your bike to our workshop on Mill Lane and we will tell you what it needs before we start. Most punctures are fixed while you wait. A full service takes one working day.</p>\n    <p><a href=\"/book/\">Book a repair</a> or call in without an appointment.</p>\n    <h2>What does a service include?</h2>\n    <ul>\n      <li>Gears and brakes adjusted</li>\n      <li>Chain cleaned and lubricated</li>\n      <li>Wheels checked and trued</li>\n      <li>Safety check of frame, bolts and tyres</li>\n    </ul>\n    <img src=\"/img/IMG_4821.jpg\" width=\"1200\" height=\"800\" data-test-rect=\"0,900,375,250\">\n    <h2>Prices</h2>\n    <table>\n      <tr><th>Repair</th><th>Price</th></tr>\n      <tr><td>Puncture repair</td><td>£12</td></tr>\n      <tr><td>Full service</td><td>£45</td></tr>\n      <tr><td>E-bike check</td><td>£55</td></tr>\n    </table>\n    <h4>Parts</h4>\n    <p>Parts are charged separately. We use parts from <a href=\"https://www.example.org/brands\">well-known brands</a> and always show you the old part we replaced.</p>\n    <h2>Questions</h2>\n    <h3>How long does a repair take?</h3>\n    <p>Punctures take about twenty minutes. Brake and gear repairs are usually ready the same day.</p>\n    <h3>Do you repair e-bikes?</h3>\n    <p>Yes. Our mechanics are trained for the motors and batteries of the common e-bike systems.</p>\n    <a href=\"\">Read more</a>\n  </main>\n  <footer>\n    <a href=\"/privacy/\">Privacy</a>\n    <a href=\"https://www.instagram.com/riversidebikes.example\" rel=\"nofollow\">Instagram</a>\n    <a href=\"tel:+440000000000\">Call us</a>\n  </footer>\n</body>\n</html>\n"
+  },
+  "https://www.riverside-bikes.example/robots.txt": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/plain"
+   },
+   "text": "User-agent: *\nDisallow: /checkout/\nDisallow: /*?sort=\n\nUser-agent: GPTBot\nDisallow: /\n\nUser-agent: CCBot\nDisallow: /\n\nSitemap: https://www.riverside-bikes.example/sitemap.xml\n"
+  },
+  "https://www.riverside-bikes.example/sitemap.xml": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/xml"
+   },
+   "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <url><loc>https://www.riverside-bikes.example/</loc></url>\n  <url><loc>https://www.riverside-bikes.example/bikes/</loc></url>\n  <url><loc>https://www.riverside-bikes.example/repairs/</loc></url>\n  <url><loc>https://www.riverside-bikes.example/e-bikes/</loc></url>\n  <url><loc>https://www.riverside-bikes.example/contact/</loc></url>\n</urlset>\n"
+  }
+ }
+}

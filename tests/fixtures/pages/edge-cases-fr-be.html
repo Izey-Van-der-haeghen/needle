@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<!-- Synthetic fr-BE page full of edge cases for tests/content.test.js. Not a copy of a real site. -->
+<!-- Load it at https://www.example.be/fr-be/atelier/velo/ so the <base href> and the relative canonical matter. -->
+<html lang="fr-BE">
+<head>
+<meta charset="utf-8">
+<base href="https://www.example.be/fr-be/">
+<title>Vélo : comparez des ateliers | Example</title>
+<meta NAME="ROBOTS" CONTENT="NOINDEX">
+<meta name="robots" content="index, follow">
+<meta name="googlebot" content="noindex, nofollow">
+<link rel="canonical" href="atelier/velo/">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Organization", "name": "Example",}</script>
+<script type="application/ld+json"><!--
+{"@context": "https://schema.org", "@type": "WebPage", "name": "Vélo"}
+--></script>
+<style>
+  .hero { background-image: url("/img/velo-hero.jpg"); }
+  .promo { background: #fff url(/img/promo.png) no-repeat; }
+  .degrade { background-image: linear-gradient(#fff, #eee); }
+</style>
+<!-- An <img> is not allowed in <head>: the parser closes <head> here, so the meta and link below end up in <body>. -->
+<img src="https://tracker.example.net/pixel.gif" width="1" height="1" alt="">
+<meta name="description" content="Comparez gratuitement des ateliers de réparation de votre région.">
+<link rel="alternate" hreflang="fr-BE" href="https://www.example.be/fr-be/atelier/velo/">
+</head>
+<body>
+<h1><svg width="24" height="24" aria-hidden="true"><title>Icône vélo</title><path d="M3 12l9-9 9 9"></path></svg>Vélo : comparez des ateliers</h1>
+<h2 hidden>Titre caché par l'attribut hidden</h2>
+<h2 style="display:none">Titre caché par display:none</h2>
+
+<section class="hero" data-test-rect="0,40,375,200"><p>Un vélo neuf ? Recevez plusieurs offres.</p></section>
+<div class="promo" data-test-rect="0,240,375,120"></div>
+<div class="degrade" data-test-rect="0,360,375,40"></div>
+<div style="background-image: url('data:image/gif;base64,R0lGODlhAQABAAAAACw=')" data-test-rect="0,400,10,10"></div>
+<img src="/img/velo.jpg" alt="Mécanicien sur un vélo">
+<div style="background-image: url('/img/velo.jpg')" data-test-rect="0,410,375,200"></div>
+
+<p>
+  <a href="rendez-vous/">Demander un rendez-vous</a>
+  <a href="//www.example.be/fr-be/contact/">Contact</a>
+  <a href="//cdn.example.net/guide-velo.pdf">Guide PDF</a>
+  <a href="mailto:info@example.be">info@example.be</a>
+  <a href="tel:+3220000000">Appelez-nous</a>
+  <a href="javascript:void(0)">Ouvrir le chat</a>
+  <a href="#">Haut de page</a>
+  <a href="#faq">FAQ</a>
+  <a href="">Lien vide</a>
+</p>
+</body>
+</html>

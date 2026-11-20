@@ -1,0 +1,19 @@
+/* Needle typefaces, both under the SIL Open Font License 1.1 (see the OFL-*.txt files).
+   Latin subsets; characters outside them fall back to system fonts. */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  src: url("atkinson-hyperlegible-next-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  src: url("martian-mono-latin.woff2") format("woff2");
+  font-weight: 100 800;
+  font-stretch: 75% 112.5%;
+  font-style: normal;
+  font-display: swap;
+}

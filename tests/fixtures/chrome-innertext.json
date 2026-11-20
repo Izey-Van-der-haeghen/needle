@@ -1,0 +1,184 @@
+{
+  "about": "innerText as Chrome 155.0.0.0 on macOS returns it, for tests/content-harness.test.js. Each html was put in a <div> appended to the <body> of a standards-mode page, and innerText was read on that <div>, or on the element that `of` selects. Measure new cases in Chrome; never write an expected string by hand.",
+  "cases": {
+    "harness-selftest": {
+      "html": "<main>\n      <h1>Een<svg><title>icoon</title></svg></h1><p>twee<br>drie</p><ul><li>vier</li><li>vijf</li></ul>\n      <script>var zes = \"zes\";</script><style>p {}</style><noscript><p>zeven</p></noscript><template><p>acht</p></template>\n      <p hidden>negen</p><p style=\"display: none\">tien</p></main>",
+      "innerText": "Een\n\ntwee\ndrie\n\nvier\nvijf"
+    },
+    "word-count": {
+      "html": "<main><p>een twee drie</p><p hidden>verborgen</p><script>var verborgen = 1;</script></main><footer><p>vier vijf</p></footer>",
+      "innerText": "een twee drie\n\nvier vijf"
+    },
+    "blocks-table-list": {
+      "html": "<p>een twee drie</p><p>vier</p>tekst<br>na br<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table><ul><li>li1</li><li>li2</li></ul><h2>kop</h2><span>in</span><span>line</span>",
+      "innerText": "een twee drie\n\nvier\n\ntekst\nna br\na\tb\nc\td\nli1\nli2\nkop\ninline"
+    },
+    "skipped-content": {
+      "html": "<details><summary>Vraag?</summary><p>Verborgen antwoord</p></details><dialog><p>dialoog</p></dialog><textarea>tekstvak</textarea><svg width=\"10\" height=\"10\"><desc>beschrijving</desc><text>svgtekst</text></svg><span style=\"visibility:hidden\">onzichtbaar</span><div style=\"display:none\">css verborgen</div><span>hoofdletters</span><select><option>optie1</option><option>optie2</option></select><input value=\"invoer\"><button>knop</button>",
+      "innerText": "Vraag?\nsvgtekst\nhoofdletters\noptie1\noptie2\nknop"
+    },
+    "phone-paragraphs": {
+      "html": "<p>Sinds 2004</p><p>12 34 klanten</p>",
+      "innerText": "Sinds 2004\n\n12 34 klanten"
+    },
+    "open-details-dialog": {
+      "html": "<details open><summary>Vraag?</summary><p>Antwoord</p></details><dialog open><p>dialoog</p></dialog>",
+      "innerText": "Vraag?\n\nAntwoord\n\ndialoog"
+    },
+    "visibility-nested": {
+      "html": "<div style=\"visibility:hidden\">weg <span style=\"visibility:visible\">zichtbaar</span> weg</div><div>daarna</div>",
+      "innerText": "zichtbaar\ndaarna"
+    },
+    "whitespace": {
+      "html": "<div>  a   <b> b </b>  c  </div><div><span>d</span> <span>e</span></div><p>f<br></p><p>g</p><div><div>h</div>i</div>",
+      "innerText": "a b c\nd e\n\nf\n\n\ng\n\nh\ni"
+    },
+    "inline-buttons": {
+      "html": "<p>Klik <a href=\"#\">hier</a> of <button>knop</button><button>twee</button> nu.</p><nav><a href=\"/a\">A</a><a href=\"/b\">B</a></nav>",
+      "innerText": "Klik hier of knoptwee nu.\n\nAB"
+    },
+    "faq-details": {
+      "html": "<h2>FAQ</h2><details><summary>Wat kost een ketting?</summary><p>Tussen 80 en 150 euro per m².</p></details><details><summary>Hoe lang duurt het?</summary><p>Een week.</p></details>",
+      "innerText": "FAQ\nWat kost een ketting?\nHoe lang duurt het?"
+    },
+    "details-bare-text": {
+      "html": "<details><summary>Vraag</summary>Kaal antwoord <b>vet</b></details><p>na</p>",
+      "innerText": "Vraag\n\nna"
+    },
+    "details-nested": {
+      "html": "<details open><summary>V1</summary><details><summary>V2</summary><p>weg</p></details><p>A1</p></details>",
+      "innerText": "V1\nV2\n\nA1"
+    },
+    "details-second-summary": {
+      "html": "<details><summary>eerste</summary><summary>tweede</summary><p>weg</p></details>",
+      "innerText": "eerste"
+    },
+    "details-no-summary": {
+      "html": "<details><p>geen summary</p></details><p>na</p>",
+      "innerText": "na"
+    },
+    "hidden-attribute": {
+      "html": "<p>een</p><p hidden>twee</p><div hidden><p>drie</p></div><p>vier</p>",
+      "innerText": "een\n\nvier"
+    },
+    "stylesheet-display-none": {
+      "html": "<style>.weg{display:none}</style><p>een</p><p class=\"weg\">twee</p><p>drie</p>",
+      "innerText": "een\n\ndrie"
+    },
+    "media-fallback": {
+      "html": "<p>een</p><video>video-fallback</video><audio>audio-fallback</audio><canvas>canvas-fallback</canvas><iframe>iframe-tekst</iframe><object>object-fallback</object><p>twee</p>",
+      "innerText": "een\n\ntwee"
+    },
+    "svg-text": {
+      "html": "<svg width=\"10\" height=\"10\"><text>een</text><text>twee</text></svg><span>drie</span>",
+      "innerText": "een\ntwee\ndrie"
+    },
+    "inline-block": {
+      "html": "<span style=\"display:inline-block\">een</span><span style=\"display:inline-block\">twee</span> drie",
+      "innerText": "eentwee drie"
+    },
+    "block-span": {
+      "html": "een<span style=\"display:block\">twee</span>drie",
+      "innerText": "een\ntwee\ndrie"
+    },
+    "inline-li": {
+      "html": "<ul style=\"list-style:none\"><li style=\"display:inline\">een</li><li style=\"display:inline\">twee</li></ul>",
+      "innerText": "eentwee"
+    },
+    "inline-p": {
+      "html": "een<p style=\"display:inline\">twee</p>drie",
+      "innerText": "een\n\ntwee\n\ndrie"
+    },
+    "flex-grid-items": {
+      "html": "<div style=\"display:flex\"><span>een</span><span>twee</span></div><div style=\"display:grid\"><span>drie</span><span>vier</span></div>",
+      "innerText": "een\ntwee\ndrie\nvier"
+    },
+    "fixed-and-inline-flex": {
+      "html": "<span style=\"position:fixed\">een</span><span>twee</span><span style=\"display:inline-flex\"><span>drie</span><span>vier</span></span><span>vijf</span>",
+      "innerText": "een\ntwee\ndrie\nvier\nvijf"
+    },
+    "float-and-absolute": {
+      "html": "<span style=\"float:left\">een</span><span>twee</span><span style=\"position:absolute\">drie</span><span>vier</span>",
+      "innerText": "een\ntwee\ndrie\nvier"
+    },
+    "relative-and-sticky": {
+      "html": "<span style=\"position:relative\">een</span><span style=\"position:sticky\">twee</span>",
+      "innerText": "eentwee"
+    },
+    "display-contents": {
+      "html": "<div style=\"display:contents\"><p>een</p>twee</div>",
+      "innerText": "een\n\ntwee"
+    },
+    "visibility-hidden-block": {
+      "html": "een<div style=\"visibility:hidden\">x</div>twee",
+      "innerText": "eentwee"
+    },
+    "visibility-hidden-br": {
+      "html": "een<span style=\"visibility:hidden\"><br></span>twee",
+      "innerText": "eentwee"
+    },
+    "table-caption": {
+      "html": "<table><caption>Titel</caption><tr><th>a</th><td>b</td></tr></table>",
+      "innerText": "Titel\na\tb"
+    },
+    "table-sections": {
+      "html": "<table><thead><tr><th>Dienst</th><th>Prijs</th></tr></thead><tbody><tr><td>Band</td><td>€ 80</td></tr><tr><td>Goot</td><td>€ 40</td></tr></tbody><tfoot><tr><td>Totaal</td><td>€ 120</td></tr></tfoot></table>",
+      "innerText": "Dienst\tPrijs\nBand\t€ 80\nGoot\t€ 40\nTotaal\t€ 120"
+    },
+    "table-tfoot-first": {
+      "html": "<table><tfoot><tr><td>voet</td></tr></tfoot><tbody><tr><td>lijf</td></tr></tbody></table>",
+      "innerText": "voet\nlijf"
+    },
+    "table-hidden-cell": {
+      "html": "<table><tr><td>a</td><td style=\"display:none\">b</td></tr></table>",
+      "innerText": "a"
+    },
+    "definition-list": {
+      "html": "<dl><dt>Term</dt><dd>Uitleg</dd></dl>",
+      "innerText": "Term\nUitleg"
+    },
+    "section-heading-footer": {
+      "html": "<section><h2>Kop</h2><p>Tekst</p></section><footer>Voet</footer>",
+      "innerText": "Kop\n\nTekst\n\nVoet"
+    },
+    "empty-blocks": {
+      "html": "<div></div><div><span></span></div><p></p>een<div></div>twee",
+      "innerText": "een\ntwee"
+    },
+    "br-runs": {
+      "html": "een<br>twee<br><br>drie",
+      "innerText": "een\ntwee\n\ndrie"
+    },
+    "spaces-around-br": {
+      "html": "een <br> twee",
+      "innerText": "een\ntwee"
+    },
+    "leading-br": {
+      "html": "<br>een",
+      "innerText": "\neen"
+    },
+    "trailing-br-in-p": {
+      "html": "<p>x<br></p>",
+      "innerText": "x\n"
+    },
+    "nbsp": {
+      "html": "<p>&nbsp;een&nbsp;&nbsp;twee&nbsp;</p>",
+      "innerText": " een  twee "
+    },
+    "of-element-in-closed-details": {
+      "html": "<details><summary>V</summary><p id=\"antwoord\">Antwoord <b>vet</b></p></details>",
+      "of": "#antwoord",
+      "innerText": ""
+    },
+    "of-element-in-display-none": {
+      "html": "<div style=\"display:none\"><p id=\"weg\">Weg <b>vet</b><script>code</script></p></div>",
+      "of": "#weg",
+      "innerText": "Weg vetcode"
+    },
+    "of-visibility-hidden-element": {
+      "html": "<span id=\"vh\" style=\"visibility:hidden\">onzichtbaar <b style=\"visibility:visible\">zichtbaar</b></span>",
+      "of": "#vh",
+      "innerText": "zichtbaar"
+    }
+  }
+}

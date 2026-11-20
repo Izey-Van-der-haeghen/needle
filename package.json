@@ -1,0 +1,17 @@
+{
+  "name": "needle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Needle: all-in-one SEO & GEO tool for Chrome",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "node tools/package.mjs",
+    "icons": "python3 tools/make-icons.py"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "jsdom": "^25.0.0"
+  }
+}

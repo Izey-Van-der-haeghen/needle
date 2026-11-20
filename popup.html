@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Needle</title>
+    <script src="theme-boot.js"></script>
+    <link rel="stylesheet" href="fonts/fonts.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><span class="brand-dot" aria-hidden="true"></span>needle</div>
+      <div class="url" id="current-url" title="">—</div>
+      <button class="icon-btn" id="export-audit-header" type="button" aria-label="Download report" title="Download report (HTML)" hidden>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12"/></svg>
+      </button>
+      <button class="icon-btn" id="open-history" type="button" aria-label="Recent pages" title="Recent pages" aria-expanded="false" aria-controls="history-panel">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l3 2"/></svg>
+      </button>
+      <button class="icon-btn" id="toggle-theme" type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+        <svg class="icon-moon" viewBox="0 0 20 20" aria-hidden="true"><path d="M16.5 12.2A7 7 0 0 1 7.8 3.5a7 7 0 1 0 8.7 8.7z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3.4"/><path d="M10 1.8v2.4M10 15.8v2.4M1.8 10h2.4M15.8 10h2.4M4.2 4.2l1.7 1.7M14.1 14.1l1.7 1.7M4.2 15.8l1.7-1.7M14.1 5.9l1.7-1.7"/></svg>
+      </button>
+      <button class="icon-btn" id="open-options" type="button" aria-label="Settings" title="Settings">
+        <svg viewBox="-2 -2 28 28" aria-hidden="true"><path d="M19.38 10.17 L21.86 10.36 L21.86 13.64 L19.38 13.83 L18.51 15.92 L20.14 17.81 L17.81 20.14 L15.92 18.51 L13.83 19.38 L13.64 21.86 L10.36 21.86 L10.17 19.38 L8.08 18.51 L6.19 20.14 L3.86 17.81 L5.49 15.92 L4.62 13.83 L2.14 13.64 L2.14 10.36 L4.62 10.17 L5.49 8.08 L3.86 6.19 L6.19 3.86 L8.08 5.49 L10.17 4.62 L10.36 2.14 L13.64 2.14 L13.83 4.62 L15.92 5.49 L17.81 3.86 L20.14 6.19 L18.51 8.08 Z"/><circle cx="12" cy="12" r="3.2"/></svg>
+      </button>
+    </header>
+
+    <section class="history-panel" id="history-panel" aria-label="Recent pages" hidden>
+      <div class="history-header">
+        <h2>Recent pages</h2>
+        <button id="clear-history" type="button" class="link-btn">Clear history</button>
+        <button id="close-history" type="button" class="secondary-btn">Back to the audit</button>
+      </div>
+      <div id="history-list"></div>
+    </section>
+
+    <nav class="tabs" role="tablist" aria-label="Audit sections">
+      <button class="tab active" role="tab" id="tab-onpage" data-tab="onpage" aria-controls="panel-onpage" aria-selected="true">On-page</button>
+      <button class="tab" role="tab" id="tab-technical" data-tab="technical" aria-controls="panel-technical" aria-selected="false" tabindex="-1">Technical</button>
+      <button class="tab" role="tab" id="tab-ai" data-tab="ai" aria-controls="panel-ai" aria-selected="false" tabindex="-1">AI</button>
+      <button class="tab" role="tab" id="tab-offpage" data-tab="offpage" aria-controls="panel-offpage" aria-selected="false" tabindex="-1">Speed &amp; keywords</button>
+      <button class="tab" role="tab" id="tab-compare" data-tab="compare" aria-controls="panel-compare" aria-selected="false" tabindex="-1">Compare</button>
+      <button class="tab" role="tab" id="tab-serp" data-tab="serp" aria-controls="panel-serp" aria-selected="false" tabindex="-1">SERP</button>
+    </nav>
+
+    <main>
+      <section class="panel active" id="panel-onpage" role="tabpanel" aria-labelledby="tab-onpage" tabindex="0">
+        <div class="loading" role="status">Reading the page…</div>
+      </section>
+
+      <section class="panel" id="panel-technical" role="tabpanel" aria-labelledby="tab-technical" tabindex="0" hidden>
+        <div class="loading" role="status">Checking the server…</div>
+      </section>
+
+      <section class="panel" id="panel-ai" role="tabpanel" aria-labelledby="tab-ai" tabindex="0" hidden>
+        <div class="loading" role="status">Checking AI search access…</div>
+      </section>
+
+      <section class="panel" id="panel-offpage" role="tabpanel" aria-labelledby="tab-offpage" tabindex="0" hidden>
+        <div class="card">
+          <h3>PageSpeed Insights</h3>
+          <p class="muted">Google's Lighthouse test for this URL, on mobile and desktop. Free. Sends the URL to Google.</p>
+          <div class="actions">
+            <button id="run-psi" type="button" class="primary-btn">Run speed test</button>
+          </div>
+          <div id="psi-result" aria-live="polite"></div>
+        </div>
+
+        <div class="card">
+          <h3>Core Web Vitals over time</h3>
+          <p class="muted">Real-user speed for the last 25 weeks from the Chrome UX Report. Free, with the same Google key. Sends the URL to Google.</p>
+          <div class="actions">
+            <button id="run-crux" type="button" class="secondary-btn">Show the trend</button>
+            <label class="inline-check"><input type="checkbox" id="crux-desktop"> Desktop</label>
+          </div>
+          <div id="crux-result" aria-live="polite"></div>
+        </div>
+
+        <div class="card">
+          <h3>Bing Webmaster Tools</h3>
+          <p class="muted">Clicks, impressions, queries and crawl info for this page from your own Bing account. Free, with your Bing API key.</p>
+          <div class="actions"><button id="run-bing" type="button" class="secondary-btn">Get Bing data</button></div>
+          <div id="bing-result" aria-live="polite"></div>
+        </div>
+
+        <div class="card">
+          <h3>Keywords and traffic</h3>
+          <p class="muted">Keywords this exact page ranks for, and the site's estimated organic traffic. Uses your own DataForSEO account.</p>
+          <div class="field-row">
+            <label class="field"><span>Country</span><select id="offpage-location"></select></label>
+            <label class="field"><span>Language</span><select id="offpage-language"></select></label>
+          </div>
+          <div class="actions">
+            <button id="run-dfs" type="button" class="primary-btn">Look up keywords</button>
+            <span class="cost" id="dfs-cost"></span>
+          </div>
+          <div id="dfs-result" aria-live="polite"></div>
+        </div>
+
+        <div id="external-tools"></div>
+      </section>
+
+      <section class="panel" id="panel-compare" role="tabpanel" aria-labelledby="tab-compare" tabindex="0" hidden>
+        <div class="card form-card">
+          <p class="muted">Put this page next to up to three competitor pages: titles, headings, content length, links and structured data.</p>
+          <label class="field"><span>Your page</span>
+            <input type="url" id="compare-self" placeholder="This tab (leave empty)" autocomplete="off" />
+          </label>
+          <label class="field comp-slot" data-idx="0"><span>Competitor 1</span>
+            <input type="url" class="competitor-url" data-idx="0" placeholder="https://competitor.example/page" autocomplete="off" />
+          </label>
+          <label class="field comp-slot" data-idx="1" hidden><span>Competitor 2</span>
+            <input type="url" class="competitor-url" data-idx="1" placeholder="https://" autocomplete="off" />
+          </label>
+          <label class="field comp-slot" data-idx="2" hidden><span>Competitor 3</span>
+            <input type="url" class="competitor-url" data-idx="2" placeholder="https://" autocomplete="off" />
+          </label>
+          <label class="field"><span>Keyword <span class="muted">(optional, adds Google positions, <span data-serp-cost>≈ $0.004</span>)</span></span>
+            <input type="text" id="compare-keyword" placeholder="e.g. running shoes" autocomplete="off" />
+          </label>
+          <div class="actions">
+            <button id="run-compare" type="button" class="primary-btn">Compare</button>
+            <button id="add-competitor" type="button" class="link-btn">Add a competitor</button>
+            <button id="clear-compare" type="button" class="link-btn">Clear</button>
+          </div>
+        </div>
+        <div id="compare-result" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" id="panel-serp" role="tabpanel" aria-labelledby="tab-serp" tabindex="0" hidden>
+        <div class="card form-card">
+          <p class="muted">Google's top 20 for a search, with SERP features and your position. Uses your DataForSEO account.</p>
+          <label class="field"><span>Keyword</span>
+            <input type="text" id="serp-keyword" placeholder="e.g. running shoes" autocomplete="off" />
+          </label>
+          <div class="field-row">
+            <label class="field"><span>Country</span><select id="serp-location"></select></label>
+            <label class="field"><span>Language</span><select id="serp-language"></select></label>
+            <label class="field"><span>Device</span>
+              <select id="serp-device">
+                <option value="mobile">Mobile</option>
+                <option value="desktop">Desktop</option>
+              </select>
+            </label>
+          </div>
+          <label class="field"><span>Find my site</span>
+            <input type="text" id="serp-mydomain" placeholder="Domain of this tab (leave empty)" autocomplete="off" />
+          </label>
+          <div class="actions">
+            <button id="run-serp" type="button" class="primary-btn">Search Google</button>
+            <span class="cost"><span data-serp-cost>≈ $0.004</span> per search</span>
+          </div>
+        </div>
+        <div id="serp-result" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <div id="sr-status" class="visually-hidden" role="status" aria-live="polite"></div>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

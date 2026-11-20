@@ -1,0 +1,119 @@
+# Chrome Web Store listing: Needle
+
+Copy these into the developer dashboard. Everything here is English, the only language of the listing.
+
+## Store listing tab
+
+**Name** (from the manifest, 33/75 characters)
+Needle: all-in-one SEO & GEO tool
+
+**Summary** (from the manifest, 129/132 characters)
+Audit any page for SEO, GEO and AEO in one click: meta tags, headings, links, images, schema, robots.txt, speed and AI readiness.
+
+**Category**
+Developer Tools
+
+**Language**
+English
+
+**Description**
+
+Needle shows what search engines and AI assistants see on any web page, and what to fix. Open it on a page and you get a verdict first, with the details one click away.
+
+One tool for classic SEO and for optimising for AI search, whatever you call it: GEO (generative engine optimisation), AEO (answer engine optimisation), LLMO (large language model optimisation) or AI SEO. Needle checks what lets AI search, such as ChatGPT search, Claude, Perplexity and Google's AI Overviews, reach and quote a page.
+
+ON-PAGE
+• Indexability verdict: HTTP status, redirects, robots meta and googlebot tags, X-Robots-Tag, robots.txt and canonical, each with a plain-language fix
+• Title and meta description with character count, pixel width and a Google result preview
+• Heading outline with skipped levels, shown on the page if you want
+• Links by page region (header, menu, breadcrumb, main content, sidebar, footer), nofollow, sponsored and ugc, plus an optional check of every link
+• Content images: missing alt text, large files, lazy loading above the fold, missing width and height, unclear file names
+• Structured data (JSON-LD, microdata, RDFa) checked against Google's required and recommended properties, with suggestions for what to add
+• Hreflang validation, Open Graph and X card previews, word counts
+
+TECHNICAL
+• Server answer, response headers, HTTPS, HSTS and mixed content
+• robots.txt matched the way Google does (RFC 9309) and the XML sitemap
+• The server's HTML compared with the page after JavaScript, so you see what crawlers without JavaScript miss
+• Snippet controls (nosnippet, max-snippet, data-nosnippet) that limit quotes in search and AI Overviews
+
+AI SEARCH (GEO, AEO, LLMO)
+• Which AI search bots, training bots and user-fetch bots your robots.txt allows, and which ones actually affect AI answers
+• Trust signals (author, dates, sources, organisation) and how easy the page is to quote
+• llms.txt, for information
+
+SPEED AND KEYWORDS (optional)
+• Google PageSpeed Insights for mobile and desktop, with real-user Core Web Vitals and their 25-week trend (free Google API key)
+• Your own Bing Webmaster Tools data for the page: clicks, impressions, queries, last crawl (free Bing API key)
+• Keywords a page ranks for, a site's organic traffic, Google's top 20 for a keyword and side-by-side competitor comparison, through your own DataForSEO account (pay per use, cost shown before every lookup)
+
+FOR WRITERS
+• Readability with the formula for the page's language (English, Dutch, French, German)
+• Most used words and phrases, and where a keyword appears: title, description, headings, URL, first paragraph, alt text
+
+AI AND INTERNATIONAL
+• Whether Google shows an AI Overview for a search, which pages it cites, and whether your page is one of them
+• Hreflang cluster check: every alternate's status, canonical, noindex and return link
+• Is the page in the XML sitemap? Do the http, https, www and non-www versions end on one URL?
+• What changed since your last audit of a page
+
+WORK THE WAY YOU LIKE
+• Popup or side panel that follows your tabs; right-click menu to audit a page or compare a linked page
+
+HAND IT OFF
+• "Fix this first": every problem from every check in one list, most important first, shown on the page in one click
+• Copy all issues as a Markdown list for a developer or writer, or as a ready-made prompt for your AI assistant
+• Download an HTML audit report, export comparisons as CSV or Markdown, copy links, images and results as a table
+
+PRIVATE BY DEFAULT
+Needle has no server, no analytics and no ads. It installs with no access to websites and reads a page only when you open it there (or, in the side panel, the tab you switch to). Results stay in your browser. It contacts Google, Bing or DataForSEO only when you start a check that says so, and asks for access to other websites only when a feature needs it.
+
+Free and open source (MIT). No account needed for the on-page, technical and AI checks. Source code: github.com/Izey-Van-der-haeghen/needle
+
+**Screenshots**: 1280 × 800, see `store/screenshots/`.
+**Small promo tile**: 440 × 280, `store/promo-440x280.png`.
+
+## Privacy tab
+
+**Single purpose**
+Needle audits the web page in the current tab for search engine optimisation (SEO) and AI search readiness, and shows what to fix.
+
+**Permission justifications**
+
+- `activeTab`: Needle reads only the tab the user opens it on, at that moment, to audit that page.
+- `scripting`: inject Needle's page reader into that tab on demand, and highlight headings or links on the page when the user asks.
+- `storage`: keep audit results (5 minutes to 12 hours), the user's history of audited pages, snapshots for "what changed", settings and the user's own API credentials on the device.
+- `sidePanel`: show Needle in Chrome's side panel when the user turns that on in Settings, so it can stay open next to the page and follow the tab the user switches to.
+- `contextMenus`: add "Audit this page with Needle" and "Compare this link's page with Needle" to the right-click menu.
+- Host permissions (optional, requested at runtime): `https://*/*` and `http://*/*` are requested only when the user starts a feature that must reach other websites: checking whether the page's links work, loading competitor pages and hreflang alternates, measuring image file sizes on other servers, comparing the http/https and www versions of a site, letting the side panel follow the user's tabs, and calling the DataForSEO and Bing Webmaster Tools APIs with the user's own login or key. The extension works without them.
+
+**Remote code**: No. All code is in the package.
+
+**Data usage** (tick these)
+- Website content: yes. Page text, headings, links, images and metadata of the audited page are processed locally; the page address is sent to Google (PageSpeed Insights, Chrome UX Report), Microsoft Bing Webmaster Tools or DataForSEO only when the user starts one of those checks.
+- Web history: yes. A local list of the last 50 audited pages (address, title, time), stored on the device only. The address of the audited page goes to Google, Microsoft Bing or DataForSEO only when the user starts one of those checks.
+- Authentication information: yes. The user's own DataForSEO login, Google API key and Bing Webmaster Tools API key, stored on the device and sent only to those services.
+- All other categories: no.
+
+**Certifications** (tick all three)
+- I do not sell or transfer user data to third parties, outside of the approved use cases.
+- I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
+- I do not use or transfer user data to determine creditworthiness or for lending purposes.
+
+**Privacy policy URL**: https://izey.dev/needle/privacy/ (once izey.dev is live; see PUBLISHING.md).
+
+## Support and links
+
+- Support email (Account tab): hello@izey.dev
+- Homepage URL: https://github.com/Izey-Van-der-haeghen/needle (or https://izey.dev/needle/ once that page exists)
+- Support URL: https://github.com/Izey-Van-der-haeghen/needle/issues
+
+## Distribution tab
+
+- Visibility: Public (or Unlisted for a first round).
+- Regions: all.
+- Pricing: free.
+
+## Notes for the reviewer (Test instructions field)
+
+No login is needed. Open any public web page, click the Needle button and look at the On-page and Technical tabs. Optional features: "Run speed test" needs a free Google PageSpeed Insights API key (Settings); keyword and SERP lookups need a DataForSEO account. "Check if links work", Compare and "Measure them" ask for the optional site access at runtime.

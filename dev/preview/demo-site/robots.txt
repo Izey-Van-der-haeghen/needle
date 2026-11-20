@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /checkout/
+Disallow: /*?sort=
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://www.riverside-bikes.example/sitemap.xml

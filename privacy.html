@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Needle privacy policy</title>
+  <script src="theme-boot.js"></script>
+  <link rel="stylesheet" href="fonts/fonts.css" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="page-head">
+      <div class="brand"><span class="brand-dot" aria-hidden="true"></span>needle</div>
+      <h1>Privacy policy</h1>
+      <p class="muted">Last updated: 20 November 2026</p>
+    </header>
+
+    <section>
+      <h2>In short</h2>
+      <ul class="plain-list">
+        <li>Needle has no server of its own. It collects no analytics, shows no ads and sells nothing.</li>
+        <li>It reads a web page only when you open Needle on that page.</li>
+        <li>What it finds stays in your browser. It sends data to another service only when you start a check that says so.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Who makes Needle</h2>
+      <p>Needle is a free, open-source Chrome extension made by Izey Van der Haeghen, a private developer. Its source code is public on <a href="https://github.com/Izey-Van-der-haeghen/needle" target="_blank" rel="noopener noreferrer">GitHub</a>, so anyone can check what it does. Questions about privacy: <a href="mailto:hello@izey.dev">hello@izey.dev</a>.</p>
+    </section>
+
+    <section>
+      <h2>What Needle reads</h2>
+      <p>When you click the Needle button on a tab, or use its keyboard shortcut or right-click menu there, Chrome lets Needle read that tab. Needle then reads, from that page only:</p>
+      <ul class="plain-list">
+        <li>the page's address, title, meta tags, headings, links, images, structured data, language tags and text (to count words);</li>
+        <li>files on the same website that search engines read: the page's HTML as the server sends it, /robots.txt, the XML sitemap, /llms.txt and /llms-full.txt. These requests are made without your cookies.</li>
+      </ul>
+      <p>To show image previews, Needle loads the page's images and its social preview image (og:image) from the servers that host them, as your browser does when it shows the page. A downloaded HTML report shows the same images, so opening the report loads them again from those servers.</p>
+      <p><strong>Side panel:</strong> if you keep Needle open in the side panel and have allowed access to websites, it audits each tab you switch to while the panel is open, with the same checks, and adds the page to your history. Close the panel to stop this.</p>
+      <p>Needle never reads tabs in the background, and it does not read form fields or passwords.</p>
+    </section>
+
+    <section>
+      <h2>What Needle stores, and where</h2>
+      <p>Everything below stays in Chrome on your device:</p>
+      <ul class="plain-list">
+        <li><strong>Audit results</strong>, so reopening Needle is instant: kept from 5 minutes to 12 hours depending on the check (the Core Web Vitals trend longest), at most 100 results.</li>
+        <li><strong>History</strong>: the last 50 pages you audited (address, title, score, time). Clear it any time in Settings.</li>
+        <li><strong>Snapshots</strong> of up to 200 audited pages (title, description, H1, canonical, robots, status, counts), to show what changed since your last audit.</li>
+        <li><strong>Your API credentials</strong> for DataForSEO, Google and Bing Webmaster Tools, if you add them. They are stored on this device only and are not synced to your Google account.</li>
+        <li><strong>Preferences</strong> (theme, default country and language, CSV separator, shortcuts, side panel, image checks). Chrome may sync these with your Google account if you use Chrome sync.</li>
+      </ul>
+      <p>Uninstalling Needle deletes all of it.</p>
+    </section>
+
+    <section>
+      <h2>What Needle sends, and to whom</h2>
+      <p>Only when you start these checks yourself:</p>
+      <ul class="plain-list">
+        <li><strong>Speed test</strong>: the page address and your API key go to <strong>Google PageSpeed Insights</strong>, which loads the page and returns performance scores. Google's <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a> applies.</li>
+        <li><strong>Core Web Vitals trend</strong>: the page address (or its site) and your API key go to <strong>Google's Chrome UX Report API</strong>, which returns real-user speed data. Google's <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a> applies.</li>
+        <li><strong>Bing data</strong>: the page address, your site's address and your API key go to <strong>Microsoft Bing Webmaster Tools</strong>, which returns your own search data for that page. Microsoft's <a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noopener noreferrer">privacy statement</a> applies.</li>
+        <li><strong>Keyword lookup and Google results (SERP)</strong>: the page address, its domain or your search keyword, the chosen country and language, and your DataForSEO login go to <strong>DataForSEO</strong>, which returns ranking data and bills your own DataForSEO account. DataForSEO's <a href="https://dataforseo.com/privacy-policy" target="_blank" rel="noopener noreferrer">privacy policy</a> applies.</li>
+        <li><strong>Link check, competitor comparison, hreflang alternates, http/https and www versions, and image sizes</strong>: Needle requests those web addresses directly from your browser, without your cookies. The websites involved receive an ordinary request, including your IP address, as when you visit them. Needle does not request addresses on your local network (such as your router) that a page points to, unless the audited page is itself on your local network; only a website that redirects there can still lead a request to such an address. These checks need the optional "access to websites" permission, which you can turn off in Settings.</li>
+      </ul>
+      <p>Links to other tools (for example Rich Results Test or Wayback Machine) only open that tool's website in a new tab when you click them.</p>
+      <p>Needle's author receives none of this data.</p>
+    </section>
+
+    <section>
+      <h2>Limited use</h2>
+      <p>The use of information received by Needle complies with the <a href="https://developer.chrome.com/docs/webstore/program-policies/" target="_blank" rel="noopener noreferrer">Chrome Web Store User Data Policy</a>, including the Limited Use requirements. Needle uses page data only to show you its audit. It does not sell or transfer data, use it for advertising or credit decisions, or let people read it.</p>
+    </section>
+
+    <section>
+      <h2>Permissions</h2>
+      <ul class="plain-list">
+        <li><strong>activeTab</strong> and <strong>scripting</strong>: read the tab you open Needle on, and highlight headings or links there when you ask.</li>
+        <li><strong>storage</strong>: keep results, history, snapshots for "what changed since the last audit", settings and API credentials on your device.</li>
+        <li><strong>sidePanel</strong> and <strong>contextMenus</strong>: show Needle in the side panel if you choose (where it follows the tab you switch to), and add Needle to the right-click menu.</li>
+        <li><strong>Access to websites</strong> (optional, off by default): check links, load competitor pages and hreflang alternates, measure image files, compare the http/https and www versions, let the side panel follow your tabs, and reach the DataForSEO and Bing APIs.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Children</h2>
+      <p>Needle is a tool for website owners and is not aimed at children.</p>
+    </section>
+
+    <section>
+      <h2>Changes</h2>
+      <p>If this policy changes, the new version is published here with a new date, and the store listing links to it.</p>
+    </section>
+  </main>
+</body>
+</html>

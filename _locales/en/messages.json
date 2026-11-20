@@ -1,0 +1,18 @@
+{
+  "extName": {
+    "message": "Needle: all-in-one SEO & GEO tool",
+    "description": "Extension name in the Chrome Web Store and chrome://extensions (max 75 characters)."
+  },
+  "extDesc": {
+    "message": "Audit any page for SEO, GEO and AEO in one click: meta tags, headings, links, images, schema, robots.txt, speed and AI readiness.",
+    "description": "Short description (max 132 characters)."
+  },
+  "extActionTitle": {
+    "message": "Needle: audit this page",
+    "description": "Tooltip on the toolbar button."
+  },
+  "extCommandOpen": {
+    "message": "Open Needle on this page",
+    "description": "Keyboard shortcut description in chrome://extensions/shortcuts."
+  }
+}

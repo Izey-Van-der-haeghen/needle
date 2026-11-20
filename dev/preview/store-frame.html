@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>Needle store frame</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1280px; height: 800px; overflow: hidden; background: #FAFAF7; color: #141312; font-family: "Atkinson Hyperlegible Next", system-ui, sans-serif; }
+  .wrap { display: grid; grid-template-columns: 540px 600px; gap: 60px; padding: 0 40px 0 80px; height: 792px; align-items: center; }
+  .copy { align-self: center; }
+  .brand { font: 700 18px/1 "Martian Mono", monospace; font-stretch: 112.5%; display: flex; align-items: center; gap: 8px; margin-bottom: 36px; }
+  .brand i { width: 14px; height: 14px; border-radius: 50%; background: #FF6A55; display: inline-block; }
+  h1 { font-size: 50px; line-height: 1.08; margin: 0 0 22px; letter-spacing: -0.01em; }
+  p { font-size: 22px; line-height: 1.45; margin: 0; color: #4D4945; max-width: 30ch; }
+  .shot { width: 564px; height: 604px; border: 2px solid #141312; align-self: center; background: #FAFAF7; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .bar { position: absolute; left: 0; bottom: 0; width: 1280px; height: 8px; background: #FF6A55; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="copy">
+    <div class="brand"><i></i>needle</div>
+    <h1 id="h"></h1>
+    <p id="p"></p>
+  </div>
+  <div class="shot"><iframe id="f" title="Needle popup"></iframe></div>
+</div>
+<div class="bar"></div>
+<script>
+  const SHOTS = {
+    onpage: { h: "See what's wrong, and how to fix it", p: "A verdict first, with plain-language fixes. The details stay one click away.", act: [] },
+    links: { h: "Every link, by where it sits", p: "Header, menu, main content or footer, with nofollow and empty links flagged. Show them on the page.", act: [["open", "links-card"], ["scroll", "links-card"]] },
+    technical: { h: "What the server tells Google", p: "Status, headers, robots.txt matched like Googlebot, the sitemap and what JavaScript adds.", act: [["tab", "technical"], ["open-css", "#rendering-slot details"]] },
+    ai: { h: "Ready for AI search?", p: "Which AI bots may read your site, and how easy your page is to quote.", act: [["tab", "ai"], ["wait-gone", "#panel-ai .loading"]] },
+    content: { h: "Write for people, check for search", p: "Readability in your page's language, and where your keyword appears.", act: [["open", "content-card"], ["type", "kw-input", "bike repairs"], ["click", "kw-check"], ["scroll", "content-card"]] }
+  };
+  const q = new URLSearchParams(location.search);
+  const shot = SHOTS[q.get("shot")] || SHOTS.onpage;
+  document.getElementById("h").textContent = shot.h;
+  document.getElementById("p").textContent = shot.p;
+  const f = document.getElementById("f");
+  f.src = `/popup.html?theme=light&delay=0`;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  f.addEventListener("load", async () => {
+    const d = f.contentDocument;
+    for (let i = 0; i < 100 && (d.querySelector("#panel-onpage .loading") || d.querySelector("#verdict-slot .loading")); i++) await wait(50);
+    for (const [kind, a, b] of shot.act) {
+      if (kind === "tab") d.getElementById(`tab-${a}`).click();
+      if (kind === "open") d.getElementById(a).open = true;
+      if (kind === "open-css") { for (let i = 0; i < 40 && !d.querySelector(a); i++) await wait(50); const el = d.querySelector(a); if (el) el.open = true; }
+      if (kind === "type") d.getElementById(a).value = b;
+      if (kind === "wait-gone") { for (let i = 0; i < 60 && d.querySelector(a); i++) await wait(50); }
+      if (kind === "click") d.getElementById(a).click();
+      if (kind === "scroll") {
+        await wait(150);
+        const main = d.querySelector("main");
+        const el = d.getElementById(a);
+        main.scrollTop += el.getBoundingClientRect().top - main.getBoundingClientRect().top - 8;
+      }
+      await wait(250);
+    }
+    await wait(400);
+    document.title = "ready";
+  });
+</script>
+</body>
+</html>

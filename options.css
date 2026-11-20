@@ -1,0 +1,26 @@
+@import url("base.css");
+
+/* Needle settings page layout. */
+
+body { font-size: 15px; }
+.page { max-width: 680px; margin: 0 auto; padding: 40px 20px 72px; }
+.page-head { border-bottom: 3px solid var(--ink); padding-bottom: 16px; margin-bottom: 8px; }
+.page-head h1 { font-size: 28px; margin: 12px 0 4px; }
+section { padding: 22px 0; border-bottom: 1px solid var(--rule); }
+section h2 { font-size: 18px; margin-bottom: 8px; }
+/* About 75 characters per line. */
+section p, section li { max-width: 34em; }
+.field { max-width: 420px; font-size: 14px; }
+.field-row { max-width: 520px; }
+.check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0; max-width: 34em; }
+.check input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--ink); flex-shrink: 0; }
+kbd { font: 700 12px/1 var(--mono); border: 1px solid var(--line); padding: 2px 5px; border-radius: 3px; }
+/* Status lines keep their space, so "Saved." doesn't push the page down and back. */
+[role="status"] { min-height: 1.5em; }
+.status-good { color: var(--good); font-weight: 700; }
+.status-bad { color: var(--bad); font-weight: 700; }
+
+details.guide { margin: 6px 0 10px; max-width: 34em; border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; }
+details.guide summary { cursor: pointer; font-weight: 700; }
+details.guide ol { margin: 8px 0 4px; padding-left: 20px; }
+details.guide li { margin: 4px 0; }

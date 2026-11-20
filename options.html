@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Needle settings</title>
+  <script src="theme-boot.js"></script>
+  <link rel="stylesheet" href="fonts/fonts.css" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="page-head">
+      <div class="brand"><span class="brand-dot" aria-hidden="true"></span>needle</div>
+      <h1>Settings</h1>
+      <p class="muted">All-in-one SEO and GEO tool. Version <span id="version"></span>.</p>
+    </header>
+
+    <section aria-labelledby="h-about">
+      <h2 id="h-about">About Needle</h2>
+      <p>Free and open source (MIT licence), made by Izey Van der Haeghen.</p>
+      <ul class="plain-list">
+        <li id="store-link-item" hidden><a id="store-link" target="_blank" rel="noopener noreferrer">Needle in the Chrome Web Store</a> (a review helps others find it)</li>
+        <li><a href="https://github.com/Izey-Van-der-haeghen/needle" target="_blank" rel="noopener noreferrer">Source code on GitHub</a></li>
+        <li><a href="https://github.com/Izey-Van-der-haeghen/needle/issues" target="_blank" rel="noopener noreferrer">Report a problem or suggest a feature</a></li>
+        <li>Email: <a href="mailto:hello@izey.dev">hello@izey.dev</a></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="h-privacy">
+      <h2 id="h-privacy">What Needle reads and sends</h2>
+      <ul class="plain-list">
+        <li>Needle reads a page only when you open it on that page. It has no server and collects no analytics.</li>
+        <li>Results, history and your API keys stay in this browser, on this device.</li>
+        <li>The speed test and the Core Web Vitals trend send the page URL to Google. Keyword and SERP lookups send the URL or keyword to DataForSEO, and Bing data requests send it to Bing Webmaster Tools, each with your own login or key. All of these run only when you click them.</li>
+        <li>With site access on, link checks, competitor pages and image sizes are requested straight from those sites.</li>
+      </ul>
+      <p><a href="privacy.html" target="_blank" id="privacy-link">Full privacy policy</a></p>
+    </section>
+
+    <section aria-labelledby="h-access">
+      <h2 id="h-access">Site access</h2>
+      <p class="muted">Off by default. Needed only to check whether links work, to load competitor pages and to measure images on other servers.</p>
+      <p id="access-status" role="status"></p>
+      <div class="actions">
+        <button type="button" class="primary-btn" id="grant-all">Allow access to websites</button>
+        <button type="button" class="secondary-btn" id="revoke-all">Turn site access off</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="h-dfs">
+      <h2 id="h-dfs">DataForSEO <span class="muted">(optional, paid)</span></h2>
+      <p class="muted">Keyword rankings and Google results come from <a href="https://dataforseo.com" target="_blank" rel="noopener noreferrer">DataForSEO</a>, a pay-per-use data provider, through your own account. A keyword lookup costs about $0.025 and a Google search about $0.004; results are kept for 30 to 60 minutes so a repeat costs nothing. Use your API login and API password from the DataForSEO dashboard.</p>
+      <label class="field" for="dfsLogin"><span>API login</span>
+        <input type="email" id="dfsLogin" autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="field" for="dfsPassword"><span>API password</span>
+        <input type="password" id="dfsPassword" autocomplete="off" />
+      </label>
+      <details class="guide">
+        <summary>Where to find your API login and password</summary>
+        <ol>
+          <li>Create an account at <a href="https://dataforseo.com" target="_blank" rel="noopener noreferrer">dataforseo.com</a>. You pay per use from a balance you top up.</li>
+          <li>Open <a href="https://app.dataforseo.com/api-access" target="_blank" rel="noopener noreferrer">API Access</a> in the DataForSEO dashboard.</li>
+          <li>Copy the <strong>API login</strong> and the <strong>API password</strong>. The API password is not the password you sign in with.</li>
+          <li>The API password is hidden 24 hours after you sign up. On the same page, have it sent to your email again.</li>
+        </ol>
+      </details>
+      <p class="muted">Stored only on this device, never synced to your Google account.</p>
+      <div class="actions">
+        <button type="button" class="primary-btn" id="save-dfs">Save</button>
+        <button type="button" class="secondary-btn" id="test-dfs">Test connection</button>
+        <button type="button" class="link-btn" id="clear-dfs">Remove login</button>
+      </div>
+      <p id="dfs-status" role="status"></p>
+    </section>
+
+    <section aria-labelledby="h-psi">
+      <h2 id="h-psi">PageSpeed Insights</h2>
+      <p class="muted">Free. Google only answers requests that carry an API key. The same key also gives the Core Web Vitals trend.</p>
+      <details class="guide">
+        <summary>Where to find your Google API key</summary>
+        <ol>
+          <li>Open Google's <a href="https://developers.google.com/speed/docs/insights/v5/get-started#APIKey" target="_blank" rel="noopener noreferrer">PageSpeed Insights guide</a> and click <strong>Get a Key</strong>. Sign in with a Google account and pick or create a project.</li>
+          <li>Copy the key, paste it below and click Save.</li>
+          <li>For the Core Web Vitals trend, open the <a href="https://console.cloud.google.com/apis/library/chromeuxreport.googleapis.com" target="_blank" rel="noopener noreferrer">Chrome UX Report API</a> in the same project and click <strong>Enable</strong>.</li>
+          <li>Safer: in Google Cloud under APIs &amp; Services → Credentials, open the key and limit it to these two APIs.</li>
+        </ol>
+      </details>
+      <label class="field" for="psiKey"><span>API key</span>
+        <input type="password" id="psiKey" autocomplete="off" spellcheck="false" />
+      </label>
+      <div class="actions">
+        <button type="button" class="primary-btn" id="save-psi">Save</button>
+        <button type="button" class="secondary-btn" id="test-psi">Test key</button>
+        <button type="button" class="link-btn" id="clear-psi">Remove key</button>
+      </div>
+      <p id="psi-status" role="status"></p>
+    </section>
+
+    <section aria-labelledby="h-bing">
+      <h2 id="h-bing">Bing Webmaster Tools <span class="muted">(optional, free)</span></h2>
+      <p class="muted">Clicks, impressions, queries and crawl info for your own verified sites in Bing.</p>
+      <label class="field" for="bingKey"><span>API key</span>
+        <input type="password" id="bingKey" autocomplete="off" spellcheck="false" />
+      </label>
+      <details class="guide">
+        <summary>Where to find your Bing API key</summary>
+        <ol>
+          <li>Sign in to <a href="https://www.bing.com/webmasters" target="_blank" rel="noopener noreferrer">Bing Webmaster Tools</a> and add and verify your site. You can import sites from Google Search Console.</li>
+          <li>Open <strong>Settings</strong> (the gear icon), then <strong>API Access</strong>. Accept the terms the first time.</li>
+          <li>Click <strong>Generate API Key</strong>, copy it, paste it below and click Save. One key works for all your verified sites.</li>
+        </ol>
+      </details>
+      <p class="muted">Stored only on this device.</p>
+      <div class="actions">
+        <button type="button" class="primary-btn" id="save-bing">Save</button>
+        <button type="button" class="link-btn" id="clear-bing">Remove key</button>
+      </div>
+      <p id="bing-status" role="status"></p>
+    </section>
+
+    <section aria-labelledby="h-market">
+      <h2 id="h-market">Default market</h2>
+      <p class="muted">Used for keyword lookups and Google searches when the page's domain doesn't give the country (.com, .org, .io…).</p>
+      <div class="field-row">
+        <label class="field" for="defaultLocation"><span>Country</span><select id="defaultLocation"></select></label>
+        <label class="field" for="defaultLanguage"><span>Language</span><select id="defaultLanguage"></select></label>
+      </div>
+      <p id="market-status" role="status"></p>
+    </section>
+
+    <section aria-labelledby="h-images">
+      <h2 id="h-images">Image checks</h2>
+      <p class="muted">Needle always flags images shown larger than their file (blurry), files far larger than shown, and a main image under 1200 px wide (Google's advice for Discover). Add your own rules below.</p>
+      <label class="field" for="imgMaxKB"><span>Flag image files larger than (KB)</span>
+        <input type="text" inputmode="numeric" id="imgMaxKB" placeholder="100" autocomplete="off" />
+      </label>
+      <p class="muted">Expected size for content images, if your site uses one (for example 1200 × 630). Leave empty for no size rule.</p>
+      <div class="field-row">
+        <label class="field" for="imgWidth"><span>Width (px)</span><input type="text" inputmode="numeric" id="imgWidth" autocomplete="off" /></label>
+        <label class="field" for="imgHeight"><span>Height (px)</span><input type="text" inputmode="numeric" id="imgHeight" autocomplete="off" /></label>
+        <label class="field" for="imgMode"><span>Match</span>
+          <select id="imgMode">
+            <option value="ratio">Same shape (aspect ratio)</option>
+            <option value="exact">Exact size</option>
+          </select>
+        </label>
+      </div>
+      <div class="actions"><button type="button" class="primary-btn" id="save-images">Save image checks</button></div>
+      <p id="images-status" role="status"></p>
+    </section>
+
+    <section aria-labelledby="h-display">
+      <h2 id="h-display">Display and exports</h2>
+      <label class="field" for="theme"><span>Theme</span>
+        <select id="theme">
+          <option value="auto">Same as my system</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+      <label class="field" for="csvSeparator"><span>CSV separator for downloads</span>
+        <select id="csvSeparator">
+          <option value=",">Comma (most spreadsheet apps)</option>
+          <option value=";">Semicolon (Excel with European settings)</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="openInSidePanel" /> Open Needle in the side panel instead of a popup. The panel stays open and follows your tabs (with site access on; otherwise click the Needle button on each tab).</label>
+      <label class="check"><input type="checkbox" id="popupShortcuts" /> Single-key shortcuts in the popup (1 to 6 switch tabs, / jumps to the search field)</label>
+      <p class="muted">Shortcut to open Needle: <kbd id="open-shortcut">not set</kbd>. <button type="button" class="link-btn" id="change-shortcut">Change it</button></p>
+      <p id="display-status" role="status"></p>
+    </section>
+
+    <section aria-labelledby="h-data">
+      <h2 id="h-data">Data on this device</h2>
+      <p id="cache-stats" class="muted"></p>
+      <div class="actions">
+        <button type="button" class="secondary-btn" id="clear-cache">Clear saved results</button>
+        <button type="button" class="secondary-btn" id="clear-history">Clear history and snapshots</button>
+      </div>
+      <p id="maint-status" role="status"></p>
+    </section>
+
+    <section aria-labelledby="h-backup">
+      <h2 id="h-backup">Back up settings</h2>
+      <p class="muted">Download your settings as a file, or load them on another computer.</p>
+      <label class="check"><input type="checkbox" id="export-secrets" /> Include API login, password and key (anyone with the file can use them)</label>
+      <div class="actions">
+        <button type="button" class="secondary-btn" id="export-settings">Download settings</button>
+        <button type="button" class="secondary-btn" id="import-settings-btn">Load settings from file</button>
+        <input type="file" id="import-settings" accept="application/json" hidden />
+      </div>
+      <p id="sync-status" role="status"></p>
+    </section>
+  </main>
+  <script src="options.js" type="module"></script>
+</body>
+</html>
