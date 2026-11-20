@@ -1,18 +1,36 @@
-# Needle
+<p align="center">
+  <img src="icons/icon128.png" width="96" height="96" alt="">
+</p>
 
-[![Tests](https://github.com/Izey-Van-der-haeghen/needle/actions/workflows/test.yml/badge.svg)](https://github.com/Izey-Van-der-haeghen/needle/actions/workflows/test.yml)
-[![Licence: MIT](https://img.shields.io/badge/licence-MIT-1E6B43.svg)](LICENSE)
-![Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-141312.svg)
+<h1 align="center">Needle</h1>
 
-**All-in-one SEO and GEO tool for Chrome.** Open it on any page to see what search engines and AI assistants see, and what to fix first. It covers classic SEO and optimising for AI search, whatever you call it: GEO, AEO, LLMO or AI SEO.
+<p align="center">
+  <strong>All-in-one SEO and GEO tool for Chrome.</strong><br>
+  See what search engines and AI assistants see on any page, and what to fix first.
+</p>
+
+<p align="center">
+  <a href="#get-it">Get it</a> ·
+  <a href="#what-it-checks">What it checks</a> ·
+  <a href="#privacy">Privacy</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Izey-Van-der-haeghen/needle/actions/workflows/test.yml"><img src="https://github.com/Izey-Van-der-haeghen/needle/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-1E6B43.svg" alt="Licence: MIT"></a>
+  <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-141312.svg" alt="Chrome Manifest V3">
+</p>
 
 ![Needle's popup on a demo page: an indexability verdict, a score and a "Fix this first" list](store/screenshots/1-onpage-1280x800.png)
 
-Needle installs with no access to websites. It reads a page only when you open it there, keeps its results in your browser, and contacts another service only when you start a check that says so. No server, no analytics, no account needed for the on-page, technical and AI checks.
+- **One list of what to fix first.** Every check, from robots.txt to alt text, ends in one list, most important first, each with why it matters and how to fix it. Show them all on the page in one click.
+- **Built for AI search too.** It covers classic SEO and optimising for AI search, whatever you call it: GEO, AEO, LLMO or AI SEO. See which AI bots may read the page and how easy it is to quote.
+- **Private by default.** No server, no analytics, no account for the on-page, technical and AI checks. Needle installs with no access to websites and reads a page only when you open it there.
 
 ## What it checks
 
-**Fix this first.** Every problem from every check in one list, most important first, each with why it matters and how to fix it. Mark them all on the page in one click, or copy them for a developer or as a ready-made prompt for your AI assistant.
+**Fix this first.** The list on top of the On-page tab: mark every problem on the page in one click, or copy the list for a developer or as a ready-made prompt for your AI assistant.
 
 **On-page**
 - Indexability verdict: HTTP status, redirects, robots meta and googlebot tags, X-Robots-Tag, robots.txt and canonical, each with a plain-language fix
