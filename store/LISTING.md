@@ -100,12 +100,12 @@ Needle audits the web page in the current tab for search engine optimisation (SE
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose.
 - I do not use or transfer user data to determine creditworthiness or for lending purposes.
 
-**Privacy policy URL**: https://izey.dev/needle/privacy/ (once izey.dev is live; see PUBLISHING.md).
+**Privacy policy URL**: https://izey.dev/needle/privacy/
 
 ## Support and links
 
 - Support email (Account tab): hello@izey.dev
-- Homepage URL: https://github.com/Izey-Van-der-haeghen/needle (or https://izey.dev/needle/ once that page exists)
+- Homepage URL: https://github.com/Izey-Van-der-haeghen/needle
 - Support URL: https://github.com/Izey-Van-der-haeghen/needle/issues
 
 ## Distribution tab
