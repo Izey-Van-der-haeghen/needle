@@ -133,7 +133,7 @@ describe("structured data nested as the page's mainEntity", () => {
 
   it("checks FAQ questions under FAQPage", () => {
     const [faq] = validateSchema([{ raw: { "@context": ctx, "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Why?" }] } }]);
-    expect(faq.issues.map((i) => i.msg)).toContain('mainEntity › Question: missing required "acceptedAnswer"');
+    expect(faq.issues.map((i) => i.msg)).toContain('mainEntity › Question: missing required "acceptedAnswer" or "suggestedAnswer"');
   });
 
   it("doesn't check other nested things, like a Person's address", () => {
@@ -178,10 +178,11 @@ describe("title and description width", () => {
 });
 
 describe("hreflang alternates after 'Check the alternates'", () => {
-  const cluster = [
+  const rows = [
     { lang: "fr", href: "https://person.example/fr/case/", problems: [] },
     { lang: "x-default", href: "https://person.example/", problems: ["no hreflang link back to this page"] }
   ];
+  const cluster = { rows, total: 2 };
 
   it("reach Fix this first", () => {
     const f = collectFindings({ onpage: page, tech, hreflangCluster: cluster }).find((x) => x.id === "hreflang-alternates");
@@ -191,7 +192,7 @@ describe("hreflang alternates after 'Check the alternates'", () => {
 
   it("give no finding before the check or when all link back", () => {
     expect(collectFindings({ onpage: page, tech }).find((x) => x.id === "hreflang-alternates")).toBeUndefined();
-    expect(collectFindings({ onpage: page, tech, hreflangCluster: [cluster[0]] }).find((x) => x.id === "hreflang-alternates")).toBeUndefined();
+    expect(collectFindings({ onpage: page, tech, hreflangCluster: { rows: [rows[0]], total: 1 } }).find((x) => x.id === "hreflang-alternates")).toBeUndefined();
   });
 });
 
@@ -215,7 +216,7 @@ describe("a language chooser", () => {
 
   it("gets no 'only N words' finding, while a short normal page still does", () => {
     const thin = { ...page, mainContentWordCount: 27 };
-    expect(collectFindings({ onpage: { ...thin, url: "https://person.example/", hreflang: chooser }, tech }).find((x) => x.id === "thin")).toBeUndefined();
+    expect(collectFindings({ onpage: { ...thin, url: "https://person.example/", canonical: "https://person.example/", hreflang: chooser }, tech }).find((x) => x.id === "thin")).toBeUndefined();
     expect(collectFindings({ onpage: thin, tech }).find((x) => x.id === "thin")).toBeDefined();
   });
 });

@@ -29,7 +29,7 @@ import { termFrequency, keywordPlacement } from './lib/terms.js';
 import { readability } from './lib/readability.js';
 import { findInSitemaps } from './lib/sitemap-check.js';
 import { checkHostVariants } from './lib/variants.js';
-import { checkHreflangCluster } from './lib/hreflang-cluster.js';
+import { checkHreflangCluster, alternatesOf, CLUSTER_MAX } from './lib/hreflang-cluster.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
@@ -67,7 +67,7 @@ let onpageAge = 0;
 let technicalData = null;
 let technicalAge = 0;
 let renderedData = null;
-// Result of "Check the alternates", for Fix this first; null until it has run on this page.
+// Result of "Check the alternates" for Fix this first: {rows, total}; null until it has run on this page.
 let hreflangCluster = null;
 let geoData = null;
 let mainText = null;
@@ -1901,9 +1901,9 @@ function renderOnpage(d, age) {
       <summary><h2 class="card-title">Title and description</h2></summary>
       <div class="card-body">
         ${metaField('Title', d.title ? escapeHtml(d.title) : missing('No title'),
-          `${charTag(titleLen, 30, 60, 70)} ${d.title ? pixelTag(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx) : ''} ${d.title ? `<button type="button" class="icon-only copy-btn" data-copy-fn="title" aria-label="Copy title" title="Copy title">${ICON.copy}</button>` : ''}`)}
+          `${charTag(titleLen, 30, 60, 70, titlePx > 0 && titlePx <= SNIPPET.titleMaxPx)} ${d.title ? pixelTag(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx) : ''} ${d.title ? `<button type="button" class="icon-only copy-btn" data-copy-fn="title" aria-label="Copy title" title="Copy title">${ICON.copy}</button>` : ''}`)}
         ${metaField('Meta description', d.description ? escapeHtml(d.description) : missing('No meta description'),
-          `${charTag(descLen, 70, 160, 170)} ${d.description ? pixelTag(descPx, SNIPPET.descIdealPx, SNIPPET.descMaxPx) : ''} ${d.description ? `<button type="button" class="icon-only copy-btn" data-copy-fn="description" aria-label="Copy description" title="Copy description">${ICON.copy}</button>` : ''}`)}
+          `${charTag(descLen, 70, 160, 170, descPx > 0 && descPx <= SNIPPET.descMaxPx)} ${d.description ? pixelTag(descPx, SNIPPET.descIdealPx, SNIPPET.descMaxPx) : ''} ${d.description ? `<button type="button" class="icon-only copy-btn" data-copy-fn="description" aria-label="Copy description" title="Copy description">${ICON.copy}</button>` : ''}`)}
         <div class="serp-preview" aria-label="Preview of the Google result">
           <div class="g-crumbs">${escapeHtml(crumbs)}</div>
           <div class="g-title">${escapeHtml(truncateToPx(d.title || '', SNIPPET.titleMaxPx, SNIPPET.titleFont)) || missing('No title')}</div>
@@ -2079,7 +2079,8 @@ async function runHreflangCluster() {
     rerender(box, permissionNotice('To check the alternates, Needle loads each of them from its site.').replace('data-grant="all-sites"', 'data-grant="all-sites" data-retry="hreflang-check"'));
     return;
   }
-  rerender(box, loading(`Loading ${onpageData.hreflang.length} alternates…`));
+  const total = alternatesOf(pageUrl, onpageData.hreflang).length;
+  rerender(box, loading(total > CLUSTER_MAX ? `Loading the first ${CLUSTER_MAX} of ${total} alternates…` : `Loading ${plural(total, 'alternate')}…`));
   const gen = auditGen;
   // Alternates are chosen by the page: never request addresses on the user's own network.
   const pageIsLocal = isLocalUrl(pageUrl);
@@ -2096,10 +2097,11 @@ async function runHreflangCluster() {
   const parse = (html) => new DOMParser().parseFromString(html, 'text/html');
   const rows = await checkHreflangCluster(pageUrl, onpageData.hreflang, load, parse);
   if (gen !== auditGen) return;
-  hreflangCluster = rows;
+  hreflangCluster = { rows, total };
   renderFindings();
   const bad = rows.filter((r) => r.problems.length).length;
-  rerender(box, `<p>${bad ? tag(`${bad} of ${rows.length} alternates with problems`, 'bad') : tag(`All ${rows.length} alternates link back`, 'good')}</p>
+  const partly = total > rows.length ? ` <span class="muted">Checked the first ${rows.length} of ${total} alternates.</span>` : '';
+  rerender(box, `<p>${bad ? tag(`${bad} of ${rows.length} alternates with problems`, 'bad') : tag(rows.length === total ? `All ${rows.length} alternates link back` : `All ${rows.length} checked alternates link back`, 'good')}${partly}</p>
     <table class="data-table"><thead><tr><th scope="col">hreflang</th><th scope="col">Alternate</th><th scope="col">Result</th></tr></thead><tbody>
     ${rows.map((r) => `<tr><td class="mono">${escapeHtml(r.lang)}</td><td class="mono">${escapeHtml(r.href)}</td><td>${r.problems.length ? r.problems.map((p) => tag(p, 'bad')).join(' ') : tag('ok', 'good')}</td></tr>`).join('')}
     </tbody></table>

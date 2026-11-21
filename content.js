@@ -626,13 +626,34 @@
       return img.currentSrc || img.src || "";
     };
 
+    // Split a srcset as the HTML spec does: a URL is a run of non-space characters (it may hold
+    // commas, as in w_800,c_fill), trailing commas end it, and its descriptor runs to the next comma.
+    // So "a.jpg 800w,b.jpg 1600w" (no space after the comma) is two candidates.
+    const parseSrcset = (set) => {
+      const out = [];
+      let i = 0;
+      while (i < set.length) {
+        while (i < set.length && /[\s,]/.test(set[i])) i++;
+        if (i >= set.length) break;
+        let j = i;
+        while (j < set.length && !/\s/.test(set[j])) j++;
+        let url = set.slice(i, j);
+        let desc = "";
+        if (/,$/.test(url)) url = url.replace(/,+$/, "");
+        else {
+          const k = set.indexOf(",", j);
+          desc = set.slice(j, k < 0 ? set.length : k).trim();
+          j = k < 0 ? set.length : k + 1;
+        }
+        out.push({ u: url, d: desc.split(/\s+/)[0] || "" });
+        i = j;
+      }
+      return out;
+    };
     // The srcset candidates of an <img> and its <picture> sources: [{url, w, x}].
     const srcsetCandidates = (img) => [img.getAttribute("srcset"), ...[...(img.closest("picture")?.querySelectorAll("source") || [])].map((s) => s.getAttribute("srcset"))]
       .filter(Boolean)
-      .flatMap((set) => set.split(/,\s+/).map((part) => {
-        const [u, d = ""] = part.trim().split(/\s+/);
-        return { url: u ? resolveUrl(u) : "", w: parseInt(d.match(/^(\d+)w$/)?.[1], 10) || 0, x: parseFloat(d.match(/^([\d.]+)x$/)?.[1]) || 0 };
-      }))
+      .flatMap((set) => parseSrcset(set).map(({ u, d }) => ({ url: u ? resolveUrl(u) : "", w: parseInt(d.match(/^(\d+)w$/)?.[1], 10) || 0, x: parseFloat(d.match(/^([\d.]+)x$/)?.[1]) || 0 })))
       .filter((c) => c.url);
     // The pixel width of the file the browser actually loaded. With a srcset, naturalWidth is
     // already divided by the candidate's density, so the descriptor tells the real width.
