@@ -613,7 +613,7 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
 
   const opPromise = onCached
     ? Promise.resolve({ data: onCached.data, age: onCached.age, cached: true })
-    : safeSendTabMessage(tab.id, { type: 'ANALYZE_ONPAGE' }).then((data) => ({ data, age: 0 })).catch((e) => ({ error: e.message }));
+    : safeSendTabMessage(tab.id, { type: 'ANALYZE_ONPAGE' }).then((data) => ({ data, age: 0 })).catch((e) => ({ error: e.message, noAccess: !!e.noAccess }));
   const techPromise = techCached
     ? Promise.resolve({ data: techCached.data, age: techCached.age, cached: true })
     : analyzeTechnical(url, pageFetcher(tab.id)).then((data) => ({ data, age: 0 })).catch((e) => ({ error: e.message }));
@@ -634,7 +634,7 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   }
   if (op.error || !op.data) {
     onpageData = null;
-    const noAccess = /Cannot access|permission|activeTab/i.test(op.error || '');
+    const noAccess = op.noAccess || /Cannot access|permission|activeTab/i.test(op.error || '');
     if (IS_PANEL && noAccess) {
       rerender(onpagePanel, panelAccessNotice());
       rerender(technicalPanel, '');
