@@ -137,3 +137,62 @@ describe("design review of 1.0.1 (Impeccable)", () => {
     expect(handler).toMatch(/closest\('\[role="tabpanel"\]'\)\?\.focus\(\)/);
   });
 });
+
+describe("stress test of 1.0.1 (Break UI)", () => {
+  it("a campaign link is the same page: tracking parameters go, real ones stay", async () => {
+    const { withoutTracking } = await import("../lib/popup-compute.js");
+    expect(withoutTracking("https://site.example/fr/?utm_source=news&utm_medium=mail#top")).toBe("https://site.example/fr/");
+    expect(withoutTracking("https://site.example/?lang=fr&gclid=abc")).toBe("https://site.example/?lang=fr");
+  });
+
+  it("a page opened with ?utm_… is not 'canonicalized away' and needs no self-reference fix", async () => {
+    const { computeIndexability } = await import("../lib/popup-compute.js");
+    const hreflang = [{ lang: "en", href: "https://site.example/en/" }, { lang: "fr", href: "https://site.example/fr/" }, { lang: "x-default", href: "https://site.example/en/" }];
+    const d = { ...page, url: "https://site.example/en/?utm_source=news", canonical: "https://site.example/en/", hreflang };
+    const f = collectFindings({ onpage: d, tech });
+    expect(f.find((x) => x.id === "canonical-elsewhere")).toBeUndefined();
+    expect(f.find((x) => x.id === "hreflang")).toBeUndefined();
+    expect(computeIndexability(d, tech).verdict).not.toMatch(/Canonicalized away/);
+  });
+
+  it("the alternates of a campaign link don't include the page itself", async () => {
+    const { withoutTracking } = await import("../lib/popup-compute.js");
+    const hreflang = [{ lang: "en", href: "https://site.example/en/" }, { lang: "fr", href: "https://site.example/fr/" }];
+    expect(alternatesOf(withoutTracking("https://site.example/en/?utm_campaign=x"), hreflang).map((a) => a.lang)).toEqual(["fr"]);
+  });
+
+  it("title and description in the score and the report follow the pixel width", async () => {
+    const { buildHtmlReport } = await import("../lib/export.js");
+    const op = { ...page, title: "t".repeat(66) };
+    const titleScore = (px) => computeHealthScore(op, tech, px).checks.find((c) => c.label === "Title length").score;
+    expect(titleScore({ titlePx: 559 })).toBe(1);
+    expect(titleScore({ titlePx: 640 })).toBe(0.5);
+    expect(titleScore({})).toBe(0.5);
+    const html = (titlePx) => buildHtmlReport({ url: op.url, onpage: { ...op, twitter: {} }, technical: null, offpage: null, geo: null, health: null, verdict: null, theme: "light", titlePx });
+    expect(html(559)).toMatch(/class="tag good">[^<]*<span aria-hidden="true">✓<\/span> 66 characters/);
+    expect(html(0)).toMatch(/class="tag warn">[^<]*<span aria-hidden="true">!<\/span> 66 characters/);
+  });
+
+  it("each nested item says which one it is", () => {
+    const questions = ["Why?", "How?"].map((name) => ({ "@type": "Question", name, answer: { "@type": "Answer", text: "x" } }));
+    expect(errors({ "@type": "FAQPage", mainEntity: questions })).toEqual([
+      'mainEntity 1 "Why?" › Question: missing required "acceptedAnswer" or "suggestedAnswer"',
+      'mainEntity 2 "How?" › Question: missing required "acceptedAnswer" or "suggestedAnswer"'
+    ]);
+  });
+
+  it("a network failure reads 'could not connect', not the browser's text", async () => {
+    const { checkHreflangCluster } = await import("../lib/hreflang-cluster.js");
+    const load = async () => { throw new TypeError("Failed to fetch"); };
+    const rows = await checkHreflangCluster("https://site.example/en/", [{ lang: "fr", href: "https://site.example/fr/" }], load, () => null);
+    expect(rows[0].problems).toEqual(["could not connect"]);
+  });
+
+  it("'Check the alternates' is busy while it runs, so a second Enter doesn't start it again", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+    const fn = src.slice(src.indexOf("async function runHreflangCluster"), src.indexOf("function renderHreflang"));
+    expect(fn).toMatch(/getAttribute\('aria-disabled'\) === 'true'\) return/);
+    expect(fn).toMatch(/setBusy\(btn, true\)[\s\S]*finally \{\s*setBusy\(btn, false\)/);
+  });
+});

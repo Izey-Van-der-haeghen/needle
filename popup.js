@@ -6,7 +6,7 @@ import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
 import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice } from './lib/popup-helpers.js';
-import { computeHealthScore, computeIndexability, detectMarketFromUrl } from './lib/popup-compute.js';
+import { computeHealthScore, computeIndexability, detectMarketFromUrl, withoutTracking } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { initTheme, setTheme } from './lib/theme.js';
 import { validateHreflang } from './lib/hreflang.js';
@@ -679,11 +679,17 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
     // The report button appears once every check has answered, so a report is never half done.
     loadGEO(gen).finally(() => { if (gen === auditGen) $('export-audit-header').hidden = false; });
     const verdict = computeIndexability(onpageData, technicalData);
-    const health = computeHealthScore(onpageData, technicalData);
+    const health = computeHealthScore(onpageData, technicalData, snippetPx());
     saveToHistory(url, onpageData.title || '', verdict.level, health?.score ?? null);
     showChanges(health?.score ?? null, gen);
   }
 }
+
+/** Snippet widths of the page's title and description; the score, the findings and the report use them. */
+const snippetPx = () => ({
+  titlePx: pixelWidth(onpageData?.title || '', SNIPPET.titleFont),
+  descPx: pixelWidth(onpageData?.description || '', SNIPPET.descFont)
+});
 
 const SEV_KIND = { critical: 'bad', high: 'bad', medium: 'warn', low: 'neutral' };
 let showAllFindings = false;
@@ -693,8 +699,7 @@ function renderFindings() {
   const slot = $('findings-slot');
   if (!slot || !onpageData) return;
   currentFindings = collectFindings({
-    onpage: onpageData, tech: technicalData, geo: geoData, rendered: renderedData, imageRules, hreflangCluster,
-    titlePx: pixelWidth(onpageData.title || '', SNIPPET.titleFont), descPx: pixelWidth(onpageData.description || '', SNIPPET.descFont)
+    onpage: onpageData, tech: technicalData, geo: geoData, rendered: renderedData, imageRules, hreflangCluster, ...snippetPx()
   });
   const f = currentFindings;
   const counts = ['critical', 'high', 'medium', 'low'].map((sv) => [sv, f.filter((x) => x.severity === sv).length]).filter(([, n]) => n);
@@ -776,7 +781,7 @@ function renderVerdict() {
   const slot = $('verdict-slot');
   if (!slot || !onpageData) return;
   const verdict = computeIndexability(onpageData, techPending ? { pending: true } : technicalData);
-  const health = computeHealthScore(onpageData, technicalData);
+  const health = computeHealthScore(onpageData, technicalData, snippetPx());
   const failing = health.checks.filter((c) => c.score < 1);
   const hasIssues = verdict.issues.length && verdict.issues[0].msg !== 'All checks passed';
   const sym = verdict.level === 'good' ? '✓' : verdict.level === 'warn' ? '!' : verdict.level === 'pending' ? '…' : '✗';
@@ -2075,11 +2080,16 @@ async function checkKeyword() {
 async function runHreflangCluster() {
   const box = $('hreflang-cluster');
   if (!box || !onpageData?.hreflang?.length) return;
+  const btn = $('hreflang-check');
+  // Busy while it runs: a second Enter would load every alternate again.
+  if (btn?.getAttribute('aria-disabled') === 'true') return;
   if (!(await hasOrigins(ALL_SITES))) {
     rerender(box, permissionNotice('To check the alternates, Needle loads each of them from its site.').replace('data-grant="all-sites"', 'data-grant="all-sites" data-retry="hreflang-check"'));
     return;
   }
-  const total = alternatesOf(pageUrl, onpageData.hreflang).length;
+  // A campaign link (?utm_…) is the same page: alternates link back to the URL without it.
+  const self = withoutTracking(pageUrl);
+  const total = alternatesOf(self, onpageData.hreflang).length;
   rerender(box, loading(total > CLUSTER_MAX ? `Loading the first ${CLUSTER_MAX} of ${total} alternates…` : `Loading ${plural(total, 'alternate')}…`));
   const gen = auditGen;
   // Alternates are chosen by the page: never request addresses on the user's own network.
@@ -2095,27 +2105,33 @@ async function runHreflangCluster() {
     return { status: r.status, url: r.url || url, html };
   };
   const parse = (html) => new DOMParser().parseFromString(html, 'text/html');
-  const rows = await checkHreflangCluster(pageUrl, onpageData.hreflang, load, parse);
+  setBusy(btn, true);
+  let rows;
+  try {
+    rows = await checkHreflangCluster(self, onpageData.hreflang, load, parse);
+  } finally {
+    setBusy(btn, false);
+  }
   if (gen !== auditGen) return;
   hreflangCluster = { rows, total };
   renderFindings();
   const bad = rows.filter((r) => r.problems.length).length;
   const partly = total > rows.length ? ` <span class="muted">Checked the first ${rows.length} of ${total} alternates.</span>` : '';
   rerender(box, `<p>${bad ? tag(`${bad} of ${rows.length} alternates with problems`, 'warn') : tag(rows.length === total ? `All ${rows.length} alternates link back` : `All ${rows.length} checked alternates link back`, 'good')}${partly}</p>
-    <table class="data-table"><thead><tr><th scope="col">hreflang</th><th scope="col">Alternate</th><th scope="col">Result</th></tr></thead><tbody>
-    ${rows.map((r) => `<tr><td class="mono">${escapeHtml(r.lang)}</td><td class="mono">${escapeHtml(r.href)}</td><td>${r.problems.length ? r.problems.map((p) => tag(p, 'warn')).join(' ') : tag('ok', 'good')}</td></tr>`).join('')}
+    <table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">Alternate</th><th scope="col">Result</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr><td class="mono lang">${escapeHtml(r.lang)}</td><td class="mono">${escapeHtml(r.href)}</td><td>${r.problems.length ? r.problems.map((p) => tag(p, 'warn')).join(' ') : tag('ok', 'good')}</td></tr>`).join('')}
     </tbody></table>
     <p class="muted">Google ignores hreflang pairs that don't link back to each other.${bad ? ' Added to Fix this first.' : ''}</p>`);
 }
 
 function renderHreflang(d) {
-  const issues = validateHreflang(d.hreflang, pageUrl);
+  const issues = validateHreflang(d.hreflang, withoutTracking(pageUrl));
   if (d.hreflangOutsideHead) issues.unshift({ level: 'error', msg: `${d.hreflangOutsideHead} hreflang link${d.hreflangOutsideHead === 1 ? '' : 's'} outside <head>`, hint: 'Google only reads hreflang links in <head>.' });
   const issueHtml = issues.length
     ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'error' : iss.level === 'warn' ? 'warning' : 'note', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : 'neutral')} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>`
     : `<p>${tag('All hreflang checks passed', 'good')}</p>`;
-  return `${issueHtml}<table class="data-table"><thead><tr><th scope="col">hreflang</th><th scope="col">URL</th></tr></thead><tbody>
-    ${d.hreflang.map((h) => `<tr><td class="mono">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(h.href)}</td></tr>`).join('')}</tbody></table>
+  return `${issueHtml}<table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">URL</th></tr></thead><tbody>
+    ${d.hreflang.map((h) => `<tr><td class="mono lang">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(h.href)}</td></tr>`).join('')}</tbody></table>
     ${d.hreflang.length > 1 ? `<div class="actions"><button type="button" class="secondary-btn" id="hreflang-check">Check the alternates</button></div><div id="hreflang-cluster" aria-live="polite"></div>` : ''}`;
 }
 
@@ -2496,11 +2512,12 @@ $('export-audit-header').addEventListener('click', async () => {
     technical: technicalData,
     offpage: offpageData,
     geo: geoData,
-    health: computeHealthScore(onpageData, technicalData),
+    health: computeHealthScore(onpageData, technicalData, snippetPx()),
     verdict: computeIndexability(onpageData, technicalData),
     theme,
     version: chrome.runtime.getManifest().version,
     findings: currentFindings,
+    ...snippetPx(),
     storeLink: await storeUrl(),
     fontCss: await reportFontCss()
   });
