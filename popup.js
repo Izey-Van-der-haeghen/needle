@@ -1,11 +1,11 @@
 import { validateSchema, detectFaqDuplicates, collectAllSchemaTypes, suggestMissingSchemas } from './lib/schema-validator.js';
 import { getCache, setCache, cacheKey, cachedCall, pageId, formatAge } from './lib/cache.js';
 import { LOCATIONS, LANGUAGES, FEATURE_LABELS } from './lib/serp.js';
-import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetchLlmsTxt } from './lib/geo.js';
+import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetchLlmsTxt, AI_SCORE_NOTE } from './lib/geo.js';
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
-import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom } from './lib/popup-helpers.js';
+import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice } from './lib/popup-helpers.js';
 import { computeHealthScore, computeIndexability, detectMarketFromUrl } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { initTheme, setTheme } from './lib/theme.js';
@@ -615,6 +615,17 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   // The on-page panel renders as soon as the page is read; the server check fills in after.
   const op = await opPromise;
   if (gen !== auditGen) return;
+  if (op.data && !isHtmlDocument(op.data.contentType)) {
+    // A text file, XML or image: an audit would only list false alarms.
+    onpageData = null;
+    techPending = false;
+    const notice = notHtmlNotice(op.data.contentType, url);
+    rerender(onpagePanel, notice);
+    rerender(technicalPanel, notice);
+    rerender($('panel-ai'), notice);
+    announce("This isn't an HTML page");
+    return;
+  }
   if (op.error || !op.data) {
     onpageData = null;
     const noAccess = /Cannot access|permission|activeTab/i.test(op.error || '');
@@ -838,7 +849,7 @@ async function loadGEO(gen = auditGen) {
   rerender(slot, `
     <div class="card">
       <h2>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h2>
-      <p class="muted">Can AI search engines reach and quote this page? Only blocks of AI search bots lower the score; blocking training bots doesn't affect answers.</p>
+      <p class="muted">Can AI search engines reach and quote this page? ${escapeHtml(AI_SCORE_NOTE)}</p>
       ${aiAccess.cloudflareManaged ? '<div class="hint">Cloudflare manages this robots.txt. Its AI Crawl Control may also block AI bots at the network level (HTTP 403), even ones allowed below. Check AI Crawl Control in the Cloudflare dashboard.</div>' : ''}
       <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI search bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI search bots allowed', 'good')}</h3>
       <ul class="bot-list">
@@ -1963,7 +1974,7 @@ function renderOnpage(d, age) {
           const warns = s.issues.filter((x) => x.level === 'warn');
           return `<details class="sub"${errors.length ? ' open' : ''}>
             <summary>${escapeHtml(s.types.join(', ') || 'Unknown type')} #${i + 1} ${errors.length ? tag(`${errors.length} error${errors.length === 1 ? '' : 's'}`, 'bad') : warns.length ? tag(`${warns.length} warning${warns.length === 1 ? '' : 's'}`, 'warn') : tag('valid', 'good')}</summary>
-            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'required' : iss.level === 'warn' ? 'warning' : 'recommended', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : 'neutral')} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
+            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'required' : iss.level === 'warn' ? 'warning' : iss.level === 'note' ? 'note' : 'recommended', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : 'neutral')} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
             <pre class="code">${escapeHtml(JSON.stringify(s.raw, null, 2))}</pre>
           </details>`;
         }).join('')}

@@ -799,6 +799,8 @@
 
     return {
       url: location.href,
+      // text/plain, XML or an image opened in a tab: the popup shows "not an HTML page" instead of an audit.
+      contentType: document.contentType || "",
       title: document.title || "",
       generator: document.querySelector('meta[name="generator" i]')?.getAttribute("content") || "",
       description: getMeta("description"),

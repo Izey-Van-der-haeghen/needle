@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (1.0.1)
+
+- **Images:** the size check measures the file the browser loaded from `srcset`, so responsive images are no longer flagged "much larger than shown". The main-image check counts the largest `srcset` file.
+- **AI tab, site entity:** Needle looks for the Person or Organization that runs the site. An employer (`worksFor`), school, client, brand or topic named in the structured data no longer counts as the site's own organisation.
+- **Structured data:** software without ratings is no longer reported as missing a required property. A note explains that the star-rating rich result needs real ratings or reviews.
+- **Pages that aren't HTML:** a text file, XML or image opened in a tab (such as `/llms.txt`) shows "This isn't an HTML page" instead of an audit full of false alarms.
+- **AI score:** the AI tab and the report now say what the AI readiness score subtracts.
+
 ## 1.0.0 (20 November 2026)
 
 First public release.
