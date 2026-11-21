@@ -8,6 +8,9 @@
 - **Report:** the report uses the same colour names and values as Needle itself.
 - **Link check:** a link that opens the reader's language version (for example `/fr-fr/…`) counts as working, instead of "redirects, link straight to the final URL". A link that is slow once gets a second try before it is reported as timed out.
 - **Noindex pages:** while a page asks not to be indexed, Fix this first leaves out what only matters in search results (title and description length, structured data, trust signals) and says so.
+- **What's new:** after an update, Needle says once what changed, with a link to this changelog. Settings has a "What's new" link next to the version.
+- **Clearer messages:** when a tab can't be read (no internet, the Chrome Web Store, no access yet), Needle says why in plain words, once, instead of Chrome's own error text.
+- **Side panel:** a tab click no longer hides the whole side panel (a fault introduced while preparing this version, never released).
 
 ## 1.0.1 (21 November 2026)
 

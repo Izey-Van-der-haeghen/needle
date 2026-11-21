@@ -31,6 +31,7 @@ import { findInSitemaps } from './lib/sitemap-check.js';
 import { checkHostVariants } from './lib/variants.js';
 import { checkHreflangCluster, alternatesOf, CLUSTER_MAX } from './lib/hreflang-cluster.js';
 import { urlKey } from './lib/urls.js';
+import { whatsNewFor, CHANGELOG_URL } from './lib/whats-new.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
@@ -405,7 +406,8 @@ async function init() {
   delete popupState.pendingCompare; // older versions kept it here
   if (popupState.activeTab) selectTab(popupState.activeTab);
   // "Compare this link's page" from the right-click menu: now, or while this view is open.
-  const { pendingCompare } = await chrome.storage.local.get('pendingCompare');
+  const { pendingCompare, whatsNew } = await chrome.storage.local.get(['pendingCompare', 'whatsNew']);
+  pendingWhatsNew = whatsNew ? whatsNewFor(chrome.runtime.getManifest().version, whatsNew.from) : null;
   applyPendingCompare(pendingCompare);
   chrome.storage.local.onChanged.addListener((changes) => {
     if (changes.pendingCompare?.newValue) applyPendingCompare(changes.pendingCompare.newValue);
@@ -490,7 +492,8 @@ async function startForTab(tab) {
   applyMarket();
   renderExternalTools();
   // Before the audit: added later, the note would push the results down.
-  showOnboardingIfNeeded();
+  // After an update the user knows Needle already: "what's new" replaces the welcome note.
+  if (!showWhatsNewIfNeeded()) showOnboardingIfNeeded();
   await loadOnpageAndTechnical();
   if (tg !== tabGen) return;
   restoreOffpageFromCache();
@@ -518,6 +521,36 @@ function panelAccessNotice() {
   return `<div class="notice"><strong>Click the Needle button to audit this tab</strong>
     <div>The side panel can read a tab after you click Needle's toolbar button on it, or after you allow access to websites.</div>
     <div class="actions"><button type="button" class="primary-btn" data-grant="all-sites" data-retry="panel-retry">Allow access to websites</button></div></div>`;
+}
+
+/** What changed since the version the user had, set by the update in background.js. */
+let pendingWhatsNew = null;
+
+/** "Needle was updated": once after an update, until "Got it". Returns whether it shows. */
+function showWhatsNewIfNeeded() {
+  if (document.querySelector('.whats-new')) return true;
+  if (!pendingWhatsNew) return false;
+  const w = pendingWhatsNew;
+  const banner = document.createElement('div');
+  banner.className = 'notice whats-new';
+  const several = w.sections.length > 1;
+  banner.innerHTML = `
+    <strong>Needle was updated to ${escapeHtml(w.version)}</strong>
+    ${w.sections.map((s) => `${several ? `<div class="whats-new-version">${escapeHtml(s.version)}</div>` : ''}
+      <ul class="plain-list">${s.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`).join('')}
+    <div class="actions">
+      <button type="button" class="primary-btn" data-whats-new-dismiss>Got it</button>
+      <a class="link-btn" href="${escapeHtml(CHANGELOG_URL)}" target="_blank" rel="noopener noreferrer">Full changelog</a>
+    </div>`;
+  document.querySelector('main').prepend(banner);
+  banner.querySelector('[data-whats-new-dismiss]').addEventListener('click', () => {
+    banner.remove();
+    pendingWhatsNew = null;
+    chrome.storage.local.remove('whatsNew').catch(() => {});
+    // The note is gone with the button: keep keyboard focus in the page.
+    $('panel-onpage')?.focus();
+  });
+  return true;
 }
 
 async function showOnboardingIfNeeded() {

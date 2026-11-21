@@ -70,6 +70,16 @@ Needle has no server, no analytics and no ads. It installs with no access to web
 
 Free and open source (MIT). No account needed for the on-page, technical and AI checks. Source code: github.com/Izey-Van-der-haeghen/needle
 
+WHAT'S NEW IN 1.0.2
+• Labels that are only information now have an outline, so they don't look like something to fix
+• A link that opens the reader's language version counts as working
+• A page set to noindex gets a shorter list: only what matters before it can be found
+• Clearer messages when a page can't be read, for example without internet
+• The side panel opens in its own layout straight away
+Every change, version by version: github.com/Izey-Van-der-haeghen/needle/blob/main/CHANGELOG.md
+
+> Replace this section with each new version (the store has no separate field for release notes). The lines are the same as `WHATS_NEW` in `lib/whats-new.js`, which the extension shows after an update.
+
 **Screenshots**: 1280 × 800, see `store/screenshots/`.
 **Small promo tile**: 440 × 280, `store/promo-440x280.png`.
 

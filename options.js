@@ -7,6 +7,7 @@ import { withStoreLock } from "./lib/store-lock.js";
 import { confirmClick } from "./lib/confirm-button.js";
 import { BING_ORIGINS } from "./lib/bing.js";
 import { storeUrl } from "./lib/links.js";
+import { CHANGELOG_URL } from "./lib/whats-new.js";
 import { readableError } from "./lib/errors.js";
 import { fetchWithTimeout } from "./lib/fetch-helper.js";
 
@@ -14,6 +15,7 @@ const $ = (id) => document.getElementById(id);
 await initTheme();
 
 $("version").textContent = chrome.runtime.getManifest().version;
+$("changelog-link").href = CHANGELOG_URL;
 storeUrl().then((url) => {
   if (!url) return;
   $("store-link").href = url;

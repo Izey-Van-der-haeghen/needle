@@ -10,11 +10,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (f) => readFileSync(path.join(ROOT, f), "utf8");
 
 /**
- * @param {{panel?: boolean, activeTab?: string|null}} [opts] - panel: behave as the side panel;
- *   activeTab: a tab saved from an earlier visit ("technical", "ai" …)
+ * @param {{panel?: boolean, activeTab?: string|null, local?: Object}} [opts] - panel: behave as the side panel;
+ *   activeTab: a tab saved from an earlier visit ("technical", "ai" …); local: more chrome.storage.local data
  * @returns {Promise<{markedBeforePopupJs: boolean}>} whether theme-boot.js marked the side panel
  */
-export async function loadPopup({ panel = false, activeTab = null } = {}) {
+export async function loadPopup({ panel = false, activeTab = null, local = {} } = {}) {
   history.replaceState(null, "", "/popup.html");
   const inner = read("popup.html").replace(/^[\s\S]*?<html[^>]*>/i, "").replace(/<\/html>[\s\S]*$/i, "").replace(/<script[\s\S]*?<\/script>/gi, "");
   document.documentElement.innerHTML = inner;
@@ -46,7 +46,7 @@ export async function loadPopup({ panel = false, activeTab = null } = {}) {
     tabs: { query: async () => [clone(TAB)], get: async () => clone(TAB), sendMessage: (_i, m) => later(() => (tabHandlers[m?.type] || (() => undefined))(m)), create: async () => ({ id: 2 }), update: async () => clone(TAB), onActivated: listeners(), onUpdated: listeners() },
     windows: { getCurrent: async () => ({ id: 1 }) },
     scripting: { executeScript: () => later(() => [{ result: undefined }]) },
-    storage: { local: area({ popupState: { onboardingDismissed: true, ...(activeTab ? { activeTab } : {}) } }), sync: area({ theme: "light" }), onChanged: listeners() },
+    storage: { local: area({ popupState: { onboardingDismissed: true, ...(activeTab ? { activeTab } : {}) }, ...local }), sync: area({ theme: "light" }), onChanged: listeners() },
     permissions: { contains: async () => false, request: async () => false, remove: async () => true, onAdded: listeners(), onRemoved: listeners() },
     extension: { getViews: ({ type } = {}) => (type === "popup" && !panel ? [window] : []) },
     commands: { getAll: async () => [] },
@@ -59,5 +59,5 @@ export async function loadPopup({ panel = false, activeTab = null } = {}) {
   const markedBeforePopupJs = document.documentElement.classList.contains("side-panel");
   await import(pathToFileURL(path.join(ROOT, "popup.js")).href);
   await new Promise((r) => setTimeout(r, 50));
-  return { markedBeforePopupJs };
+  return { markedBeforePopupJs, storage: globalThis.chrome.storage };
 }

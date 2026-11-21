@@ -21,7 +21,11 @@ chrome.runtime.onStartup?.addListener(restrictStorage);
 // reload (development) keeps them, so paid results survive.
 chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
   migrateSecrets().catch(() => {});
-  if (reason === "update" && previousVersion !== chrome.runtime.getManifest().version) clearCache().catch(() => {});
+  if (reason === "update" && previousVersion !== chrome.runtime.getManifest().version) {
+    clearCache().catch(() => {});
+    // The popup shows "Needle was updated" once, until the user clicks "Got it".
+    chrome.storage.local.set({ whatsNew: { from: previousVersion, at: Date.now() } }).catch(() => {});
+  }
 });
 
 // Keyed results depend on the credentials but their cache key does not: when a key

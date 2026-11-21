@@ -8,6 +8,7 @@
  *   access=0|1              optional site access granted (default 0)
  *   panel=1                 behave as the side panel instead of the popup
  *   welcome=1               show the first-run welcome note
+ *   whatsnew=1              show "Needle was updated" (as after an update from 1.0.0)
  *   delay=<ms>              latency of every message (default 150)
  *
  * The preview never fabricates PageSpeed or DataForSEO results: those buttons
@@ -50,7 +51,7 @@
       onChanged
     };
   }
-  const local = area("local", { popupState: { onboardingDismissed: q.get("welcome") !== "1" } });
+  const local = area("local", { popupState: { onboardingDismissed: q.get("welcome") !== "1" }, ...(q.get("whatsnew") === "1" ? { whatsNew: { from: "1.0.0", at: Date.now() } } : {}) });
   const sync = area("sync", { theme: q.get("theme") || "light" });
 
   // ----- the demo page as the active tab -----

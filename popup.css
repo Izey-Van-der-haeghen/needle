@@ -253,3 +253,7 @@ html.side-panel .social-grid, html.side-panel .psi-grid { grid-template-columns:
 .spark-good { stroke: var(--good); stroke-width: 1.2; stroke-dasharray: 4 3; }
 .spark-dot { fill: var(--accent); stroke: var(--ink); stroke-width: 1; }
 .inline-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; min-height: 32px; }
+
+/* "Needle was updated": a version label per section when several versions changed. */
+.whats-new .whats-new-version { font: 700 11px/1.4 var(--mono); color: var(--ink-2); margin-top: 6px; }
+.whats-new .plain-list { margin: 4px 0 0; }

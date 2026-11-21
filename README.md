@@ -69,6 +69,7 @@ Settings shows where to find each key.
 
 - **Chrome Web Store:** [install Needle](https://chromewebstore.google.com/detail/needle-all-in-one-seo-geo/khjcjeainolgjipkcjnfaoepnjomnfjc), free.
 - **Load it from source:** see [Install from source](#install-from-source).
+- **What's new:** every version's changes are in the [changelog](CHANGELOG.md).
 - **Questions and bugs:** [GitHub issues](https://github.com/Izey-Van-der-haeghen/needle/issues) or hello@izey.dev.
 
 ## Privacy
