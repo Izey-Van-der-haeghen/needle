@@ -829,7 +829,7 @@ async function loadGEO(gen = auditGen) {
   renderFindings();
 
   const blockedSearch = aiAccess.bots.filter((b) => !b.allowed && b.kind === 'search');
-  const kindLabel = { search: 'AI search', user: 'user fetch', training: 'training' };
+  const kindLabel = { search: 'AI search', user: 'user fetch', training: 'training', control: 'Gemini use (token)' };
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
       <div class="v">${s.ok ? tag('ok', 'good') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
@@ -839,6 +839,7 @@ async function loadGEO(gen = auditGen) {
     <div class="card">
       <h2>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h2>
       <p class="muted">Can AI search engines reach and quote this page? Only blocks of AI search bots lower the score; blocking training bots doesn't affect answers.</p>
+      ${aiAccess.cloudflareManaged ? '<div class="hint">Cloudflare manages this robots.txt. Its AI Crawl Control may also block AI bots at the network level (HTTP 403), even ones allowed below. Check AI Crawl Control in the Cloudflare dashboard.</div>' : ''}
       <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI search bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI search bots allowed', 'good')}</h3>
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
@@ -1714,9 +1715,12 @@ function renderImagesCard() {
     ? `${filterButtons('kind', opts, imageFilter.kind)}
       <div class="actions"><button type="button" class="secondary-btn copy-btn" data-copy-fn="imagesTsv">Copy as table</button></div>
       ${(() => {
-        const lead = leadImageCheck(imgs);
+        const lead = leadImageCheck(imgs, onpageData.og);
         if (!lead) return '';
-        return `<p>${lead.wideEnough ? tag(`Main image ${lead.img.naturalWidth} px wide`, 'good') : tag(`Main image only ${lead.img.naturalWidth} px wide`, 'warn')}
+        const big = lead.img.naturalWidth >= LEAD_IMAGE_MIN_WIDTH;
+        return `<p>${big ? tag(`Main image ${lead.img.naturalWidth} px wide`, 'good')
+          : lead.wideEnough ? `${tag(`Share image ${lead.shareWidth} px wide`, 'good')} <span class="muted">The largest image on the page is ${lead.img.naturalWidth} px.</span>`
+          : tag(`Main image only ${lead.img.naturalWidth} px wide`, 'warn')}
           <span class="muted">Google recommends at least ${LEAD_IMAGE_MIN_WIDTH} px for large previews in Discover.</span></p>`;
       })()}
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
