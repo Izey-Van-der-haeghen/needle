@@ -791,7 +791,7 @@ function renderVerdict() {
       <div class="verdict-head">
         <span class="verdict-sym" aria-hidden="true">${sym}</span>
         <span class="verdict-title">${escapeHtml(verdict.verdict)}</span>
-        <span class="health" title="On-page checklist score, not a ranking prediction">${techPending ? '<span class="muted">Score after the server check</span>' : `Score ${health.score}<span class="muted">/100</span>`}</span>
+        <span class="health" title="On-page checklist score, not a ranking prediction">${techPending ? '<span class="muted">Score <span aria-hidden="true">…</span><span class="visually-hidden">after the server check</span></span>' : `Score ${health.score}<span class="muted">/100</span>`}</span>
       </div>
       ${hasIssues ? `<ul class="verdict-reasons">${verdict.issues.map((iss) => `<li>${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}
       ${failing.length ? `<details class="score-details"${scoreOpen ? ' open' : ''}><summary id="score-summary">What the score is missing (${failing.length})</summary>

@@ -196,3 +196,23 @@ describe("stress test of 1.0.1 (Break UI)", () => {
     expect(fn).toMatch(/setBusy\(btn, true\)[\s\S]*finally \{\s*setBusy\(btn, false\)/);
   });
 });
+
+describe("polish review of 1.0.1 (Make interfaces feel better)", () => {
+  it("network errors read as plain words", async () => {
+    const { readableError } = await import("../lib/errors.js");
+    expect(readableError(new TypeError("Failed to fetch"))).toBe("Could not connect. Check the internet connection and try again.");
+    expect(readableError(Object.assign(new Error("x"), { name: "TimeoutError" }))).toBe("It took too long. Try again.");
+    expect(readableError(new Error("Google rejected this key."))).toBe("Google rejected this key.");
+  });
+
+  it("the pending score is short on screen and complete for screen readers", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+    expect(src).toContain('Score <span aria-hidden="true">…</span><span class="visually-hidden">after the server check</span>');
+  });
+
+  it("the llms.txt pointer shows the file names in the code font", async () => {
+    const { notHtmlNotice } = await import("../lib/popup-helpers.js");
+    expect(notHtmlNotice("text/plain", "https://site.example/llms.txt")).toContain('<span class="mono">/llms-full.txt</span>');
+  });
+});

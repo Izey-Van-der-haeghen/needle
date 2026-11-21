@@ -7,6 +7,7 @@ import { withStoreLock } from "./lib/store-lock.js";
 import { confirmClick } from "./lib/confirm-button.js";
 import { BING_ORIGINS } from "./lib/bing.js";
 import { storeUrl } from "./lib/links.js";
+import { readableError } from "./lib/errors.js";
 
 const $ = (id) => document.getElementById(id);
 await initTheme();
@@ -107,7 +108,7 @@ $("test-dfs").addEventListener("click", async () => {
     const balance = user.money?.balance != null ? `$${Number(user.money.balance).toFixed(2)}` : "unknown";
     say("dfs-status", `Connected. Balance: ${balance}.`);
   } catch (e) {
-    say("dfs-status", e.message, "bad");
+    say("dfs-status", readableError(e), "bad");
   }
 });
 
@@ -149,7 +150,7 @@ $("test-psi").addEventListener("click", async () => {
     if (!r.ok) throw new Error(`Google answered HTTP ${r.status}.`);
     say("psi-status", "The key works.");
   } catch (e) {
-    say("psi-status", e.message, "bad");
+    say("psi-status", readableError(e), "bad");
   }
 });
 
