@@ -171,8 +171,8 @@ describe("schema suggestions", () => {
 });
 
 describe("title and description width", () => {
-  it("is neutral near the limit and only a problem when cut off", () => {
-    expect(pixelTag(930, 920, 990)).toMatch(/class="tag neutral".*930 px, near the limit/);
+  it("is information near the limit and only a problem when cut off", () => {
+    expect(pixelTag(930, 920, 990)).toMatch(/class="tag info".*930 px, near the limit/);
     expect(pixelTag(993, 920, 990)).toMatch(/class="tag bad".*993 px, cut off/);
     expect(pixelTag(800, 920, 990)).toMatch(/class="tag good"/);
   });

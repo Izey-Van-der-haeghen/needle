@@ -30,6 +30,7 @@ import { readability } from './lib/readability.js';
 import { findInSitemaps } from './lib/sitemap-check.js';
 import { checkHostVariants } from './lib/variants.js';
 import { checkHreflangCluster, alternatesOf, CLUSTER_MAX } from './lib/hreflang-cluster.js';
+import { urlKey } from './lib/urls.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
@@ -357,7 +358,8 @@ function setSelectValue(sel, value) {
 
 /** True when this page runs in Chrome's side panel instead of the toolbar popup. */
 const IS_PANEL = !(chrome.extension?.getViews?.({ type: 'popup' }) || []).includes(window);
-if (IS_PANEL) document.documentElement.classList.add('panel');
+// theme-boot.js already set this before the first paint; this keeps the two in step.
+document.documentElement.classList.toggle('panel', IS_PANEL);
 
 /**
  * Browser zoom (also Chrome's default page zoom) applies to the popup, but Chrome caps a
@@ -852,7 +854,7 @@ async function loadGEO(gen = auditGen) {
   const kindLabel = { search: 'AI search', user: 'user fetch', training: 'training', control: 'Gemini use (token)' };
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
-      <div class="v">${s.ok ? tag('ok', 'good') : s.info ? tag('not scored', 'neutral') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
+      <div class="v">${s.ok ? tag('ok', 'good') : s.info ? tag('not scored', 'info') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
       ${s.hint && !s.ok ? `<div class="hint">${escapeHtml(s.hint)}</div>` : ''}</div></div>`).join('');
 
   rerender(slot, `
@@ -1337,7 +1339,7 @@ async function snapshotCurrentTab() {
   return null;
 }
 
-const normUrl = (u) => { try { const x = new URL(u); x.hash = ''; return x.href.replace(/\/$/, ''); } catch { return u; } };
+const normUrl = (u) => urlKey(u) || u;
 
 function serpPositionFor(url, serpData) {
   if (!serpData?.organic) return null;
@@ -1983,7 +1985,7 @@ function renderOnpage(d, age) {
           const warns = s.issues.filter((x) => x.level === 'warn');
           return `<details class="sub"${errors.length ? ' open' : ''}>
             <summary>${escapeHtml(s.types.join(', ') || 'Unknown type')} #${i + 1} ${errors.length ? tag(`${errors.length} error${errors.length === 1 ? '' : 's'}`, 'bad') : warns.length ? tag(`${warns.length} warning${warns.length === 1 ? '' : 's'}`, 'warn') : tag('valid', 'good')}</summary>
-            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'required' : iss.level === 'warn' ? 'warning' : iss.level === 'note' ? 'note' : 'recommended', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : 'neutral')} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
+            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'required' : iss.level === 'warn' ? 'warning' : iss.level === 'note' ? 'note' : 'recommended', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : iss.level === 'note' ? 'info' : 'neutral')} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
             <pre class="code">${escapeHtml(JSON.stringify(s.raw, null, 2))}</pre>
           </details>`;
         }).join('')}

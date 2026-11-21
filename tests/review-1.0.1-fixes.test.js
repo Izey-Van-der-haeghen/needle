@@ -96,8 +96,8 @@ describe("title and description length", () => {
     expect(desc(1000)).toBeDefined();
   });
 
-  it("show a long count neutrally when the width fits", () => {
-    expect(charTag(62, 30, 60, 70, true)).toMatch(/class="tag neutral".*62 characters</);
+  it("show a long count as information when the width fits", () => {
+    expect(charTag(62, 30, 60, 70, true)).toMatch(/class="tag info".*62 characters</);
     expect(charTag(62, 30, 60, 70)).toMatch(/class="tag warn".*62 characters, long/);
   });
 });

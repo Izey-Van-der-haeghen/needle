@@ -5,4 +5,12 @@
   try { saved = localStorage.getItem("needle-theme") || "auto"; } catch {}
   const dark = saved === "dark" || (saved !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
+  // The side panel shows popup.html too. Mark it before the first paint, so it never shows the
+  // popup's fixed 560 px layout for a frame. In a real popup, getViews already lists this window
+  // while this <head> script runs (checked in a real popup and side panel); popup.js confirms it.
+  if (/\/popup\.html$/.test(location.pathname)) {
+    try {
+      if (!(chrome.extension?.getViews?.({ type: "popup" }) || []).includes(window)) document.documentElement.classList.add("panel");
+    } catch {}
+  }
 })();

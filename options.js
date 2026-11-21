@@ -20,6 +20,18 @@ storeUrl().then((url) => {
 });
 
 /** Show a short status message next to a section. */
+/**
+ * A test runs once at a time: while it runs, its button stays focusable but ignores clicks
+ * (aria-disabled, styled as busy in base.css), so a second click doesn't start it again.
+ */
+function whileBusy(btn, run) {
+  return async (...args) => {
+    if (btn.getAttribute("aria-disabled") === "true") return;
+    btn.setAttribute("aria-disabled", "true");
+    try { await run(...args); } finally { btn.removeAttribute("aria-disabled"); }
+  };
+}
+
 function say(id, text, kind = "good") {
   const el = $(id);
   el.textContent = text;
@@ -91,7 +103,7 @@ confirmClick($("clear-dfs"), async () => {
   say("dfs-status", "Login removed from this device.");
 });
 
-$("test-dfs").addEventListener("click", async () => {
+$("test-dfs").addEventListener("click", whileBusy($("test-dfs"), async () => {
   const login = $("dfsLogin").value.trim();
   const password = $("dfsPassword").value.trim();
   if (!login || !password) { say("dfs-status", "Fill in both fields first.", "bad"); return; }
@@ -110,7 +122,7 @@ $("test-dfs").addEventListener("click", async () => {
   } catch (e) {
     say("dfs-status", readableError(e), "bad");
   }
-});
+}));
 
 $("save-bing").addEventListener("click", async () => {
   const key = $("bingKey").value.trim();
@@ -138,7 +150,7 @@ confirmClick($("clear-psi"), async () => {
   say("psi-status", "Key removed from this device.");
 });
 
-$("test-psi").addEventListener("click", async () => {
+$("test-psi").addEventListener("click", whileBusy($("test-psi"), async () => {
   const key = $("psiKey").value.trim();
   if (!key) { say("psi-status", "Paste a key first.", "bad"); return; }
   say("psi-status", "Testing on example.com, this takes about 20 seconds…", "neutral");
@@ -152,7 +164,7 @@ $("test-psi").addEventListener("click", async () => {
   } catch (e) {
     say("psi-status", readableError(e), "bad");
   }
-});
+}));
 
 // ---------------------------------------------------------------------------
 // Preferences (chrome.storage.sync)

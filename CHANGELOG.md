@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.2 (not yet released)
+
+- **Labels:** labels that are information only ("near the limit", "note", "not scored") have their own outlined look, so they no longer look like a "Low" finding.
+- **Side panel:** the side panel shows its own layout from the first frame, instead of the popup's for a moment.
+- **Settings:** "Test key" and "Test connection" run once at a time.
+- **Report:** the report uses the same colour names and values as Needle itself.
+
 ## 1.0.1 (21 November 2026)
 
 - **Images:** the size check measures the file the browser loaded from `srcset`, so responsive images are no longer flagged "much larger than shown". The main-image check counts the largest `srcset` file.
