@@ -70,6 +70,8 @@ let renderedData = null;
 let geoData = null;
 let mainText = null;
 let currentFindings = [];
+let techPending = false; // the server check is still running for this audit
+let imageMeasureNote = ''; // the last "Measure them" result, kept when the images card redraws
 // Every audit gets a number. An answer that arrives after the side panel moved to
 // another tab, or after Refresh, carries an older number and is dropped.
 let tabGen = 0; // bumped when the view switches to a tab
@@ -115,7 +117,7 @@ function rerender(el, html) {
   const activeId = document.activeElement?.id;
   const inside = activeId && el.contains(document.activeElement);
   el.innerHTML = html;
-  if (inside) $(activeId)?.focus();
+  if (inside) ($(activeId) || el.querySelector('[data-focus-fallback]'))?.focus();
 }
 
 /** Mark a run button busy without disabling it, so keyboard focus stays on it. */
@@ -268,7 +270,12 @@ window.addEventListener('pagehide', () => {
 // Tabs (ARIA tablist with arrow-key navigation)
 // ---------------------------------------------------------------------------
 
+const tabScroll = {};
 function selectTab(name, { focus = false } = {}) {
+  // Each tab keeps its own scroll position (they share one scrolling <main>).
+  const main = document.querySelector('main');
+  const current = tabs.find((t) => t.classList.contains('active'))?.dataset.tab;
+  if (main && current && current !== name) tabScroll[current] = main.scrollTop;
   tabs.forEach((t) => {
     const on = t.dataset.tab === name;
     t.classList.toggle('active', on);
@@ -281,6 +288,7 @@ function selectTab(name, { focus = false } = {}) {
     p.classList.toggle('active', on);
     p.hidden = !on;
   });
+  if (main && current !== name) main.scrollTop = tabScroll[name] || 0;
   setStatePath('activeTab', name);
 }
 
@@ -475,9 +483,10 @@ async function startForTab(tab) {
 
   applyMarket();
   renderExternalTools();
+  // Before the audit: added later, the note would push the results down.
+  showOnboardingIfNeeded();
   await loadOnpageAndTechnical();
   if (tg !== tabGen) return;
-  showOnboardingIfNeeded();
   restoreOffpageFromCache();
   autoRestoreSerpResult();
   autoRestoreCompareResult();
@@ -581,6 +590,8 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   const gen = ++auditGen;
   const tab = currentTab;
   const url = pageUrl;
+  techPending = true;
+  imageMeasureNote = '';
   const onpagePanel = $('panel-onpage');
   const technicalPanel = $('panel-technical');
   rerender(onpagePanel, loading('Reading the page…'));
@@ -623,17 +634,18 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
     applyImageRules(onpageData.images, imageRules);
     rerender(onpagePanel, renderOnpage(onpageData, onpageAge));
     attachOnpageHandlers();
-    // Most findings need only the page: show them now, so the cards below don't jump later.
-    renderFindings();
+    // Most findings and the page's own verdict need only the page: show them now, so the
+    // cards below don't jump when the server check arrives.
+    renderVerdict();
     renderExternalTools();
     // The page's <html lang> picks the language in multilingual markets (fr-BE → French).
     applyMarket();
-    $('export-audit-header').hidden = false;
     announce('Page analysed');
   }
 
   const tech = await techPromise;
   if (gen !== auditGen) return;
+  techPending = false;
   if (tech.error) {
     technicalData = null;
     rerender(technicalPanel, errorBox('The server check failed', tech.error,
@@ -649,7 +661,8 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
 
   if (onpageData) {
     renderVerdict();
-    loadGEO(gen);
+    // The report button appears once every check has answered, so a report is never half done.
+    loadGEO(gen).finally(() => { if (gen === auditGen) $('export-audit-header').hidden = false; });
     const verdict = computeIndexability(onpageData, technicalData);
     const health = computeHealthScore(onpageData, technicalData);
     saveToHistory(url, onpageData.title || '', verdict.level, health?.score ?? null);
@@ -676,7 +689,7 @@ function renderFindings() {
   const openWhy = new Set([...slot.querySelectorAll('details.sub[open]')].map((d) => d.dataset.fid));
   const overlayOn = $('toggle-issues')?.getAttribute('aria-pressed') === 'true';
   rerender(slot, `<details class="card collapsible" id="findings-card"${wasOpen ? ' open' : ''}>
-    <summary id="findings-summary"><h2 class="card-title">Fix this first</h2>
+    <summary id="findings-summary" data-focus-fallback><h2 class="card-title">Fix this first</h2>
       ${f.length ? counts.map(([sv, n]) => tag(`${n} ${SEVERITY_LABEL[sv].toLowerCase()}`, SEV_KIND[sv])).join(' ') : tag('nothing found', 'good')}</summary>
     <div class="card-body">
       ${f.length ? `<ol class="finding-list">${shown.map((x, i) => {
@@ -688,7 +701,7 @@ function renderFindings() {
           <div class="finding-head">${tag(SEVERITY_LABEL[x.severity], SEV_KIND[x.severity])} <span class="finding-title" id="ft-${escapeHtml(x.id)}">${escapeHtml(x.title)}</span> ${locate}</div>
           <details class="sub" data-fid="${escapeHtml(x.id)}"${openWhy.has(x.id) ? ' open' : ''}><summary id="why-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}">Why and how · ${escapeHtml(x.area)}</summary>
             <p>${escapeHtml(x.why)}</p><p><strong>Fix:</strong> ${escapeHtml(x.fix)}</p>
-            ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${x.examples.length - 8} more</p>` : ''}` : ''}
+            ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${fmtNum(x.examples.length - 8)} more</p>` : ''}` : ''}
           </details>
         </li>`;
       }).join('')}</ol>
@@ -747,18 +760,18 @@ async function showChanges(score, gen = auditGen) {
 function renderVerdict() {
   const slot = $('verdict-slot');
   if (!slot || !onpageData) return;
-  const verdict = computeIndexability(onpageData, technicalData);
+  const verdict = computeIndexability(onpageData, techPending ? { pending: true } : technicalData);
   const health = computeHealthScore(onpageData, technicalData);
   const failing = health.checks.filter((c) => c.score < 1);
   const hasIssues = verdict.issues.length && verdict.issues[0].msg !== 'All checks passed';
-  const sym = verdict.level === 'good' ? '✓' : verdict.level === 'warn' ? '!' : '✗';
+  const sym = verdict.level === 'good' ? '✓' : verdict.level === 'warn' ? '!' : verdict.level === 'pending' ? '…' : '✗';
   const scoreOpen = !!slot.querySelector('.score-details')?.open;
   rerender(slot, `
     <div class="verdict verdict-${verdict.level}">
       <div class="verdict-head">
         <span class="verdict-sym" aria-hidden="true">${sym}</span>
         <span class="verdict-title">${escapeHtml(verdict.verdict)}</span>
-        <span class="health" title="On-page checklist score, not a ranking prediction">Score ${health.score}<span class="muted">/100</span></span>
+        <span class="health" title="On-page checklist score, not a ranking prediction">${techPending ? '<span class="muted">Score after the server check</span>' : `Score ${health.score}<span class="muted">/100</span>`}</span>
       </div>
       ${hasIssues ? `<ul class="verdict-reasons">${verdict.issues.map((iss) => `<li>${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}
       ${failing.length ? `<details class="score-details"${scoreOpen ? ' open' : ''}><summary id="score-summary">What the score is missing (${failing.length})</summary>
@@ -810,13 +823,12 @@ async function loadGEO(gen = auditGen) {
   const slot = $('panel-ai');
   if (!slot) return;
   const score = aiReadinessScore(aiAccess, eeat, citability);
-  geoData = { aiAccess, eeat, citability, llmsTxt, score };
+  // A 4xx robots.txt means "no rules"; 429 and 5xx mean crawlers stay away, so nothing is known.
+  const robotsKnown = !!technicalData?.robotsTxt?.ok || ((technicalData?.robotsTxt?.status || 0) >= 400 && technicalData.robotsTxt.status < 500 && technicalData.robotsTxt.status !== 429);
+  geoData = { aiAccess, eeat, citability, llmsTxt, score, robotsKnown };
   renderFindings();
 
   const blockedSearch = aiAccess.bots.filter((b) => !b.allowed && b.kind === 'search');
-  // A 4xx robots.txt means "no rules"; 429 and 5xx mean crawlers stay away, so nothing is known.
-  const rs = technicalData?.robotsTxt?.status || 0;
-  const robotsKnown = !!technicalData?.robotsTxt?.ok || (rs >= 400 && rs < 500 && rs !== 429);
   const kindLabel = { search: 'AI search', user: 'user fetch', training: 'training' };
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
@@ -1708,7 +1720,8 @@ function renderImagesCard() {
           <span class="muted">Google recommends at least ${LEAD_IMAGE_MIN_WIDTH} px for large previews in Discover.</span></p>`;
       })()}
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
-      ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button> <span id="image-size-status" role="status"></span></p>` : ''}
+      ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button></p>` : ''}
+      <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
     : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');
@@ -1756,13 +1769,14 @@ async function measureImages() {
     onpageData.images.forEach((i) => {
       if (sizes[i.src] != null) i.bytes = sizes[i.src];
     });
+    const got = missing.filter((u) => sizes[u] != null).length;
+    imageMeasureNote = got === missing.length ? `Measured ${plural(got, 'image')}.`
+      : got === 0 ? 'The image servers gave no file sizes.'
+      : `Measured ${fmtNum(got)} of ${plural(missing.length, 'image')}; the servers gave no size for the rest.`;
     applyImageRules(onpageData.images, imageRules);
     renderImagesCard();
     renderVerdict();
-    const got = missing.filter((u) => sizes[u] != null).length;
-    const result = got === missing.length ? `Measured ${plural(got, 'image')}` : `Measured ${fmtNum(got)} of ${plural(missing.length, 'image')}; the server gave no size for the rest`;
-    if ($('image-size-status')) $('image-size-status').textContent = result;
-    announce(result);
+    announce(imageMeasureNote);
     // The button is gone once every size is known: keep focus in the images card.
     if (hadFocus) ($('measure-images') || $('images-card')?.querySelector('summary'))?.focus();
   } catch (e) {
@@ -1868,9 +1882,9 @@ function renderOnpage(d, age) {
       <summary><h2 class="card-title">Title and description</h2></summary>
       <div class="card-body">
         ${metaField('Title', d.title ? escapeHtml(d.title) : missing('No title'),
-          `${charTag(titleLen, 30, 60, 70)} ${pixelTag(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx)} ${d.title ? `<button type="button" class="icon-only copy-btn" data-copy-fn="title" aria-label="Copy title" title="Copy title">${ICON.copy}</button>` : ''}`)}
+          `${charTag(titleLen, 30, 60, 70)} ${d.title ? pixelTag(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx) : ''} ${d.title ? `<button type="button" class="icon-only copy-btn" data-copy-fn="title" aria-label="Copy title" title="Copy title">${ICON.copy}</button>` : ''}`)}
         ${metaField('Meta description', d.description ? escapeHtml(d.description) : missing('No meta description'),
-          `${charTag(descLen, 70, 160, 170)} ${pixelTag(descPx, SNIPPET.descIdealPx, SNIPPET.descMaxPx)} ${d.description ? `<button type="button" class="icon-only copy-btn" data-copy-fn="description" aria-label="Copy description" title="Copy description">${ICON.copy}</button>` : ''}`)}
+          `${charTag(descLen, 70, 160, 170)} ${d.description ? pixelTag(descPx, SNIPPET.descIdealPx, SNIPPET.descMaxPx) : ''} ${d.description ? `<button type="button" class="icon-only copy-btn" data-copy-fn="description" aria-label="Copy description" title="Copy description">${ICON.copy}</button>` : ''}`)}
         <div class="serp-preview" aria-label="Preview of the Google result">
           <div class="g-crumbs">${escapeHtml(crumbs)}</div>
           <div class="g-title">${escapeHtml(truncateToPx(d.title || '', SNIPPET.titleMaxPx, SNIPPET.titleFont)) || missing('No title')}</div>

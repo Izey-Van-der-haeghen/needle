@@ -24,7 +24,8 @@ function say(id, text, kind = "good") {
   el.textContent = text;
   el.className = kind === "bad" ? "status-bad" : kind === "good" ? "status-good" : "";
   clearTimeout(el._t);
-  if (kind !== "bad") el._t = setTimeout(() => { el.textContent = ""; }, 4000);
+  // Only a success fades out; progress ("Testing…") stays until the result replaces it.
+  if (kind === "good") el._t = setTimeout(() => { el.textContent = ""; }, 4000);
 }
 
 function fill(sel, items) {

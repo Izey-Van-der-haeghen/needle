@@ -89,7 +89,7 @@ details:not(.collapsible)[open] > summary::before { transform: rotate(45deg); }
 button { font: inherit; color: inherit; }
 .primary-btn, .secondary-btn {
   min-height: 32px; padding: 5px 12px; border-radius: var(--radius);
-  font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
 }
 .primary-btn { background: var(--accent); color: var(--on-accent); border: 1px solid var(--accent); }
 .primary-btn:hover { filter: brightness(.95); }
