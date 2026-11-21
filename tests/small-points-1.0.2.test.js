@@ -48,7 +48,7 @@ describe("the side panel is marked before the first paint", () => {
     dom.window.matchMedia = () => ({ matches: false });
     dom.window.chrome = { extension: { getViews: () => views(dom.window) } };
     dom.window.eval(boot);
-    return dom.window.document.documentElement.classList.contains("panel");
+    return dom.window.document.documentElement.classList.contains("side-panel");
   };
 
   it("in the side panel, not in the popup", () => {
@@ -98,29 +98,29 @@ describe("izey.dev round of 22 November (link check)", () => {
   it("counts a language redirect as working, not as a redirect to fix", async () => {
     const { checkLinks } = await import("../lib/link-checker.js");
     const { vi } = await import("vitest");
-    globalThis.fetch = vi.fn(async () => ({ status: 200, url: "https://www.microsoft.com/fr-fr/privacy/privacystatement", redirected: true, type: "basic" }));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ status: 200, url: "https://www.microsoft.com/fr-fr/privacy/privacystatement", redirected: true, type: "basic" })));
     const [r] = await checkLinks(["https://privacy.microsoft.com/privacystatement"]);
-    delete globalThis.fetch;
+    vi.unstubAllGlobals();
     expect(r).toMatchObject({ kind: "ok", language: true });
   });
 
-  it("tries once more after its own deadline, but not after the popup closed", async () => {
+  it("tries once more after its own deadline", async () => {
     const { checkLinks } = await import("../lib/link-checker.js");
     const { vi } = await import("vitest");
     let calls = 0;
-    globalThis.fetch = vi.fn(async (url) => {
+    vi.stubGlobal("fetch", vi.fn(async (url) => {
       calls++;
       if (calls === 1) throw new DOMException("Timed out", "TimeoutError");
       return { status: 200, url, redirected: false, type: "basic" };
-    });
+    }));
     const [r] = await checkLinks(["https://slow.example/"]);
     expect(r.kind).toBe("ok");
     expect(calls).toBe(2);
     calls = 0;
-    globalThis.fetch = vi.fn(async () => { calls++; throw new DOMException("Timed out", "TimeoutError"); });
+    vi.stubGlobal("fetch", vi.fn(async () => { calls++; throw new DOMException("Timed out", "TimeoutError"); }));
     const [t] = await checkLinks(["https://dead.example/"]);
     expect(t.kind).toBe("timeout");
     expect(calls).toBe(2);
-    delete globalThis.fetch;
+    vi.unstubAllGlobals();
   });
 });

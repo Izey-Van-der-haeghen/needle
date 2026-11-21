@@ -8,6 +8,7 @@ import { confirmClick } from "./lib/confirm-button.js";
 import { BING_ORIGINS } from "./lib/bing.js";
 import { storeUrl } from "./lib/links.js";
 import { readableError } from "./lib/errors.js";
+import { fetchWithTimeout } from "./lib/fetch-helper.js";
 
 const $ = (id) => document.getElementById(id);
 await initTheme();
@@ -19,7 +20,6 @@ storeUrl().then((url) => {
   $("store-link-item").hidden = false;
 });
 
-/** Show a short status message next to a section. */
 /**
  * A test runs once at a time: while it runs, its button stays focusable but ignores clicks
  * (aria-disabled, styled as busy in base.css), so a second click doesn't start it again.
@@ -32,6 +32,7 @@ function whileBusy(btn, run) {
   };
 }
 
+/** Show a short status message next to a section. */
 function say(id, text, kind = "good") {
   const el = $(id);
   el.textContent = text;
@@ -110,9 +111,10 @@ $("test-dfs").addEventListener("click", whileBusy($("test-dfs"), async () => {
   if (!(await requestOrigins(DATAFORSEO))) { say("dfs-status", "Chrome needs your permission to contact DataForSEO.", "bad"); return; }
   say("dfs-status", "Testing…", "neutral");
   try {
-    const r = await fetch("https://api.dataforseo.com/v3/appendix/user_data", {
+    // A deadline, so a request that never answers can't keep the button busy.
+    const r = await fetchWithTimeout("https://api.dataforseo.com/v3/appendix/user_data", {
       headers: { Authorization: "Basic " + btoa(`${login}:${password}`) }
-    });
+    }, 30000);
     if (r.status === 401) throw new Error("DataForSEO rejected this login or password.");
     if (!r.ok) throw new Error(`DataForSEO answered HTTP ${r.status}.`);
     const user = (await r.json()).tasks?.[0]?.result?.[0];
@@ -156,7 +158,8 @@ $("test-psi").addEventListener("click", whileBusy($("test-psi"), async () => {
   say("psi-status", "Testing on example.com, this takes about 20 seconds…", "neutral");
   try {
     const params = new URLSearchParams({ url: "https://example.com/", strategy: "mobile", category: "performance", key });
-    const r = await fetch(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`);
+    // PageSpeed takes about 20 seconds; give it a minute.
+    const r = await fetchWithTimeout(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {}, 60000);
     if (r.status === 400 || r.status === 403) throw new Error("Google rejected this key. Check that the PageSpeed Insights API is enabled for it.");
     if (r.status === 429) throw new Error("This key has reached its quota. Try again later.");
     if (!r.ok) throw new Error(`Google answered HTTP ${r.status}.`);

@@ -23,3 +23,62 @@ describe("why a tab can't be read, in plain words", () => {
     await expect(safeSendTabMessage(1, { type: "ANALYZE_ONPAGE" })).rejects.toMatchObject({ noAccess: true });
   });
 });
+
+describe("code review of 1.0.2 (Ponytail)", () => {
+  it("a language redirect that ends broken stays broken", async () => {
+    const { checkLinks } = await import("../lib/link-checker.js");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ status: 404, url: "https://site.example/en-us/gone", redirected: true, type: "basic" })));
+    const [r] = await checkLinks(["https://site.example/gone"]);
+    vi.unstubAllGlobals();
+    expect(r.kind).toBe("broken");
+    expect(r.language).toBeUndefined();
+  });
+
+  it("'same site' knows two-part suffixes and shared hosts", async () => {
+    const { isLanguageRedirect } = await import("../lib/link-checker.js");
+    expect(isLanguageRedirect("https://shop.example.co.uk/x", "https://www.example.co.uk/en/x")).toBe(true);
+    expect(isLanguageRedirect("https://one.co.uk/x", "https://two.co.uk/en/x")).toBe(false);
+    expect(isLanguageRedirect("https://alice.github.io/x", "https://bob.github.io/en/x")).toBe(false);
+  });
+
+  it("a noindex page also drops the other search-only findings", async () => {
+    const { collectFindings } = await import("../lib/findings.js");
+    const page = { url: "https://site.example/a", title: "A title that is long enough", description: "d".repeat(100), canonical: "", robots: "noindex",
+      headings: [{ level: 1, text: "Hi" }], images: [], links: { details: [] }, og: {}, canonicalDistinct: 2, canonicalOutsideHead: true, descriptionOutsideHead: true,
+      schema: [{ type: "Invalid JSON", raw: null }], hreflangOutsideHead: 1 };
+    const ids = collectFindings({ onpage: page, tech: { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true } } } }).map((f) => f.id);
+    for (const id of ["schema-invalid", "desc-body", "hreflang-body", "canonical-body", "canonical-multiple"]) expect(ids).not.toContain(id);
+    expect(ids).toContain("noindex-meta");
+  });
+
+  it("compares URLs with and without a trailing slash before a ?query", async () => {
+    const { urlKey } = await import("../lib/urls.js");
+    expect(urlKey("https://site.example/fr/?page=2")).toBe(urlKey("https://site.example/fr?page=2"));
+    expect(urlKey("https://site.example/")).toBe("https://site.example");
+  });
+
+  it("the server check also names an offline error page in plain words", async () => {
+    const { fetchInPage } = await import("../lib/page-fetch.js");
+    globalThis.chrome = { scripting: { executeScript: vi.fn(async () => { throw new Error("Frame with ID 0 is showing error page"); }) } };
+    await expect(fetchInPage(1, [{ url: "https://site.example/" }])).rejects.toThrow(/^The tab shows an error page instead of the website/);
+  });
+
+  it("Settings tests have a deadline, so a hanging request can't keep the button busy", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../options.js", import.meta.url), "utf8");
+    expect(src).toMatch(/fetchWithTimeout\("https:\/\/api\.dataforseo\.com[\s\S]*?\}, 30000\)/);
+    expect(src).toMatch(/fetchWithTimeout\(`https:\/\/www\.googleapis\.com\/pagespeedonline[^`]*`, \{\}, 60000\)/);
+    expect(src).not.toMatch(/await fetch\(/);
+  });
+
+  it("srcset URLs with commas (w_800,c_fill) stay whole in lazy images", async () => {
+    const { loadContentScript } = await import("./helpers/content-harness.js");
+    const html = `<!doctype html><html lang="en"><head><title>T</title></head><body><main>
+      <img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="L" data-srcset="https://cdn.example/w_800,c_fill/a.jpg 800w, https://cdn.example/w_1600,c_fill/a.jpg 1600w">
+    </main></body></html>`;
+    const tab = await loadContentScript(html, { url: "https://site.example/" });
+    const d = await tab.send({ type: "ANALYZE_ONPAGE" });
+    tab.window.close();
+    expect(d.images[0].src).toBe("https://cdn.example/w_800,c_fill/a.jpg");
+  });
+});

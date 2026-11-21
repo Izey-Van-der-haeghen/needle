@@ -59,7 +59,8 @@ const usd = (n) => `$${Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, ''
 
 const $ = (id) => document.getElementById(id);
 const tabs = [...document.querySelectorAll('.tab')];
-const panels = [...document.querySelectorAll('.panel')];
+// By role, not by class: <html> carries "side-panel" in the side panel and must never be hidden.
+const panels = [...document.querySelectorAll('[role="tabpanel"]')];
 
 let currentTab = null;
 let pageUrl = '';
@@ -359,7 +360,7 @@ function setSelectValue(sel, value) {
 /** True when this page runs in Chrome's side panel instead of the toolbar popup. */
 const IS_PANEL = !(chrome.extension?.getViews?.({ type: 'popup' }) || []).includes(window);
 // theme-boot.js already set this before the first paint; this keeps the two in step.
-document.documentElement.classList.toggle('panel', IS_PANEL);
+document.documentElement.classList.toggle('side-panel', IS_PANEL);
 
 /**
  * Browser zoom (also Chrome's default page zoom) applies to the popup, but Chrome caps a
@@ -1559,10 +1560,10 @@ function linkCheckHint(l) {
   const cs = l.checkedStatus;
   if (!cs) return '';
   if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects to ${escapeHtml(cs.finalUrl)}. Link straight to the final URL.</div>`;
-  if (cs.language && cs.finalUrl) return `<div class="hint">Opens the reader's language version (${escapeHtml(cs.finalUrl)}). Keep this link: it works for every language.</div>`;
+  if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Opens the reader's language version (${escapeHtml(cs.finalUrl)}). Keep this link: it works for every language.</div>`;
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
-  if (cs.kind === 'timeout') return `<div class="hint">No answer within 8 seconds. Try again later.</div>`;
+  if (cs.kind === 'timeout') return `<div class="hint">No answer within 8 seconds, twice. Try again later.</div>`;
   return '';
 }
 

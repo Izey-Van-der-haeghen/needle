@@ -335,10 +335,35 @@
     return { u, isHttp, internal, external: isHttp && !internal, raw };
   }
 
+  // Split a srcset as the HTML spec does: a URL is a run of non-space characters (it may hold
+  // commas, as in w_800,c_fill), trailing commas end it, and its descriptor runs to the next comma.
+  // So "a.jpg 800w,b.jpg 1600w" (no space after the comma) is two candidates. Returns [{u, d}].
+  function parseSrcset(set) {
+    const out = [];
+    let i = 0;
+    while (i < set.length) {
+      while (i < set.length && /[\s,]/.test(set[i])) i++;
+      if (i >= set.length) break;
+      let j = i;
+      while (j < set.length && !/\s/.test(set[j])) j++;
+      let url = set.slice(i, j);
+      let desc = "";
+      if (/,$/.test(url)) url = url.replace(/,+$/, "");
+      else {
+        const k = set.indexOf(",", j);
+        desc = set.slice(j, k < 0 ? set.length : k).trim();
+        j = k < 0 ? set.length : k + 1;
+      }
+      out.push({ u: url, d: desc.split(/\s+/)[0] || "" });
+      i = j;
+    }
+    return out;
+  }
+
   /** Every URL an <img> may show: src, the chosen srcset variant, all srcset candidates and lazy-load attributes. */
   function imageUrls(img) {
     const urls = new Set([img.currentSrc, img.src].filter(Boolean));
-    const fromSrcset = (v) => (v || "").split(",").map((part) => part.trim().split(/\s+/)[0]).filter(Boolean).forEach((u) => urls.add(resolveUrl(u)));
+    const fromSrcset = (v) => parseSrcset(v || "").forEach(({ u }) => { if (u) urls.add(resolveUrl(u)); });
     for (const attr of ["data-src", "data-lazy-src", "data-original", "data-defer-src", "data-echo", "data-lazy-original"]) {
       const v = img.getAttribute(attr);
       if (v && !v.startsWith("data:")) urls.add(resolveUrl(v));
@@ -620,36 +645,12 @@
       for (const attr of LAZY_ATTRS) {
         const v = img.getAttribute(attr);
         if (v && !v.startsWith("data:")) {
-          return resolveUrl(attr === "data-srcset" ? v.split(",")[0].trim().split(/\s+/)[0] : v);
+          return resolveUrl(attr === "data-srcset" ? parseSrcset(v)[0]?.u || "" : v);
         }
       }
       return img.currentSrc || img.src || "";
     };
 
-    // Split a srcset as the HTML spec does: a URL is a run of non-space characters (it may hold
-    // commas, as in w_800,c_fill), trailing commas end it, and its descriptor runs to the next comma.
-    // So "a.jpg 800w,b.jpg 1600w" (no space after the comma) is two candidates.
-    const parseSrcset = (set) => {
-      const out = [];
-      let i = 0;
-      while (i < set.length) {
-        while (i < set.length && /[\s,]/.test(set[i])) i++;
-        if (i >= set.length) break;
-        let j = i;
-        while (j < set.length && !/\s/.test(set[j])) j++;
-        let url = set.slice(i, j);
-        let desc = "";
-        if (/,$/.test(url)) url = url.replace(/,+$/, "");
-        else {
-          const k = set.indexOf(",", j);
-          desc = set.slice(j, k < 0 ? set.length : k).trim();
-          j = k < 0 ? set.length : k + 1;
-        }
-        out.push({ u: url, d: desc.split(/\s+/)[0] || "" });
-        i = j;
-      }
-      return out;
-    };
     // The srcset candidates of an <img> and its <picture> sources: [{url, w, x}].
     const srcsetCandidates = (img) => [img.getAttribute("srcset"), ...[...(img.closest("picture")?.querySelectorAll("source") || [])].map((s) => s.getAttribute("srcset"))]
       .filter(Boolean)
