@@ -11,7 +11,16 @@
 - **Structured data, suggestions:** Article is no longer suggested on a profile, about or contact page. A home page with a Person (a personal site) no longer gets an Organization suggestion; without either, the suggestion is "Organization or Person".
 - **Hreflang:** after "Check the alternates", alternates with problems (no return link, an error, a redirect, noindex) appear in Fix this first.
 - **Language chooser:** a page that is its own x-default and links to every language version no longer gets "Only N words of main content".
-- **Title and description:** a width close to Google's limit that still fits is shown neutrally as "near the limit"; only a width that gets cut off is marked as a problem.
+- **Title and description:** a width close to Google's limit that still fits is shown neutrally as "near the limit"; only a width that gets cut off is marked as a problem. The findings, the score and the report follow the pixel width as well.
+- **Campaign links:** a page opened with `?utm_…`, `gclid` or `fbclid` is the same page. It no longer looks "canonicalized away", and its hreflang links are not reported as broken.
+- **Hreflang:** "Check the alternates" says when only the first 20 were checked, runs once at a time, and shows each URL as the page wrote it. Language codes stay on one line in the tables.
+- **Structured data:** a Q&A question may have suggested answers only, and an image may name its file in `contentUrl`. With several nested items, each message names the item it is about.
+- **Images:** the "Exact size" rule in Settings compares the largest file in `srcset`, and a `srcset` without spaces after its commas is read correctly.
+- **Wording and polish:**
+  - Network failures read "could not connect" instead of "Failed to fetch".
+  - The side panel no longer jumps when the server check returns.
+  - Refresh and "Try again" keep keyboard focus.
+  - Link URLs are easier to read.
 
 ## 1.0.0 (20 November 2026)
 
