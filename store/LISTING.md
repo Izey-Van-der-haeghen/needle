@@ -114,6 +114,8 @@ Needle audits the web page in the current tab for search engine optimisation (SE
 - Regions: all.
 - Pricing: free.
 
-## Notes for the reviewer (Test instructions field)
+## Notes for the reviewer (Test instructions → Additional instructions, max 500 characters)
 
-No login is needed. Open any public web page, click the Needle button and look at the On-page and Technical tabs. Optional features: "Run speed test" needs a free Google PageSpeed Insights API key (Settings); keyword and SERP lookups need a DataForSEO account. "Check if links work", Compare and "Measure them" ask for the optional site access at runtime.
+Username and password: leave empty.
+
+No login needed. Open any public web page and click the Needle toolbar button: the On-page, Technical and AI tabs work without an account. Optional, not needed for review: speed test and trend (own Google key), Bing data (own Bing key), keyword and SERP lookups (own DataForSEO account). Site access is optional and asked for at runtime only by link checks, Compare, image sizes, the hreflang and www checks, and the side panel following tabs.
