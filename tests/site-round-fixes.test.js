@@ -1,10 +1,11 @@
 // Fixes from a Needle run over a real trilingual personal site (21 November 2026).
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { analyzeEEAT, aiReadinessScore, AI_SCORE_NOTE } from "../lib/geo.js";
-import { validateSchema } from "../lib/schema-validator.js";
+import { analyzeEEAT, analyzeCitability, aiReadinessScore, AI_SCORE_NOTE } from "../lib/geo.js";
+import { validateSchema, suggestMissingSchemas } from "../lib/schema-validator.js";
 import { collectFindings } from "../lib/findings.js";
-import { isHtmlDocument, notHtmlNotice } from "../lib/popup-helpers.js";
+import { isLanguageChooser } from "../lib/hreflang.js";
+import { isHtmlDocument, notHtmlNotice, pixelTag } from "../lib/popup-helpers.js";
 import { loadContentScript } from "./helpers/content-harness.js";
 
 const page = { url: "https://person.example/en/", title: "A personal site title", description: "x".repeat(100), canonical: "https://person.example/en/", headings: [{ level: 1, text: "Hi" }], images: [], schema: [], links: { details: [] }, og: {} };
@@ -117,5 +118,104 @@ describe("the AI score explanation", () => {
     for (const file of ["../popup.js", "../lib/export.js"]) {
       expect(readFileSync(new URL(file, import.meta.url), "utf8")).not.toMatch(/Only blocks of AI search bots/);
     }
+  });
+});
+
+describe("structured data nested as the page's mainEntity", () => {
+  const ctx = "https://schema.org";
+  const app = { "@type": "WebApplication", name: "Check", offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" } };
+
+  it("gets the same checks as a top-level block", () => {
+    const [nested] = validateSchema([{ raw: { "@context": ctx, "@type": "WebPage", mainEntity: { ...app, name: undefined } } }]);
+    expect(nested.issues.filter((i) => i.level === "error").map((i) => i.msg)).toEqual(['mainEntity › WebApplication: missing required "name"']);
+    expect(nested.issues.find((i) => i.level === "note")?.msg).toMatch(/^mainEntity › WebApplication: no star-rating rich result/);
+  });
+
+  it("checks FAQ questions under FAQPage", () => {
+    const [faq] = validateSchema([{ raw: { "@context": ctx, "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Why?" }] } }]);
+    expect(faq.issues.map((i) => i.msg)).toContain('mainEntity › Question: missing required "acceptedAnswer"');
+  });
+
+  it("doesn't check other nested things, like a Person's address", () => {
+    const person = { "@type": "Person", name: "Someone", address: { "@type": "PostalAddress", addressLocality: "Ghent", addressCountry: "BE" } };
+    const [v] = validateSchema([{ raw: { "@context": ctx, "@type": "ProfilePage", mainEntity: person } }]);
+    expect(v.issues.filter((i) => i.level === "error")).toEqual([]);
+  });
+});
+
+describe("data tables", () => {
+  it("are information only: not amber, not in the score", () => {
+    const checks = analyzeCitability({ headings: [{ text: "What is it?" }, { text: "How does it work?" }], listCount: 2, tableCount: 0 });
+    const tables = checks.find((c) => c.label === "Data tables");
+    expect(tables).toMatchObject({ ok: false, info: true });
+    expect(aiReadinessScore({ blockedSearchCount: 0 }, [], checks).score).toBe(100);
+  });
+});
+
+describe("schema suggestions", () => {
+  it("don't suggest Article on a CV page (ProfilePage with <article> and <time>)", () => {
+    const r = suggestMissingSchemas({ schema: [{ type: "ProfilePage", raw: { "@type": "ProfilePage", mainEntity: { "@type": "Person", name: "Someone" } } }], schemaSignals: { hasArticleTag: true, hasPublishDate: true } });
+    expect(r.map((x) => x.type)).not.toContain("Article");
+  });
+
+  it("still suggest Article on a blog post without it", () => {
+    const r = suggestMissingSchemas({ schema: [], schemaSignals: { hasArticleTag: true, hasPublishDate: true } });
+    expect(r.map((x) => x.type)).toContain("Article");
+  });
+
+  it("accept a Person as who runs a personal home page", () => {
+    const r = suggestMissingSchemas({ schema: [{ type: "WebSite", raw: { "@type": "WebSite", url: "https://person.example/", publisher: { "@type": "Person", name: "Someone" } } }], schemaSignals: { isHomepage: true } });
+    expect(r.map((x) => x.type)).not.toContain("Organization or Person");
+  });
+});
+
+describe("title and description width", () => {
+  it("is neutral near the limit and only a problem when cut off", () => {
+    expect(pixelTag(930, 920, 990)).toMatch(/class="tag neutral".*930 px, near the limit/);
+    expect(pixelTag(993, 920, 990)).toMatch(/class="tag bad".*993 px, cut off/);
+    expect(pixelTag(800, 920, 990)).toMatch(/class="tag good"/);
+  });
+});
+
+describe("hreflang alternates after 'Check the alternates'", () => {
+  const cluster = [
+    { lang: "fr", href: "https://person.example/fr/case/", problems: [] },
+    { lang: "x-default", href: "https://person.example/", problems: ["no hreflang link back to this page"] }
+  ];
+
+  it("reach Fix this first", () => {
+    const f = collectFindings({ onpage: page, tech, hreflangCluster: cluster }).find((x) => x.id === "hreflang-alternates");
+    expect(f).toMatchObject({ severity: "medium", title: "1 hreflang alternate with problems" });
+    expect(f.examples).toEqual(["x-default https://person.example/: no hreflang link back to this page"]);
+  });
+
+  it("give no finding before the check or when all link back", () => {
+    expect(collectFindings({ onpage: page, tech }).find((x) => x.id === "hreflang-alternates")).toBeUndefined();
+    expect(collectFindings({ onpage: page, tech, hreflangCluster: [cluster[0]] }).find((x) => x.id === "hreflang-alternates")).toBeUndefined();
+  });
+});
+
+describe("a language chooser", () => {
+  const chooser = [
+    { lang: "nl", href: "https://person.example/nl/" },
+    { lang: "fr", href: "https://person.example/fr/" },
+    { lang: "en", href: "https://person.example/en/" },
+    { lang: "x-default", href: "https://person.example/" }
+  ];
+
+  it("is recognised: its own x-default, other pages for each language", () => {
+    expect(isLanguageChooser(chooser, "https://person.example/")).toBe(true);
+    expect(isLanguageChooser(chooser, "https://person.example/nl/")).toBe(false);
+  });
+
+  it("is not an English home page that is also the x-default", () => {
+    const home = [{ lang: "en", href: "https://site.example/" }, { lang: "fr", href: "https://site.example/fr/" }, { lang: "x-default", href: "https://site.example/" }];
+    expect(isLanguageChooser(home, "https://site.example/")).toBe(false);
+  });
+
+  it("gets no 'only N words' finding, while a short normal page still does", () => {
+    const thin = { ...page, mainContentWordCount: 27 };
+    expect(collectFindings({ onpage: { ...thin, url: "https://person.example/", hreflang: chooser }, tech }).find((x) => x.id === "thin")).toBeUndefined();
+    expect(collectFindings({ onpage: thin, tech }).find((x) => x.id === "thin")).toBeDefined();
   });
 });

@@ -67,6 +67,8 @@ let onpageAge = 0;
 let technicalData = null;
 let technicalAge = 0;
 let renderedData = null;
+// Result of "Check the alternates", for Fix this first; null until it has run on this page.
+let hreflangCluster = null;
 let geoData = null;
 let mainText = null;
 let currentFindings = [];
@@ -441,6 +443,7 @@ async function startForTab(tab) {
   onpageData = null;
   technicalData = null;
   renderedData = null;
+  hreflangCluster = null;
   geoData = null;
   mainText = null;
   Object.assign(offpageData, { psi: null, psiError: null, dfs: null, dfsError: null });
@@ -588,6 +591,7 @@ function attachStatePersistence() {
 
 async function loadOnpageAndTechnical(forceRefresh = false) {
   const gen = ++auditGen;
+  hreflangCluster = null; // the hreflang card is drawn again without its check result
   const tab = currentTab;
   const url = pageUrl;
   techPending = true;
@@ -689,7 +693,7 @@ function renderFindings() {
   const slot = $('findings-slot');
   if (!slot || !onpageData) return;
   currentFindings = collectFindings({
-    onpage: onpageData, tech: technicalData, geo: geoData, rendered: renderedData, imageRules,
+    onpage: onpageData, tech: technicalData, geo: geoData, rendered: renderedData, imageRules, hreflangCluster,
     titlePx: pixelWidth(onpageData.title || '', SNIPPET.titleFont), descPx: pixelWidth(onpageData.description || '', SNIPPET.descFont)
   });
   const f = currentFindings;
@@ -843,7 +847,7 @@ async function loadGEO(gen = auditGen) {
   const kindLabel = { search: 'AI search', user: 'user fetch', training: 'training', control: 'Gemini use (token)' };
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
-      <div class="v">${s.ok ? tag('ok', 'good') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
+      <div class="v">${s.ok ? tag('ok', 'good') : s.info ? tag('none', 'neutral') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
       ${s.hint && !s.ok ? `<div class="hint">${escapeHtml(s.hint)}</div>` : ''}</div></div>`).join('');
 
   rerender(slot, `
@@ -2092,6 +2096,8 @@ async function runHreflangCluster() {
   const parse = (html) => new DOMParser().parseFromString(html, 'text/html');
   const rows = await checkHreflangCluster(pageUrl, onpageData.hreflang, load, parse);
   if (gen !== auditGen) return;
+  hreflangCluster = rows;
+  renderFindings();
   const bad = rows.filter((r) => r.problems.length).length;
   rerender(box, `<p>${bad ? tag(`${bad} of ${rows.length} alternates with problems`, 'bad') : tag(`All ${rows.length} alternates link back`, 'good')}</p>
     <table class="data-table"><thead><tr><th scope="col">hreflang</th><th scope="col">Alternate</th><th scope="col">Result</th></tr></thead><tbody>

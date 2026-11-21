@@ -127,11 +127,11 @@ describe("suggestMissingSchemas", () => {
     expect(suggestMissingSchemas(base)).toEqual([]);
   });
 
-  it("suggests WebSite + Organization on homepage with nothing", () => {
+  it("suggests WebSite + Organization or Person on homepage with nothing", () => {
     const r = suggestMissingSchemas({ schema: [], schemaSignals: { isHomepage: true } });
     const types = r.map(s => s.type);
     expect(types).toContain("WebSite");
-    expect(types).toContain("Organization");
+    expect(types).toContain("Organization or Person");
   });
 
   it("does not suggest Organization if already present", () => {
