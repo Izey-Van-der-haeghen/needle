@@ -17,6 +17,7 @@
 </p>
 
 <p align="center">
+  <a href="https://chromewebstore.google.com/detail/needle-all-in-one-seo-geo/khjcjeainolgjipkcjnfaoepnjomnfjc"><img src="https://img.shields.io/badge/Chrome%20Web%20Store-install-141312.svg" alt="Install from the Chrome Web Store"></a>
   <a href="https://github.com/Izey-Van-der-haeghen/needle/actions/workflows/test.yml"><img src="https://github.com/Izey-Van-der-haeghen/needle/actions/workflows/test.yml/badge.svg" alt="Tests"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-1E6B43.svg" alt="Licence: MIT"></a>
   <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-141312.svg" alt="Chrome Manifest V3">
@@ -66,7 +67,7 @@ Settings shows where to find each key.
 
 ## Get it
 
-- **Chrome Web Store:** coming soon.
+- **Chrome Web Store:** [install Needle](https://chromewebstore.google.com/detail/needle-all-in-one-seo-geo/khjcjeainolgjipkcjnfaoepnjomnfjc), free.
 - **Load it from source:** see [Install from source](#install-from-source).
 - **Questions and bugs:** [GitHub issues](https://github.com/Izey-Van-der-haeghen/needle/issues) or hello@izey.dev.
 
