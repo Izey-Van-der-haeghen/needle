@@ -86,10 +86,11 @@ describe("a tab that is not an HTML page", () => {
   it("gets a notice instead of an audit, with a pointer for llms.txt", () => {
     const llms = notHtmlNotice("text/plain", "https://site.example/llms.txt");
     expect(llms).toMatch(/This isn't an HTML page/);
-    expect(llms).toMatch(/text\/plain/);
+    expect(llms).toMatch(/\/llms\.txt<\/span> is a plain text file, not a web page/);
     expect(llms).toMatch(/the AI tab lists \/llms\.txt/);
     expect(notHtmlNotice("application/xml", "https://site.example/sitemap.xml")).not.toMatch(/llms/);
-    expect(notHtmlNotice("<b>", "https://site.example/x")).toMatch(/&lt;b&gt;/);
+    expect(notHtmlNotice("<b>", "https://site.example/x")).toMatch(/a file of type <span class="mono">&lt;b&gt;<\/span>/);
+    expect(notHtmlNotice("image/png", "https://site.example/")).toMatch(/This address is an image, not a web page/);
   });
 
   it("is told apart by content.js, which reports the document's content type", async () => {

@@ -847,7 +847,7 @@ async function loadGEO(gen = auditGen) {
   const kindLabel = { search: 'AI search', user: 'user fetch', training: 'training', control: 'Gemini use (token)' };
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
-      <div class="v">${s.ok ? tag('ok', 'good') : s.info ? tag('none', 'neutral') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
+      <div class="v">${s.ok ? tag('ok', 'good') : s.info ? tag('not scored', 'neutral') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
       ${s.hint && !s.ok ? `<div class="hint">${escapeHtml(s.hint)}</div>` : ''}</div></div>`).join('');
 
   rerender(slot, `
@@ -2101,11 +2101,11 @@ async function runHreflangCluster() {
   renderFindings();
   const bad = rows.filter((r) => r.problems.length).length;
   const partly = total > rows.length ? ` <span class="muted">Checked the first ${rows.length} of ${total} alternates.</span>` : '';
-  rerender(box, `<p>${bad ? tag(`${bad} of ${rows.length} alternates with problems`, 'bad') : tag(rows.length === total ? `All ${rows.length} alternates link back` : `All ${rows.length} checked alternates link back`, 'good')}${partly}</p>
+  rerender(box, `<p>${bad ? tag(`${bad} of ${rows.length} alternates with problems`, 'warn') : tag(rows.length === total ? `All ${rows.length} alternates link back` : `All ${rows.length} checked alternates link back`, 'good')}${partly}</p>
     <table class="data-table"><thead><tr><th scope="col">hreflang</th><th scope="col">Alternate</th><th scope="col">Result</th></tr></thead><tbody>
-    ${rows.map((r) => `<tr><td class="mono">${escapeHtml(r.lang)}</td><td class="mono">${escapeHtml(r.href)}</td><td>${r.problems.length ? r.problems.map((p) => tag(p, 'bad')).join(' ') : tag('ok', 'good')}</td></tr>`).join('')}
+    ${rows.map((r) => `<tr><td class="mono">${escapeHtml(r.lang)}</td><td class="mono">${escapeHtml(r.href)}</td><td>${r.problems.length ? r.problems.map((p) => tag(p, 'warn')).join(' ') : tag('ok', 'good')}</td></tr>`).join('')}
     </tbody></table>
-    <p class="muted">Google ignores hreflang pairs that don't link back to each other.</p>`);
+    <p class="muted">Google ignores hreflang pairs that don't link back to each other.${bad ? ' Added to Fix this first.' : ''}</p>`);
 }
 
 function renderHreflang(d) {
@@ -2450,6 +2450,8 @@ document.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   const r = e.target.closest('[data-refresh]');
   if (!r) return;
+  // The button disappears with the panel's content; keep keyboard focus in the panel (it is not replaced).
+  if (r.matches(':focus')) r.closest('[role="tabpanel"]')?.focus();
   const kind = r.dataset.refresh;
   if (kind === 'onpage') loadOnpageAndTechnical(true);
   else if (kind === 'serp') loadSerp(true);

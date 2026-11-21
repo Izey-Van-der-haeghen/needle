@@ -105,12 +105,35 @@ describe("title and description length", () => {
 describe("Check the alternates on a page with many", () => {
   it("counts each alternate once, without the page itself", () => {
     const list = [{ lang: "en", href: "https://site.example/" }, { lang: "fr", href: "https://site.example/fr/" }, { lang: "x-default", href: "https://site.example/fr/" }];
-    expect(alternatesOf("https://site.example/", list)).toEqual([{ lang: "fr", href: "https://site.example/fr" }]);
+    expect(alternatesOf("https://site.example/", list)).toEqual([{ lang: "fr", href: "https://site.example/fr/", key: "https://site.example/fr" }]);
   });
 
   it("says in the finding when only the first ones were checked", () => {
     const rows = [{ lang: "fr", href: "https://site.example/fr", problems: ["no hreflang link back to this page"] }];
     const f = collectFindings({ onpage: page, tech, hreflangCluster: { rows, total: 30 } }).find((x) => x.id === "hreflang-alternates");
     expect(f.why).toMatch(/Only the first 1 of 30 alternates were checked/);
+  });
+});
+
+describe("design review of 1.0.1 (Impeccable)", () => {
+  it("the AI score sentence says data tables don't count", async () => {
+    const { AI_SCORE_NOTE } = await import("../lib/geo.js");
+    expect(AI_SCORE_NOTE).toMatch(/data tables don't count/);
+  });
+
+  it("the alternates check shows each URL as the page wrote it", async () => {
+    const { checkHreflangCluster } = await import("../lib/hreflang-cluster.js");
+    const { JSDOM } = await import("jsdom");
+    const parse = (html) => new JSDOM(html).window.document;
+    const load = async (url) => ({ status: 200, url, html: `<link rel="canonical" href="${url}"><link rel="alternate" hreflang="en" href="https://site.example/en/">` });
+    const rows = await checkHreflangCluster("https://site.example/en/", [{ lang: "nl", href: "https://site.example/nl/herstellingen/" }], load, parse);
+    expect(rows[0]).toMatchObject({ href: "https://site.example/nl/herstellingen/", problems: [] });
+  });
+
+  it("Refresh and 'Try again' move keyboard focus to their tab panel before it is redrawn", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+    const handler = src.slice(src.indexOf("closest('[data-refresh]')"), src.indexOf("loadOnpageAndTechnical(true)", src.indexOf("closest('[data-refresh]')")));
+    expect(handler).toMatch(/closest\('\[role="tabpanel"\]'\)\?\.focus\(\)/);
   });
 });
