@@ -1559,6 +1559,7 @@ function linkCheckHint(l) {
   const cs = l.checkedStatus;
   if (!cs) return '';
   if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects to ${escapeHtml(cs.finalUrl)}. Link straight to the final URL.</div>`;
+  if (cs.language && cs.finalUrl) return `<div class="hint">Opens the reader's language version (${escapeHtml(cs.finalUrl)}). Keep this link: it works for every language.</div>`;
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
   if (cs.kind === 'timeout') return `<div class="hint">No answer within 8 seconds. Try again later.</div>`;

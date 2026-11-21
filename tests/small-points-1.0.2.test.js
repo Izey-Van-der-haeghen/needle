@@ -84,3 +84,43 @@ describe("one way to compare URLs", () => {
     for (const f of ["lib/hreflang.js", "lib/hreflang-cluster.js", "popup.js"]) expect(read(f)).not.toMatch(/x\.href\.replace\(\/\\\/\$\//);
   });
 });
+
+describe("izey.dev round of 22 November (link check)", () => {
+  it("knows a redirect to a language version of the same page", async () => {
+    const { isLanguageRedirect } = await import("../lib/link-checker.js");
+    expect(isLanguageRedirect("https://privacy.microsoft.com/privacystatement", "https://www.microsoft.com/fr-fr/privacy/privacystatement")).toBe(true);
+    expect(isLanguageRedirect("https://site.example/", "https://site.example/en/")).toBe(true);
+    expect(isLanguageRedirect("https://site.example/old-page", "https://site.example/en/new-page")).toBe(false);
+    expect(isLanguageRedirect("https://short.example/abc", "https://other.example/en/abc")).toBe(false);
+    expect(isLanguageRedirect("https://site.example/en/page", "https://site.example/fr/page")).toBe(false);
+  });
+
+  it("counts a language redirect as working, not as a redirect to fix", async () => {
+    const { checkLinks } = await import("../lib/link-checker.js");
+    const { vi } = await import("vitest");
+    globalThis.fetch = vi.fn(async () => ({ status: 200, url: "https://www.microsoft.com/fr-fr/privacy/privacystatement", redirected: true, type: "basic" }));
+    const [r] = await checkLinks(["https://privacy.microsoft.com/privacystatement"]);
+    delete globalThis.fetch;
+    expect(r).toMatchObject({ kind: "ok", language: true });
+  });
+
+  it("tries once more after its own deadline, but not after the popup closed", async () => {
+    const { checkLinks } = await import("../lib/link-checker.js");
+    const { vi } = await import("vitest");
+    let calls = 0;
+    globalThis.fetch = vi.fn(async (url) => {
+      calls++;
+      if (calls === 1) throw new DOMException("Timed out", "TimeoutError");
+      return { status: 200, url, redirected: false, type: "basic" };
+    });
+    const [r] = await checkLinks(["https://slow.example/"]);
+    expect(r.kind).toBe("ok");
+    expect(calls).toBe(2);
+    calls = 0;
+    globalThis.fetch = vi.fn(async () => { calls++; throw new DOMException("Timed out", "TimeoutError"); });
+    const [t] = await checkLinks(["https://dead.example/"]);
+    expect(t.kind).toBe("timeout");
+    expect(calls).toBe(2);
+    delete globalThis.fetch;
+  });
+});

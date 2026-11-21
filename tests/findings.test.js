@@ -16,9 +16,16 @@ describe("collectFindings", () => {
   });
 
   it("puts blocking problems first", () => {
-    const f = collectFindings({ onpage: page({ robots: "noindex", description: "" }), tech: tech() });
-    expect(f.map((x) => x.id)).toEqual(["noindex-meta", "desc-missing"]);
+    const f = collectFindings({ onpage: page({ robots: "noindex", title: "" }), tech: tech() });
+    expect(f.map((x) => x.id)).toEqual(["noindex-meta", "title-missing"]);
     expect(f[0].severity).toBe("critical");
+  });
+
+  it("on a noindex page, leaves out what only matters in search results", () => {
+    const f = collectFindings({ onpage: page({ robots: "noindex", description: "" }), tech: tech() });
+    expect(f.map((x) => x.id)).toEqual(["noindex-meta"]);
+    expect(f[0].why).toMatch(/leaves out what only matters in search results/);
+    expect(collectFindings({ onpage: page({ description: "" }), tech: tech() }).map((x) => x.id)).toContain("desc-missing");
   });
 
   it("points to the elements on the page", () => {

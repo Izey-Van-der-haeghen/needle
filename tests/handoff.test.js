@@ -28,12 +28,17 @@ describe("buildIssuesMarkdown", () => {
     expect(md.indexOf("## Critical")).toBeLessThan(md.indexOf("## High"));
     expect(md).toContain("No <title>");
     expect(md).toContain("No H1 heading");
-    expect(md).toContain('Product: missing required "name"');
-    expect(md).toContain("Invalid hreflang region");
     expect(md).toContain("without an alt attribute");
     expect(md).toContain("https://e.com/a.jpg");
     expect(md).toContain("shown larger than the file");
     expect(md).toContain("https://e.com/gone (404)");
     expect(md).toContain("http://e.com/x.png");
+  });
+
+  it("lists structured data and hreflang once the page may be indexed (left out while it is noindex)", () => {
+    expect(md).not.toContain('Product: missing required "name"');
+    const indexable = buildIssuesMarkdown({ ...onpage, robots: "" }, { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true, rule: null } } }, { now: new Date("2026-11-20T10:00:00Z") });
+    expect(indexable).toContain('Product: missing required "name"');
+    expect(indexable).toContain("Invalid hreflang region");
   });
 });

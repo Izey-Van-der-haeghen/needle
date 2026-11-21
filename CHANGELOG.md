@@ -6,6 +6,8 @@
 - **Side panel:** the side panel shows its own layout from the first frame, instead of the popup's for a moment.
 - **Settings:** "Test key" and "Test connection" run once at a time.
 - **Report:** the report uses the same colour names and values as Needle itself.
+- **Link check:** a link that opens the reader's language version (for example `/fr-fr/…`) counts as working, instead of "redirects, link straight to the final URL". A link that is slow once gets a second try before it is reported as timed out.
+- **Noindex pages:** while a page asks not to be indexed, Fix this first leaves out what only matters in search results (title and description length, structured data, trust signals) and says so.
 
 ## 1.0.1 (21 November 2026)
 
