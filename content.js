@@ -626,6 +626,24 @@
       return img.currentSrc || img.src || "";
     };
 
+    // The srcset candidates of an <img> and its <picture> sources: [{url, w, x}].
+    const srcsetCandidates = (img) => [img.getAttribute("srcset"), ...[...(img.closest("picture")?.querySelectorAll("source") || [])].map((s) => s.getAttribute("srcset"))]
+      .filter(Boolean)
+      .flatMap((set) => set.split(/,\s+/).map((part) => {
+        const [u, d = ""] = part.trim().split(/\s+/);
+        return { url: u ? resolveUrl(u) : "", w: parseInt(d.match(/^(\d+)w$/)?.[1], 10) || 0, x: parseFloat(d.match(/^([\d.]+)x$/)?.[1]) || 0 };
+      }))
+      .filter((c) => c.url);
+    // The pixel width of the file the browser actually loaded. With a srcset, naturalWidth is
+    // already divided by the candidate's density, so the descriptor tells the real width.
+    const loadedFileWidth = (img, cands) => {
+      const n = img.naturalWidth || 0;
+      const c = img.currentSrc ? cands.find((k) => k.url === img.currentSrc) : null;
+      if (c?.w) return c.w;
+      if (c?.x) return Math.round(n * c.x);
+      return n;
+    };
+
     pageImages.length = 0;
     const imgEls = $$("img").map((img, idx) => {
       pageImages[idx] = img;
@@ -644,12 +662,22 @@
       const top = rect.top + window.scrollY;
       const aboveFold = top < viewportH && rect.bottom + window.scrollY > 0 && rect.width > 0 && rect.height > 0;
 
-      // Declared width/height attributes describe the source asset; naturalWidth is
-      // whichever srcset variant the browser picked for this viewport.
+      // The file the browser loaded (the srcset candidate for this screen), not the width
+      // attribute, which describes the layout. The attributes only stand in before loading.
       const attrW = parseInt(img.getAttribute("width"), 10) || 0;
       const attrH = parseInt(img.getAttribute("height"), 10) || 0;
-      const naturalW = attrW || img.naturalWidth || 0;
-      const naturalH = attrH || img.naturalHeight || 0;
+      const cands = srcsetCandidates(img);
+      // Not loaded yet (lazy): without a srcset the attributes usually give the file's size;
+      // with one, the file depends on the screen, so it isn't judged until it loads.
+      const loaded = img.naturalWidth > 0;
+      const fileW = loaded ? loadedFileWidth(img, cands) : (cands.length ? 0 : attrW);
+      const fileH = loaded ? Math.round(img.naturalHeight * fileW / img.naturalWidth) : (cands.length ? 0 : attrH);
+      const naturalW = fileW || attrW;
+      const naturalH = fileH || attrH;
+      // The largest file the page offers (Google may pick it for large previews).
+      const largestWidth = Math.max(naturalW, ...cands.map((c) => c.w));
+      // Larger than even a 2x (retina) screen needs for the box it fills.
+      const needed = (img.width || 0) * Math.max(2, window.devicePixelRatio || 1);
 
       // A lazy image still waiting reports complete=false, so complete with no pixels means it failed, lazy or not.
       const brokenLoad = img.complete && !!src && !isDataUrl && img.naturalWidth === 0 && img.naturalHeight === 0 &&
@@ -670,7 +698,8 @@
         format: isDataUrl ? "data-url" : (ext || "unknown"),
         bytes,
         oversized: bytes > 100 * 1024,
-        downscaled: naturalW > 0 && img.width > 0 && naturalW > img.width * 2,
+        largestWidth,
+        downscaled: fileW > 0 && img.width > 0 && fileW > needed,
         // The file the browser loaded is smaller than the box it fills: it looks blurry.
         upscaled: img.naturalWidth > 0 && img.width > img.naturalWidth * 1.05,
         aboveFold,

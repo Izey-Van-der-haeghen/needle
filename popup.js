@@ -1717,10 +1717,10 @@ function renderImagesCard() {
       ${(() => {
         const lead = leadImageCheck(imgs, onpageData.og);
         if (!lead) return '';
-        const big = lead.img.naturalWidth >= LEAD_IMAGE_MIN_WIDTH;
-        return `<p>${big ? tag(`Main image ${lead.img.naturalWidth} px wide`, 'good')
-          : lead.wideEnough ? `${tag(`Share image ${lead.shareWidth} px wide`, 'good')} <span class="muted">The largest image on the page is ${lead.img.naturalWidth} px.</span>`
-          : tag(`Main image only ${lead.img.naturalWidth} px wide`, 'warn')}
+        const big = lead.width >= LEAD_IMAGE_MIN_WIDTH;
+        return `<p>${big ? tag(`Main image ${lead.width} px wide`, 'good')
+          : lead.wideEnough ? `${tag(`Share image ${lead.shareWidth} px wide`, 'good')} <span class="muted">The largest image on the page is ${lead.width} px.</span>`
+          : tag(`Main image only ${lead.width} px wide`, 'warn')}
           <span class="muted">Google recommends at least ${LEAD_IMAGE_MIN_WIDTH} px for large previews in Discover.</span></p>`;
       })()}
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}

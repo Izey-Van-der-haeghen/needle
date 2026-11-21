@@ -720,3 +720,26 @@ describe("Needle's own page marks never count as page content", () => {
     expect(page.document.querySelector("h1").hasAttribute("style")).toBe(false);
   });
 });
+
+describe("image sizes with srcset", () => {
+  it("measures the file the browser loaded, not the width attribute", async () => {
+    const res = await analyze(html(`<main><img src="/img/case-2400.jpg" width="2400" height="1024" alt="Case"
+      srcset="/img/case-760.jpg 760w, /img/case-1520.jpg 1520w, /img/case-2400.jpg 2400w" sizes="760px"
+      data-test-current="/img/case-760.jpg" data-test-natural="760,324" data-test-rect="0,0,760,324"></main>`));
+    const img = res.images[0];
+    expect(img.naturalWidth).toBe(760);
+    expect(img.largestWidth).toBe(2400);
+    expect(img.downscaled).toBe(false);
+  });
+
+  it("still flags a plain file far larger than its box", async () => {
+    const res = await analyze(html(`<main><img src="/img/huge.jpg" alt="Huge" data-test-natural="2400,1024" data-test-rect="0,0,760,324"></main>`));
+    expect(res.images[0]).toMatchObject({ naturalWidth: 2400, downscaled: true });
+  });
+
+  it("reads x descriptors as a multiple of the natural width", async () => {
+    const res = await analyze(html(`<main><img src="/img/a.jpg" srcset="/img/a.jpg 1x, /img/a@2x.jpg 2x" alt="A"
+      data-test-current="/img/a@2x.jpg" data-test-natural="600,400" data-test-rect="0,0,600,400"></main>`));
+    expect(res.images[0]).toMatchObject({ naturalWidth: 1200, downscaled: false });
+  });
+});

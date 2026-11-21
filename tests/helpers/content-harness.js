@@ -287,6 +287,18 @@ function installPolyfills(window, { width, height, resourceEntries, media }) {
       }
     });
   }
+  // jsdom loads no images. data-test-natural="w,h" gives an <img> its natural size,
+  // and data-test-current="url" the srcset candidate the browser picked (currentSrc).
+  for (const [prop, idx] of [["naturalWidth", 0], ["naturalHeight", 1]]) {
+    Object.defineProperty(HTMLImageElement.prototype, prop, {
+      configurable: true,
+      get() { const v = this.getAttribute("data-test-natural"); return v ? Number(v.split(",")[idx]) : 0; }
+    });
+  }
+  Object.defineProperty(HTMLImageElement.prototype, "currentSrc", {
+    configurable: true,
+    get() { const v = this.getAttribute("data-test-current"); return v ? new URL(v, this.ownerDocument.baseURI).href : (this.src || ""); }
+  });
   window.innerWidth = width;
   window.innerHeight = height;
 
