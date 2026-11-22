@@ -533,11 +533,12 @@ function showWhatsNewIfNeeded() {
   const w = pendingWhatsNew;
   const banner = document.createElement('div');
   banner.className = 'notice whats-new';
-  const several = w.sections.length > 1;
+  // Only the newest version's lines: a longer note would hide the verdict. Older ones are in the changelog.
+  const newest = w.sections[0];
   banner.innerHTML = `
     <strong>Needle was updated to ${escapeHtml(w.version)}</strong>
-    ${w.sections.map((s) => `${several ? `<div class="whats-new-version">${escapeHtml(s.version)}</div>` : ''}
-      <ul class="plain-list">${s.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`).join('')}
+    ${newest ? `<ul class="plain-list">${newest.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>` : ''}
+    ${w.sections.length > 1 ? `<p class="muted">More changed since ${escapeHtml(w.from)}: see the full changelog.</p>` : ''}
     <div class="actions">
       <button type="button" class="primary-btn" data-whats-new-dismiss>Got it</button>
       <a class="link-btn" href="${escapeHtml(CHANGELOG_URL)}" target="_blank" rel="noopener noreferrer">Full changelog</a>
@@ -547,8 +548,8 @@ function showWhatsNewIfNeeded() {
     banner.remove();
     pendingWhatsNew = null;
     chrome.storage.local.remove('whatsNew').catch(() => {});
-    // The note is gone with the button: keep keyboard focus in the page.
-    $('panel-onpage')?.focus();
+    // The note is gone with the button: keep keyboard focus in the visible tab panel, without scrolling.
+    document.querySelector('[role="tabpanel"]:not([hidden])')?.focus({ preventScroll: true });
   });
   return true;
 }
@@ -1593,8 +1594,9 @@ function getFilteredLinks() {
 function linkCheckHint(l) {
   const cs = l.checkedStatus;
   if (!cs) return '';
-  if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects to ${escapeHtml(cs.finalUrl)}. Link straight to the final URL.</div>`;
-  if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Opens the reader's language version (${escapeHtml(cs.finalUrl)}). Keep this link: it works for every language.</div>`;
+  // The URL gets its own line in the code font, like the link's own URL above it (long URLs wrap there).
+  if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects. Link straight to the final URL:<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
+  if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
   if (cs.kind === 'timeout') return `<div class="hint">No answer within 8 seconds, twice. Try again later.</div>`;

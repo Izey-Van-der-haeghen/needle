@@ -119,3 +119,22 @@ describe("design review of 1.0.2 (Impeccable)", () => {
     for (const s of ["tag('external', 'info')", "tag('nofollow', 'info')", "tag('not found', 'info')", "tag('featured snippet', 'info')", "['partly built by JavaScript', 'info']"]) expect(src).toContain(s);
   });
 });
+
+describe("polish review of 1.0.2 (Make interfaces feel better)", () => {
+  const read = async (f) => (await import("node:fs")).readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+
+  it("Got it keeps focus in the visible tab panel without scrolling", async () => {
+    expect(await read("popup.js")).toContain(`document.querySelector('[role="tabpanel"]:not([hidden])')?.focus({ preventScroll: true });`);
+  });
+
+  it("link hints put the URL on its own line in the code font", async () => {
+    const src = await read("popup.js");
+    expect(src).toMatch(/Redirects\. Link straight to the final URL:<div class="item-url">/);
+    expect(src).toMatch(/Keep this link: it works for every language\.<div class="item-url">/);
+  });
+
+  it("the popup has no static loading line for a note to push down, and Check again keeps its width", async () => {
+    expect(await read("popup.html")).not.toMatch(/Reading the page…/);
+    expect(await read("popup.css")).toMatch(/#check-broken \{ min-width: 11em; \}/);
+  });
+});
