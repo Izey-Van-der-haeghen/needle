@@ -533,12 +533,15 @@ function showWhatsNewIfNeeded() {
   const w = pendingWhatsNew;
   const banner = document.createElement('div');
   banner.className = 'notice whats-new';
-  // Only the newest version's lines: a longer note would hide the verdict. Older ones are in the changelog.
+  // Only the newest version's lines, folded away: open, the note would hide the verdict (at 200 % zoom
+  // it filled the popup). Older versions are in the changelog.
   const newest = w.sections[0];
   banner.innerHTML = `
     <strong>Needle was updated to ${escapeHtml(w.version)}</strong>
-    ${newest ? `<ul class="plain-list">${newest.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>` : ''}
-    ${w.sections.length > 1 ? `<p class="muted">More changed since ${escapeHtml(w.from)}: see the full changelog.</p>` : ''}
+    ${newest ? `<details class="sub"><summary>What's new</summary>
+      <ul class="plain-list">${newest.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
+      ${w.sections.length > 1 ? `<p class="muted">More changed since ${escapeHtml(w.from)}: see the full changelog.</p>` : ''}
+    </details>` : ''}
     <div class="actions">
       <button type="button" class="primary-btn" data-whats-new-dismiss>Got it</button>
       <a class="link-btn" href="${escapeHtml(CHANGELOG_URL)}" target="_blank" rel="noopener noreferrer">Full changelog</a>
@@ -548,8 +551,9 @@ function showWhatsNewIfNeeded() {
     banner.remove();
     pendingWhatsNew = null;
     chrome.storage.local.remove('whatsNew').catch(() => {});
-    // The note is gone with the button: keep keyboard focus in the visible tab panel, without scrolling.
-    document.querySelector('[role="tabpanel"]:not([hidden])')?.focus({ preventScroll: true });
+    // The note is gone with the button: put keyboard focus on the active tab (a panel's inset ring
+    // would cover its first line), without scrolling.
+    document.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
   });
   return true;
 }
@@ -700,8 +704,10 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   techPending = false;
   if (tech.error) {
     technicalData = null;
-    rerender(technicalPanel, errorBox('The server check failed', tech.error,
-      `<button type="button" class="primary-btn" data-refresh="onpage">Try again</button>`));
+    // When the page itself can't be read, the On-page tab already says why (one alert, not two).
+    rerender(technicalPanel, onpageData
+      ? errorBox('The server check failed', tech.error, `<button type="button" class="primary-btn" data-refresh="onpage">Try again</button>`)
+      : '<p class="muted">The server check needs the page too; see the On-page tab.</p>');
   } else {
     technicalData = tech.data;
     technicalAge = tech.age;
@@ -735,10 +741,13 @@ let showAllFindings = false;
 function renderFindings() {
   const slot = $('findings-slot');
   if (!slot || !onpageData) return;
+  const leftOutBefore = currentFindings.leftOut?.length || 0;
   currentFindings = collectFindings({
     onpage: onpageData, tech: technicalData, geo: geoData, rendered: renderedData, imageRules, hreflangCluster, ...snippetPx()
   });
   const f = currentFindings;
+  // A noindex header arrives with the server check, after the first list: announce the shorter list.
+  if (!leftOutBefore && f.leftOut?.length) announce(`${plural(f.leftOut.length, 'finding')} left out while the page is noindex`);
   const counts = ['critical', 'high', 'medium', 'low'].map((sv) => [sv, f.filter((x) => x.severity === sv).length]).filter(([, n]) => n);
   const shown = showAllFindings ? f : f.slice(0, 8);
   const wasOpen = $('findings-card') ? $('findings-card').open : true;
@@ -1682,7 +1691,7 @@ function renderCheckFilters() {
   const d = onpageData.links.details;
   const kinds = ['ok', 'redirect', 'broken', 'blocked', 'timeout'].filter((k) => d.some((l) => l.checkedStatus?.kind === k));
   if (!kinds.length) { container.innerHTML = ''; return; }
-  container.innerHTML = filterButtons('checkStatus', [['all', 'Any status'], ...kinds.map((k) => [k, `${CHECK_LABEL[k][0]} ${d.filter((l) => l.checkedStatus?.kind === k).length}`])], linkFilter.checkStatus);
+  container.innerHTML = filterButtons('checkStatus', [['all', 'Any status'], ...kinds.map((k) => [k, `${CHECK_LABEL[k][0]} ${fmtNum(d.filter((l) => l.checkedStatus?.kind === k).length)}`])], linkFilter.checkStatus);
 }
 
 function linkHighlightFilter() {
@@ -2305,7 +2314,7 @@ function renderTechnical(d, age) {
       return `<div class="card">
       <h2>Snippet and AI controls</h2>
       <p class="muted">These limit what Google may quote in results and in AI Overviews.</p>
-      ${row('Directives', dirs.length ? dirs.map((x) => tag(x, /nosnippet|max-snippet/.test(x) ? 'warn' : 'info')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
+      ${row('Directives', dirs.length ? dirs.map((x) => tag(x, x === 'nosnippet' || /^max-snippet:(0|[1-9]\d?)$/.test(x) ? 'warn' : 'info')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
       ${row('data-nosnippet', onpageData.dataNosnippetCount ? `${fmtNum(onpageData.dataNosnippetCount)} element${onpageData.dataNosnippetCount === 1 ? '' : 's'} kept out of snippets` : '<span class="muted">none</span>')}
       ${limited ? '<div class="hint">Some text may not be quoted in search snippets or AI answers. Check that this is intended.</div>' : ''}
     </div>`;

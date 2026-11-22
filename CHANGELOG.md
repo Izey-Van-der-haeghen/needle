@@ -2,14 +2,16 @@
 
 ## 1.0.2 (not yet released)
 
-- **Labels:** labels that are information only ("near the limit", "note", "not scored") have their own outlined look, so they no longer look like a "Low" finding.
+- **Labels:** labels that are information only ("near the limit", "note", "not scored", "external", "nofollow", "not found" …) have their own outlined look, so they no longer look like a "Low" finding.
 - **Side panel:** the side panel shows its own layout from the first frame, instead of the popup's for a moment.
 - **Settings:** "Test key" and "Test connection" run once at a time.
 - **Report:** the report uses the same colour names and values as Needle itself.
 - **Link check:** a link that opens the reader's language version (for example `/fr-fr/…`) counts as working, instead of "redirects, link straight to the final URL". A link that is slow once gets a second try before it is reported as timed out.
-- **Noindex pages:** while a page asks not to be indexed, Fix this first leaves out what only matters in search results (title and description length, structured data, trust signals) and says so.
+- **Noindex pages:** while a page asks not to be indexed, Fix this first leaves out what only matters in search results and shows how many it left out, also in the report and the copy for a developer.
+- **Title and description:** once the width is measured, the width gives the verdict ("cut off in Google results") and the character count is information, in the popup and the report.
+- **Robots directives:** `max-snippet:-1` (no limit) is no longer shown as a warning.
 - **What's new:** after an update, Needle says once what changed, with a link to this changelog. Settings has a "What's new" link next to the version.
-- **Clearer messages:** when a tab can't be read (no internet, the Chrome Web Store, no access yet), Needle says why in plain words, once, instead of Chrome's own error text.
+- **Clearer messages:** when a tab can't be read (no internet, the Chrome Web Store, no access yet), Needle says why in plain words, once, instead of Chrome's own error text. Without internet, the server check says so too.
 
 ## 1.0.1 (21 November 2026)
 

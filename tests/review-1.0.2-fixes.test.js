@@ -123,8 +123,8 @@ describe("design review of 1.0.2 (Impeccable)", () => {
 describe("polish review of 1.0.2 (Make interfaces feel better)", () => {
   const read = async (f) => (await import("node:fs")).readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 
-  it("Got it keeps focus in the visible tab panel without scrolling", async () => {
-    expect(await read("popup.js")).toContain(`document.querySelector('[role="tabpanel"]:not([hidden])')?.focus({ preventScroll: true });`);
+  it("Got it puts focus on the active tab without scrolling", async () => {
+    expect(await read("popup.js")).toContain(`document.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });`);
   });
 
   it("link hints put the URL on its own line in the code font", async () => {
@@ -136,5 +136,42 @@ describe("polish review of 1.0.2 (Make interfaces feel better)", () => {
   it("the popup has no static loading line for a note to push down, and Check again keeps its width", async () => {
     expect(await read("popup.html")).not.toMatch(/Reading the page…/);
     expect(await read("popup.css")).toMatch(/#check-broken \{ min-width: 11em; \}/);
+  });
+});
+
+describe("stress test of 1.0.2 (Break UI)", () => {
+  it("max-snippet:-1 (no limit) is not amber; a real limit is", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+    expect(src).toContain("tag(x, x === 'nosnippet' || /^max-snippet:(0|[1-9]\\d?)$/.test(x) ? 'warn' : 'info')");
+    const limited = (x) => x === "nosnippet" || /^max-snippet:(0|[1-9]\d?)$/.test(x);
+    expect([limited("max-snippet:-1"), limited("max-snippet:50"), limited("nosnippet"), limited("max-image-preview:large")]).toEqual([false, true, true, false]);
+  });
+
+  it("http → https with a language added is a redirect to fix; a home link may only gain the language", async () => {
+    const { isLanguageRedirect } = await import("../lib/link-checker.js");
+    expect(isLanguageRedirect("http://site.example/page", "https://site.example/nl-be/page")).toBe(false);
+    expect(isLanguageRedirect("https://site.example/", "https://site.example/en/login?next=/")).toBe(false);
+    expect(isLanguageRedirect("https://site.example/", "https://site.example/en/")).toBe(true);
+  });
+
+  it("noindex in both the meta tag and the header explains the shorter list once, and the copy and report count it", async () => {
+    const { collectFindings } = await import("../lib/findings.js");
+    const { buildIssuesMarkdown } = await import("../lib/handoff.js");
+    const { buildHtmlReport } = await import("../lib/export.js");
+    const page = { url: "https://site.example/a", title: "A title that is long enough", description: "", canonical: "", robots: "noindex",
+      headings: [{ level: 1, text: "Hi" }], images: [], links: { details: [] }, og: {}, twitter: {}, schema: [], hreflang: [] };
+    const tech = { status: 200, headers: { "x-robots-tag": "noindex" }, robotsTxt: { ok: true, pathAllowed: { allowed: true } } };
+    const f = collectFindings({ onpage: page, tech });
+    expect(f.filter((x) => /leaves out what only matters/.test(x.why)).length).toBe(1);
+    expect(buildIssuesMarkdown(page, tech, { findings: f })).toMatch(/\d+ findings? that only matters? in search results (is|are) left out while the page is noindex/);
+    expect(buildHtmlReport({ url: page.url, onpage: page, technical: tech, offpage: null, geo: null, health: null, verdict: null, theme: "light", findings: f }))
+      .toMatch(/left out while the page is noindex/);
+  });
+
+  it("an offline server check names the connection first", async () => {
+    const { computeIndexability } = await import("../lib/popup-compute.js");
+    const v = computeIndexability({ url: "https://site.example/", robots: "", canonical: "https://site.example/" }, { status: 0 });
+    expect(v.issues.find((i) => /not verified/.test(i.msg)).hint).toMatch(/^Check the internet connection and refresh/);
   });
 });

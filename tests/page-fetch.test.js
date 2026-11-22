@@ -30,10 +30,13 @@ describe("pageFetchAll (runs inside the audited tab)", () => {
     expect(r.text.length).toBeLessThan(1300);
   });
 
-  it("answers status 0 with the error instead of throwing", async () => {
+  it("answers status 0 with the error in plain words instead of throwing", async () => {
     globalThis.fetch = vi.fn(async () => { throw new TypeError("Failed to fetch"); });
     const [r] = await pageFetchAll([{ url: "https://other.example/" }], 5000);
-    expect(r).toEqual({ ok: false, status: 0, url: "https://other.example/", error: "Failed to fetch" });
+    expect(r).toEqual({ ok: false, status: 0, url: "https://other.example/", error: "Could not connect" });
+    globalThis.fetch = vi.fn(async () => { throw new Error("Something else"); });
+    const [s] = await pageFetchAll([{ url: "https://other.example/" }], 5000);
+    expect(s.error).toBe("Something else");
   });
 
   it("is self-contained, so chrome.scripting can run it in the page", () => {
