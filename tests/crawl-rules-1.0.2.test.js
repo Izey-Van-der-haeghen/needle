@@ -303,7 +303,9 @@ describe("server HTML: robots metas and canonical (A4)", () => {
     expect(onpage.robots).toBe("");
     const findings = collectFindings({ onpage, tech: tech() });
     expect(findings.find((f) => f.id === "noindex-js")).toMatchObject({ severity: "critical", title: "Server HTML says noindex; JavaScript removes it" });
-    expect(findings.find((f) => f.id === "canonical-js")).toMatchObject({
+    // noindex from the server shortens the list as a meta noindex does: the canonical waits in leftOut.
+    expect(findings.find((f) => f.id === "canonical-js")).toBeUndefined();
+    expect(findings.leftOut.find((f) => f.id === "canonical-js")).toMatchObject({
       severity: "high",
       title: "The canonical in the server HTML differs from the rendered one",
       why: expect.stringContaining(`The server HTML names https://www.example.be/nl-be/; after JavaScript the page names ${URL_}.`)

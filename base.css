@@ -147,6 +147,7 @@ input::placeholder { color: var(--ink-2); opacity: .85; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 8px; }
 .cost { font-size: 12px; color: var(--ink-2); }
 .hint { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+.data-table td.num { white-space: nowrap; overflow-wrap: normal; }
 .hint::before { content: "→ " / ""; } /* decoration: screen readers skip it */
 
 /* ----- Lists and tables ----- */

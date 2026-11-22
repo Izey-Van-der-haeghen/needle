@@ -773,7 +773,10 @@
       const picked = img.currentSrc ? cands.find((c) => c.url === img.currentSrc) : null;
       const widths = cands.filter((c) => !picked || c.set === picked.set).map((c) => c.w).filter(Boolean);
       const smallerWouldDo = widths.some((w) => w < fileW && w >= shownPx);
-      const downscaled = !isSvg && fileW > 0 && img.width > 0 && fileW > needed &&
+      // A lazy image below the fold that hasn't loaded yet: the Images note says its size can't be
+      // checked, so it gets no verdict from its attributes either.
+      const waiting = isLazy && !loaded && !aboveFold;
+      const downscaled = !waiting && !isSvg && fileW > 0 && img.width > 0 && fileW > needed &&
         (!widths.length || smallerWouldDo || fileW > needed * 1.5);
 
       // A lazy image still waiting reports complete=false, so complete with no pixels means it failed, lazy or not.

@@ -9,7 +9,7 @@ describe("the audit banner", () => {
   it("a fresh audit says when it was made and offers Refresh", () => {
     const now = new Date(2026, 10, 22, 14, 32);
     const html = cachedBanner(0, "onpage", { always: true, now });
-    expect(html).toContain(`Audited at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`); // the browser's own time format
+    expect(html).toContain(`Audited at ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`); // 24-hour, as the report
     expect(html).toMatch(/data-refresh="onpage"/);
     expect(cachedBanner(0, null)).toBe("");
   });

@@ -6,7 +6,7 @@ import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetc
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
-import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate } from './lib/popup-helpers.js';
+import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate, inlineImageLabel } from './lib/popup-helpers.js';
 import { computeHealthScore, computeIndexability, detectMarketFromUrl, snippetDirectives, limitsSnippets, robotsBlocksIndexing, copilotLimit } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { readableError } from './lib/errors.js';
@@ -111,6 +111,7 @@ function viewId() {
 /** What the export includes: {psi, psiError, dfs, dfsError}. */
 const offpageData = { psi: null, psiError: null, dfs: null, dfsError: null };
 let popupState = {};
+let refreshAnchor = null; // the card a Refresh or "Check again" came from
 let saveStateTimer = null;
 let prefs = { defaultLocation: 2840, defaultLanguage: 'en' };
 let shortcutsOn = true;
@@ -717,6 +718,7 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   const gen = ++auditGen;
   // Refresh means a fresh look at everything, the saved link check and llms.txt answer included.
   refreshForced = forceRefresh;
+  issuesShown = false; // reading the page again takes the marks off it
   hreflangCluster = null; // the hreflang card is drawn again without its check result
   // A report made now must not mix the new page read with the last server check or AI checks.
   technicalData = null;
@@ -732,10 +734,16 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   const technicalPanel = $('panel-technical');
   // A refresh asked for inside a card ("Check again" in Images) keeps the reader where they were:
   // the same cards open, at the same scroll position.
+  const anchor = refreshAnchor && $(refreshAnchor) ? refreshAnchor : null;
+  refreshAnchor = null;
   const keep = forceRefresh ? {
     open: [...onpagePanel.querySelectorAll('details.card[open][id]')].map((d) => d.id),
     main: document.querySelector('main')?.scrollTop || 0,
-    win: window.scrollY
+    win: window.scrollY,
+    // The card that held the button stays where the reader saw it, also when the server check
+    // redraws the cards above it.
+    anchor,
+    anchorTop: anchor ? $(anchor).getBoundingClientRect().top : 0
   } : null;
   rerender(onpagePanel, loading('Reading the page…'));
   rerender(technicalPanel, loading('Checking the server…'));
@@ -799,6 +807,9 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
       const main = document.querySelector('main');
       if (main) main.scrollTop = keep.main;
       window.scrollTo(0, keep.win);
+      keepInPlace(keep);
+      // Back on the button the reader pressed, if it is still there.
+      if (keep.anchor) $(keep.anchor)?.querySelector('[data-refresh]')?.focus({ preventScroll: true });
     }
     announce('Page analysed');
   }
@@ -832,7 +843,19 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
     const serverAnswered = !!technicalData?.status;
     saveToHistory(pageId(withoutTracking(url)), onpageData.title || '', verdict.level, serverAnswered ? health?.score ?? null : null);
     if (serverAnswered) showChanges(health?.score ?? null, gen);
+    if (keep) keepInPlace(keep);
   }
+}
+
+/** Scroll so the card a refresh came from is back where it was on screen. */
+function keepInPlace(keep) {
+  const el = keep.anchor && $(keep.anchor);
+  if (!el) return;
+  const delta = el.getBoundingClientRect().top - keep.anchorTop;
+  if (!delta) return;
+  const main = document.querySelector('main');
+  if (main && main.scrollHeight > main.clientHeight) main.scrollTop += delta;
+  else window.scrollBy(0, delta);
 }
 
 /** Snippet widths of the page's title and description; the score, the findings and the report use them. */
@@ -860,7 +883,7 @@ function renderFindings() {
   });
   const f = currentFindings;
   // A noindex header arrives with the server check, after the first list: announce the shorter list.
-  if (!leftOutBefore && f.leftOut?.length) announce(`${plural(f.leftOut.length, 'finding')} left out while the page is noindex`);
+  if (f.leftOut?.length && f.leftOut.length !== leftOutBefore) announce(`${plural(f.leftOut.length, 'finding')} left out while the page is noindex`);
   const counts = ['critical', 'high', 'medium', 'low'].map((sv) => [sv, f.filter((x) => x.severity === sv).length]).filter(([, n]) => n);
   const shown = showAllFindings ? f : f.slice(0, 8);
   const wasOpen = $('findings-card') ? $('findings-card').open : true;
@@ -1021,7 +1044,7 @@ async function loadGEO(gen = auditGen) {
       <h2>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h2>
       <p class="muted">Can AI search engines reach and quote this page? ${escapeHtml(AI_SCORE_NOTE)}</p>
       ${aiAccess.cloudflareManaged ? '<div class="hint">Cloudflare manages this robots.txt. Its AI Crawl Control may also block AI bots at the network level (HTTP 403), even ones allowed below. Check AI Crawl Control in the Cloudflare dashboard.</div>' : ''}
-      <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI search bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI search bots allowed', 'good')}</h3>
+      <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI answer bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI answer bots allowed', 'good')}</h3>
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
           <li>
@@ -1239,7 +1262,7 @@ async function runBing() {
       ${d.crawl ? row('Last crawled by Bing', `${escapeHtml(d.crawl.lastCrawled || 'unknown')}${d.crawl.status ? ` <span class="muted">HTTP ${d.crawl.status}</span>` : ''}`) : ''}
       ${row('Clicks and impressions', `${fmtNum(d.clicks)} clicks · ${fmtNum(d.impressions)} impressions <span class="muted">(the period Bing keeps)</span>`)}
       ${d.queries.length ? `<table class="data-table"><thead><tr><th scope="col">Query</th><th scope="col">Clicks</th><th scope="col">Impr.</th><th scope="col">Pos.</th></tr></thead><tbody>
-        ${d.queries.map((q) => `<tr><td>${escapeHtml(q.query)}</td><td>${fmtNum(q.clicks)}</td><td>${fmtNum(q.impressions)}</td><td>${q.position ?? '—'}</td></tr>`).join('')}</tbody></table>`
+        ${d.queries.map((q) => `<tr><td>${escapeHtml(q.query)}</td><td class="num">${fmtNum(q.clicks)}</td><td class="num">${fmtNum(q.impressions)}</td><td class="num">${q.position ?? '—'}</td></tr>`).join('')}</tbody></table>`
         : '<p class="muted">Bing has no search data for this page yet.</p>'}`);
   } catch (e) {
     if (tg !== tabGen) return;
@@ -1298,7 +1321,7 @@ function renderDfs(d, age) {
     <h3>Top keywords for this page</h3>
     ${d.topKeywords?.length
       ? `<table class="data-table"><thead><tr><th scope="col">Keyword</th><th scope="col">Position</th><th scope="col">Volume</th></tr></thead><tbody>
-          ${d.topKeywords.map((k) => `<tr><td>${escapeHtml(k.keyword)}</td><td>${k.pos ? `#${k.pos}${k.isFeaturedSnippet ? ' <span class="muted">snippet</span>' : ''}` : '—'}</td><td>${fmtNum(k.volume)}</td></tr>`).join('')}
+          ${d.topKeywords.map((k) => `<tr><td>${escapeHtml(k.keyword)}</td><td class="num">${k.pos ? `#${k.pos}${k.isFeaturedSnippet ? ' <span class="muted">snippet</span>' : ''}` : '—'}</td><td class="num">${fmtNum(k.volume)}</td></tr>`).join('')}
         </tbody></table>`
       : `<p class="muted">DataForSEO has no rankings for this exact URL in this market.</p>`}
     ${d.cost ? `<p class="muted">This lookup cost ${usd(d.cost)}.</p>` : ''}`;
@@ -1425,7 +1448,7 @@ function renderSerp(d, myDomain, age) {
   const me = (myDomain || '').replace(/^www\./, '');
   const mine = d.organic.filter((o) => (o.domain || '').replace(/^www\./, '') === me);
   const top = mine[0];
-  const features = Object.entries(d.features || {}).map(([type, info]) => `${FEATURE_LABELS[type] || type.replace(/_/g, ' ')}${info.count > 1 ? ` (${info.count})` : ''}`);
+  const features = Object.entries(d.features || {}).map(([type, info]) => `${FEATURE_LABELS[type] || type.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())}${info.count > 1 ? ` (${info.count})` : ''}`);
   const intent = classifyIntent(d.keyword, d.organic);
   const locName = LOCATIONS.find((l) => l.code === d.locationCode)?.name || d.locationCode;
   const langName = LANGUAGES.find((l) => l.code === d.languageCode)?.name || d.languageCode;
@@ -1452,7 +1475,7 @@ function renderSerp(d, myDomain, age) {
           return `<li class="serp-item${isMe ? ' is-me' : ''}">
             <div class="serp-head"><span class="serp-pos">#${o.position}</span> <span class="serp-domain">${escapeHtml(o.domain)}</span>
               ${isMe ? tag('your site', 'good') : ''}${o.isFeaturedSnippet ? tag('featured snippet', 'info') : ''}</div>
-            ${safe ? `<a class="serp-title" href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(o.title)}</a>` : `<div class="serp-title">${escapeHtml(o.title)}</div>`}
+            ${safe ? `<a class="serp-title" href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(o.title || o.url || o.domain || 'Untitled result')}</a>` : `<div class="serp-title">${escapeHtml(o.title)}</div>`}
             <div class="serp-snippet">${escapeHtml(o.snippet)}</div>
             ${o.rating ? `<div class="muted">Rating ${escapeHtml(o.rating.value)} (${fmtNum(o.rating.count)} reviews)</div>` : ''}
           </li>`;
@@ -1802,9 +1825,9 @@ function applyLinkCheckResults(results, ageMs) {
   announce(`${plural(results.length, 'link')} checked`);
 }
 
-const FILTER_GROUP_NAME = { kind: 'Filter by type', ctx: 'Filter by place on the page', checkStatus: 'Filter by check result' };
-function filterButtons(group, options, current) {
-  return `<div class="filter-row" role="group" aria-label="${escapeHtml(FILTER_GROUP_NAME[group] || 'Filter')}" data-filter-group="${group}">${options.map(([val, label]) =>
+const FILTER_GROUP_NAME = { kind: 'Filter links by type', ctx: 'Filter links by place on the page', checkStatus: 'Filter links by check result' };
+function filterButtons(group, options, current, name = FILTER_GROUP_NAME[group] || 'Filter') {
+  return `<div class="filter-row" role="group" aria-label="${escapeHtml(name)}" data-filter-group="${group}">${options.map(([val, label]) =>
     `<button type="button" class="filter-btn${current === val ? ' active' : ''}" aria-pressed="${current === val}" data-filter-val="${escapeHtml(val)}">${label}</button>`).join('')}</div>`;
 }
 
@@ -1874,6 +1897,7 @@ function getFilteredImages() {
 }
 
 function imageFilename(src) {
+  if (/^data:/i.test(src)) return inlineImageLabel(src);
   try {
     const u = new URL(src);
     return decodeURIComponent(u.pathname.split('/').pop() || u.hostname || src);
@@ -1905,7 +1929,7 @@ function renderImagesCard() {
   if (counts.broken) opts.push(['broken', `Not loading ${counts.broken}`]);
   const body = card.querySelector('.card-body');
   rerender(body, imgs.length
-    ? `${filterButtons('kind', opts, imageFilter.kind)}
+    ? `${filterButtons('kind', opts, imageFilter.kind, 'Filter images by type')}
       <div class="actions"><button type="button" class="secondary-btn copy-btn" data-copy-fn="imagesTsv">Copy as table</button></div>
       ${(() => {
         // The Discover check, on articles only (as in Fix this first).
@@ -1920,7 +1944,7 @@ function renderImagesCard() {
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
       ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button></p>` : ''}
       <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
-      ${lazyNote(imgs) ? `<p class="muted">${escapeHtml(lazyNote(imgs))} <button type="button" class="link-btn" data-refresh="onpage">Check again</button></p>` : ''}
+      ${lazyNote(imgs) ? `<p class="muted">${escapeHtml(lazyNote(imgs).replace(/, then check again\.$/, '.'))} <button type="button" class="link-btn" data-refresh="onpage">Check again</button></p>` : ''}
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
     : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');
@@ -1938,7 +1962,7 @@ function renderImageItems() {
       ${safe ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy">` : '<span class="thumb thumb-empty" aria-hidden="true">✗</span>'}
       <div class="item-body">
         <div class="item-title" title="${escapeHtml(img.src)}">${escapeHtml(imageFilename(img.src))}</div>
-        <div class="item-meta">${escapeHtml(dims)} · ${img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'}</div>
+        <div class="item-meta">${escapeHtml(dims)} · ${img.brokenLoad ? "doesn't load" : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'}</div>
         <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `alt: ${escapeHtml(img.alt)}` : '<span class="muted">empty alt (decorative)</span>'}</div>
         ${issues.length ? `<div class="item-meta">${issues.map(([t, k]) => tag(t, k)).join(' ')}</div>` : ''}
       </div>
@@ -1961,7 +1985,10 @@ async function measureImages() {
   setBusy(btn, true);
   // The busy text takes the place of "N file sizes unknown", so the list doesn't move twice.
   const sizeNote = $('image-size-note');
-  if (sizeNote?.firstChild?.nodeType === 3) sizeNote.firstChild.textContent = `Measuring ${plural(missing.length, 'image')}… `;
+  if (sizeNote?.firstChild?.nodeType === 3) {
+    sizeNote.firstChild.textContent = `Measuring ${plural(missing.length, 'image')}… `;
+    if ($('measure-images')) $('measure-images').hidden = true;
+  }
   else if ($('image-size-status')) $('image-size-status').textContent = `Measuring ${plural(missing.length, 'image')}…`;
   const gen = auditGen;
   try {
@@ -2663,6 +2690,7 @@ document.addEventListener('click', (e) => {
   // The button disappears with the panel's content; keep keyboard focus in the panel (it is not replaced).
   if (r.matches(':focus')) r.closest('[role="tabpanel"]')?.focus();
   const kind = r.dataset.refresh;
+  refreshAnchor = r.closest('details.card[id]')?.id || null;
   if (kind === 'onpage') loadOnpageAndTechnical(true);
   else if (kind === 'serp') loadSerp(true);
   else if (kind === 'compare') loadCompare(true);

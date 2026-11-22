@@ -191,8 +191,8 @@ async function loadImageRules() {
 
 $("save-images").addEventListener("click", async () => {
   const n = (id) => $(id).value.trim();
-  const bad = ["imgMaxKB", "imgWidth", "imgHeight"].find((id) => n(id) && !/^\d{1,5}$/.test(n(id)));
-  if (bad) { say("images-status", "Use whole numbers only.", "bad"); return; }
+  const bad = ["imgMaxKB", "imgWidth", "imgHeight"].find((id) => n(id) && !/^[1-9]\d{0,4}$/.test(n(id)));
+  if (bad) { say("images-status", "Use whole numbers from 1 up.", "bad"); return; }
   if (!!n("imgWidth") !== !!n("imgHeight")) { say("images-status", "Fill in both width and height, or neither.", "bad"); return; }
   await chrome.storage.sync.set({ imgMaxKB: n("imgMaxKB"), imgWidth: n("imgWidth"), imgHeight: n("imgHeight"), imgMode: $("imgMode").value });
   say("images-status", "Saved. Reopen Needle on a page to apply.");
@@ -291,6 +291,9 @@ $("import-settings").addEventListener("change", async (e) => {
     const prefs = {};
     const secrets = {};
     for (const k of [...PREF_KEYS, "theme", "csvSeparator"]) if (typeof payload[k] === "string") prefs[k] = payload[k];
+    // A country or language Needle doesn't offer would leave the field blank.
+    if ("defaultLocation" in prefs && !LOCATIONS.some((l) => String(l.code) === prefs.defaultLocation)) delete prefs.defaultLocation;
+    if ("defaultLanguage" in prefs && !LANGUAGES.some((l) => String(l.code) === prefs.defaultLanguage)) delete prefs.defaultLanguage;
     if (typeof payload.popupShortcuts === "boolean") prefs.popupShortcuts = payload.popupShortcuts;
     if (typeof payload.openInSidePanel === "boolean") prefs.openInSidePanel = payload.openInSidePanel;
     for (const k of SECRET_KEYS) if (typeof payload[k] === "string") secrets[k] = payload[k];

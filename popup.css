@@ -172,7 +172,7 @@ details.sub > summary { color: var(--ink-2); font-size: 13px; overflow-wrap: any
 .serp-list { list-style: none; padding: 0; margin: 0; }
 .serp-item { padding: 8px 0; border-bottom: 1px solid var(--rule); }
 .serp-item.is-me { border-left: 4px solid var(--accent); padding-left: 8px; }
-.serp-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.serp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
 .serp-pos { font-weight: 800; color: var(--ink); }
 .serp-title { display: block; font-weight: 700; margin: 2px 0; }
 .serp-snippet { font-size: 13px; color: var(--ink-2); }
