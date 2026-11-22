@@ -16,7 +16,7 @@ import { pageFetcher, fetchInPage } from './lib/page-fetch.js';
 import { fetchCompetitor } from './lib/compare.js';
 import { parseCompetitorHtml } from './lib/parse-competitor.js';
 import { getSecrets, getPrefs, getImageRules } from './lib/settings.js';
-import { imageSizeIssues, leadImageCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH, lazyNote, measureNote } from './lib/image-rules.js';
+import { imageSizeIssues, discoverCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH, lazyNote, measureNote } from './lib/image-rules.js';
 import { hasOrigins, requestOrigins, ALL_SITES, DATAFORSEO, NEEDS_PERMISSION } from './lib/permissions.js';
 import { DFS_COST } from './lib/offpage.js';
 import { CWV_GOOD, CWV_POOR } from './lib/crux.js';
@@ -1890,7 +1890,8 @@ function renderImagesCard() {
     ? `${filterButtons('kind', opts, imageFilter.kind)}
       <div class="actions"><button type="button" class="secondary-btn copy-btn" data-copy-fn="imagesTsv">Copy as table</button></div>
       ${(() => {
-        const lead = leadImageCheck(imgs, onpageData.og);
+        // The Discover check, on articles only (as in Fix this first).
+        const lead = discoverCheck(imgs, onpageData);
         if (!lead) return '';
         const big = lead.width >= LEAD_IMAGE_MIN_WIDTH;
         return `<p>${big ? tag(`Main image ${lead.width} px wide`, 'good')
