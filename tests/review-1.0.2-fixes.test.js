@@ -175,3 +175,16 @@ describe("stress test of 1.0.2 (Break UI)", () => {
     expect(v.issues.find((i) => /not verified/.test(i.msg)).hint).toMatch(/^Check the internet connection and refresh/);
   });
 });
+
+describe("dates as the page wrote them (izey.dev, 22 November)", () => {
+  it("keeps the day of a midnight timestamp with an offset, instead of shifting it to UTC", async () => {
+    const { dateAsWritten, analyzeEEAT } = await import("../lib/geo.js");
+    expect(dateAsWritten("2026-11-21T00:00:00+01:00")).toBe("2026-11-21");
+    expect(dateAsWritten("2026-11-22T23:30:00-05:00")).toBe("2026-11-22");
+    expect(dateAsWritten("2026-11-21")).toBe("2026-11-21");
+    expect(dateAsWritten("someday")).toBe("someday");
+    const signals = analyzeEEAT({ schema: [{ raw: { "@type": "WebPage", datePublished: "2026-11-21T00:00:00+01:00", dateModified: "2026-11-22T00:00:00+01:00" } }] });
+    expect(signals.find((s) => s.label === "Published date").value).toBe("2026-11-21");
+    expect(signals.find((s) => s.label === "Modified date").value).toBe("2026-11-22");
+  });
+});
