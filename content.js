@@ -86,11 +86,6 @@
   }
 
   /**
-   * Hidden from readers: hidden attribute, display:none, visibility:hidden, or inside one.
-   * Not aria-hidden: that hides text from screen readers only, and some dialog libraries put it on
-   * the whole page while a cookie wall is open. The text is still on screen and indexed.
-   */
-  /**
    * The text of a heading as the page shows it: parts that have no box on screen are left out,
    * such as a custom element's text that its shadow DOM never shows (web.dev's tooltip inside its
    * H1). Source text, not innerText, so CSS uppercase doesn't change it. A hidden heading, or a
@@ -98,7 +93,8 @@
    */
   function headingText(h) {
     let text = "";
-    if (!isHidden(h) && typeof h.checkVisibility === "function") {
+    // Only a heading that is drawn itself: inside a closed <details> every part reports no box.
+    if (!isHidden(h) && typeof h.checkVisibility === "function" && h.checkVisibility()) {
       const walk = (node) => {
         for (const c of node.childNodes) {
           if (c.nodeType === 3) text += c.data;
@@ -127,6 +123,11 @@
     return "";
   }
 
+  /**
+   * Hidden from readers: hidden attribute, display:none, visibility:hidden, or inside one.
+   * Not aria-hidden: that hides text from screen readers only, and some dialog libraries put it on
+   * the whole page while a cookie wall is open. The text is still on screen and indexed.
+   */
   function isHidden(el) {
     if (el.closest("[hidden]")) return true;
     for (let n = el; n && n.nodeType === 1; n = n.parentElement) {

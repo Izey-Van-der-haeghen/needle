@@ -112,6 +112,7 @@ function viewId() {
 const offpageData = { psi: null, psiError: null, dfs: null, dfsError: null };
 let popupState = {};
 let refreshAnchor = null; // the card a Refresh or "Check again" came from
+let leftOutAnnounceTimer = null;
 let saveStateTimer = null;
 let prefs = { defaultLocation: 2840, defaultLanguage: 'en' };
 let shortcutsOn = true;
@@ -816,6 +817,8 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
 
   const tech = await techPromise;
   if (gen !== auditGen) return;
+  // The reader may have scrolled meanwhile: keep the card where it is now.
+  if (keep?.anchor && $(keep.anchor)?.getClientRects().length) keep.anchorTop = $(keep.anchor).getBoundingClientRect().top;
   techPending = false;
   if (tech.error) {
     technicalData = null;
@@ -850,7 +853,8 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
 /** Scroll so the card a refresh came from is back where it was on screen. */
 function keepInPlace(keep) {
   const el = keep.anchor && $(keep.anchor);
-  if (!el) return;
+  // Not on screen (the reader went to another tab): scrolling would move that tab instead.
+  if (!el || !el.getClientRects().length) return;
   const delta = el.getBoundingClientRect().top - keep.anchorTop;
   if (!delta) return;
   const main = document.querySelector('main');
@@ -883,7 +887,11 @@ function renderFindings() {
   });
   const f = currentFindings;
   // A noindex header arrives with the server check, after the first list: announce the shorter list.
-  if (f.leftOut?.length && f.leftOut.length !== leftOutBefore) announce(`${plural(f.leftOut.length, 'finding')} left out while the page is noindex`);
+  if (f.leftOut?.length && f.leftOut.length !== leftOutBefore) {
+    clearTimeout(leftOutAnnounceTimer);
+    const n = f.leftOut.length;
+    leftOutAnnounceTimer = setTimeout(() => announce(`${plural(n, 'finding')} left out while the page is noindex`), 1500);
+  }
   const counts = ['critical', 'high', 'medium', 'low'].map((sv) => [sv, f.filter((x) => x.severity === sv).length]).filter(([, n]) => n);
   const shown = showAllFindings ? f : f.slice(0, 8);
   const wasOpen = $('findings-card') ? $('findings-card').open : true;
@@ -2010,6 +2018,7 @@ async function measureImages() {
     if (hadFocus) ($('measure-images') || $('images-card')?.querySelector('summary'))?.focus();
   } catch (e) {
     setBusy($('measure-images'), false);
+    if ($('measure-images')) $('measure-images').hidden = false;
     if (gen === auditGen && $('image-size-status')) $('image-size-status').textContent = e.message;
   }
 }
@@ -2131,7 +2140,7 @@ function renderOnpage(d, age) {
 
     <details class="card collapsible" id="headings-card">
       <summary><h2 class="card-title">Headings (${fmtNum(d.headings.length)})</h2>
-        ${h1Count === 1 ? tag('one H1', 'good') : h1Count === 0 ? tag('no H1', 'bad') : tag(`${h1Count} H1s`, 'warn')}</summary>
+        ${h1Count === 1 ? tag('one H1', 'good') : h1Count === 0 ? (d.headings.some((h) => h.level === 1 && h.hidden) ? tag('H1 hidden', 'warn') : tag('no H1', 'bad')) : tag(`${h1Count} H1s`, 'warn')}</summary>
       <div class="card-body">
         <p class="muted">${[1, 2, 3, 4, 5, 6].map((l) => `H${l}: ${fmtNum(d.headings.filter((h) => h.level === l).length)}`).join(' · ')}</p>
         <div class="actions">
