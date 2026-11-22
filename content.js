@@ -335,6 +335,9 @@
     return { u, isHttp, internal, external: isHttp && !internal, raw };
   }
 
+  // Attributes where lazy-loading plugins keep the real image URL (the src shows a placeholder).
+  const LAZY_SRC_ATTRS = ["data-lazy-src", "data-src", "data-original", "data-defer-src", "data-echo", "data-lazy-original"];
+
   // Split a srcset as the HTML spec does: a URL is a run of non-space characters (it may hold
   // commas, as in w_800,c_fill), trailing commas end it, and its descriptor runs to the next comma.
   // So "a.jpg 800w,b.jpg 1600w" (no space after the comma) is two candidates. Returns [{u, d}].
@@ -364,7 +367,7 @@
   function imageUrls(img) {
     const urls = new Set([img.currentSrc, img.src].filter(Boolean));
     const fromSrcset = (v) => parseSrcset(v || "").forEach(({ u }) => { if (u) urls.add(resolveUrl(u)); });
-    for (const attr of ["data-src", "data-lazy-src", "data-original", "data-defer-src", "data-echo", "data-lazy-original"]) {
+    for (const attr of LAZY_SRC_ATTRS) {
       const v = img.getAttribute(attr);
       if (v && !v.startsWith("data:")) urls.add(resolveUrl(v));
     }
@@ -640,7 +643,7 @@
     const viewportH = window.innerHeight || 800;
 
     // Lazy-loading plugins put the real URL in a data-* attribute and show a placeholder.
-    const LAZY_ATTRS = ["data-lazy-src", "data-src", "data-original", "data-defer-src", "data-echo", "data-lazy-original", "data-srcset"];
+    const LAZY_ATTRS = [...LAZY_SRC_ATTRS, "data-srcset"];
     const realImageSrc = (img) => {
       for (const attr of LAZY_ATTRS) {
         const v = img.getAttribute(attr);

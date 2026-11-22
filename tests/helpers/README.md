@@ -26,6 +26,7 @@ page.window.close(); // in afterEach, so jsdom timers stop
 | `runtimeHandlers` | `{}` | replies to `chrome.runtime.sendMessage`, keyed by `msg.type`; other types get no answer (`undefined`), as in Chrome when nobody responds |
 | `resourceEntries` | `[]` | what `performance.getEntriesByType("resource")` returns (image bytes) |
 | `media` | `{}` | media queries that match, e.g. `{ "(prefers-reduced-motion: reduce)": true }` |
+| `setup` | `null` | `(window) => …`, runs before the page parses: set what jsdom can't, such as `devicePixelRatio` or a loaded image's `naturalWidth`, `width` and `currentSrc` on `HTMLImageElement.prototype` |
 
 `send(msg)` behaves like the popup's `await chrome.tabs.sendMessage(tabId, msg)`:
 
@@ -72,8 +73,22 @@ Each polyfill fills a gap jsdom has that `content.js` needs. They are approximat
 
 ## Not emulated: set these up in the test
 
-- **Image loading.** jsdom never decodes images, so any `<img>` with a `src` has `complete === false` and `naturalWidth/Height === 0`, like an image still loading in Chrome. To simulate a loaded or a broken image, define those properties on the element: `Object.defineProperty(img, "complete", { value: true })`.
-- **`img.currentSrc`** is always `""`, because jsdom does not pick from `srcset`. `content.js` then uses `img.src`, while Chrome may report the candidate it picked.
+- **Image loading.** jsdom never decodes images, so any `<img>` with a `src` has `complete === false` and `naturalWidth/Height === 0`, like an image still loading in Chrome. To simulate a loaded or a broken image (or a 2x screen), define those properties with the `setup` option, for example `Object.defineProperty(w.HTMLImageElement.prototype, "naturalWidth", { get() { return 320; } })` and `w.devicePixelRatio = 2`.
+- **`img.currentSrc`** is `""` unless `setup` defines it, because jsdom does not pick from `srcset`. `content.js` then uses `img.src`, while Chrome may report the candidate it picked.
+
+## The popup harness
+
+`tests/helpers/popup-harness.js` loads the real `popup.html`, `theme-boot.js` and `popup.js` into a jsdom test file (`// @vitest-environment jsdom`), with a `chrome` stub and the demo fixture. One popup per test file, because `popup.js` is a module and runs once.
+
+| Option | Default | What it sets |
+|---|---|---|
+| `panel` | `false` | behave as the side panel (`getViews` doesn't list the window) |
+| `activeTab` | `null` | a tab saved from an earlier visit (`"technical"`, `"ai"` …) |
+| `local` | `{}` | more `chrome.storage.local` data, e.g. `{ whatsNew: { from: "1.0.0" } }` |
+| `onpage` | `{}` | fields to change in the demo page's `ANALYZE_ONPAGE` answer |
+| `unreadable` | `""` | a Chrome error text, to act as a tab Needle can't read |
+
+It returns `{ markedBeforePopupJs, storage }` once the On-page tab shows something. Wait for later content (the AI tab) with `vi.waitFor`.
 - **Scrolled pages.** Set `page.window.scrollY` and give viewport-relative rects: an element above the viewport has a negative y.
 - **Position fallback.** It only runs when the page has a height, so put a `data-test-rect` on `<body>`. Without one, links and images outside any landmark come back `"other"`, where Chrome places them by position (the edge page's tracking pixel is `"header"` in Chrome). Never pin `"other"` without setting that rect.
 - **CSS.** jsdom ignores `@media` rules, specificity and `!important`: the rule that comes last wins, and content hidden only inside a media query still counts as visible. Chrome resolves all of these.

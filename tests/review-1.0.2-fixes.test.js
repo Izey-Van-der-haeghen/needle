@@ -343,3 +343,35 @@ describe("full check of 1.0.2 (Ponytail): one rule for short and long", () => {
     expect(run("t".repeat(50), 640)).toEqual({ card: "bad", finding: "title-long", score: 0.5 });
   });
 });
+
+describe("full check of 1.0.2 (Ponytail): smaller logic gaps", () => {
+  it("dates of an Article inside a WebPage count, dates of mentioned things don't", async () => {
+    const { analyzeEEAT } = await import("../lib/geo.js");
+    const s = analyzeEEAT({ schema: [{ raw: { "@type": "WebPage", mainEntity: { "@type": "Article", datePublished: "2026-11-01T12:00:00+01:00" }, about: { "@type": "Event", dateModified: "2020-01-01" } } }] });
+    expect(s.find((x) => x.label === "Published date").value).toBe("2026-11-01");
+    expect(s.find((x) => x.label === "Modified date").ok).toBe(false);
+  });
+
+  it("one 'same site' rule: two-part suffixes and shared hosts", async () => {
+    const { siteOf } = await import("../lib/urls.js");
+    const { isSubdomain } = await import("../lib/variants.js");
+    expect(siteOf("shop.example.co.uk")).toBe("example.co.uk");
+    expect(siteOf("a.example.ne.jp")).toBe("example.ne.jp");
+    expect(siteOf("alice.github.io")).toBe("alice.github.io");
+    expect([isSubdomain("example.co.uk"), isSubdomain("shop.example.com"), isSubdomain("example.com")]).toEqual([false, true, false]);
+  });
+
+  it("language redirects: es-419 counts; an index page only when the path stays", async () => {
+    const { isLanguageRedirect } = await import("../lib/link-checker.js");
+    expect(isLanguageRedirect("https://site.example/page", "https://site.example/es-419/page")).toBe(true);
+    expect(isLanguageRedirect("https://site.example/2019/campaign/index.html", "https://site.example/en/index.html")).toBe(false);
+    expect(isLanguageRedirect("https://site.example/shop/index.html", "https://site.example/en/shop/index.html")).toBe(true);
+  });
+
+  it("the sitemap check compares URLs with the shared key", async () => {
+    const { findInSitemaps } = await import("../lib/sitemap-check.js");
+    const xml = `<urlset><url><loc>https://Site.example/fr</loc></url></urlset>`;
+    const fetcher = async (reqs) => reqs.map(() => ({ ok: true, status: 200, headers: { "content-type": "application/xml" }, text: xml }));
+    expect((await findInSitemaps("https://site.example/fr/#top", ["https://site.example/sitemap.xml"], fetcher)).found).toBe(true);
+  });
+});

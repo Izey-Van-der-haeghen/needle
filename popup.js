@@ -83,8 +83,9 @@ let imageMeasureNote = ''; // the last "Measure them" result, kept when the imag
 let tabGen = 0; // bumped when the view switches to a tab
 let auditGen = 0; // bumped on every on-page and technical run, Refresh included
 
-// Requests that should stop when this view closes (link check, image sizes, speed
-// test) carry this id; the worker aborts them when this view's port disconnects.
+// Requests that should stop when this view closes (link check, image sizes) carry this id;
+// the worker aborts them when this view's port disconnects, and sends link-check progress over it.
+// The speed test finishes on its own (its result is cached for the next time).
 const VIEW_ID = crypto.randomUUID();
 let viewPort = null;
 function viewId() {
@@ -986,7 +987,7 @@ async function runPsi(force = false) {
   rerender($('psi-result'), loading('Running Lighthouse on mobile and desktop. This takes 20 to 60 seconds…'));
   announce('Speed test started');
   try {
-    const res = await sendWithRetry({ type: 'RUN_PSI', url: pageUrl, force, viewId: viewId() });
+    const res = await sendWithRetry({ type: 'RUN_PSI', url: pageUrl, force });
     if (tg !== tabGen) return;
     offpageData.psi = res.data;
     offpageData.psiError = null;
@@ -1851,7 +1852,8 @@ async function measureImages() {
       if (sizes[i.src] != null) i.bytes = sizes[i.src];
     });
     const got = missing.filter((u) => sizes[u] != null).length;
-    const known = getBodyImages().length - missing.length;
+    // Count files, not <img> elements: a slider can show the same file twice.
+    const known = new Set(getBodyImages().map((i) => i.src)).size - missing.length;
     imageMeasureNote = got === missing.length ? `Measured ${plural(got, 'image')}.${known > 0 ? ` The other ${known === 1 ? "image's size was" : "images' sizes were"} already known.` : ''}`
       : got === 0 ? 'The image servers gave no file sizes.'
       : `Measured ${fmtNum(got)} of ${plural(missing.length, 'image')}; the servers gave no size for the rest.`;
@@ -2357,6 +2359,14 @@ function renderTechnical(d, age) {
 async function runSitemapCheck() {
   const box = $('sitemap-result');
   if (!box || !technicalData) return;
+  // Busy while it runs: a second click would read up to 15 sitemap files again.
+  const btn = $('sitemap-check');
+  if (btn?.getAttribute('aria-disabled') === 'true') return;
+  setBusy(btn, true);
+  try { await sitemapCheck(box); } finally { setBusy(btn, false); }
+}
+
+async function sitemapCheck(box) {
   const origin = (() => { try { return new URL(pageUrl).origin; } catch { return ''; } })();
   const starts = technicalData.robotsTxt?.sitemaps?.length ? technicalData.robotsTxt.sitemaps : [technicalData.sitemap?.url || `${origin}/sitemap.xml`];
   rerender(box, loading('Reading the sitemaps…'));
@@ -2378,6 +2388,13 @@ async function runSitemapCheck() {
 async function runVariantsCheck() {
   const box = $('variants-result');
   if (!box) return;
+  const btn = $('variants-check');
+  if (btn?.getAttribute('aria-disabled') === 'true') return;
+  setBusy(btn, true);
+  try { await variantsCheck(box); } finally { setBusy(btn, false); }
+}
+
+async function variantsCheck(box) {
   if (!(await hasOrigins(ALL_SITES))) {
     rerender(box, permissionNotice('http and https count as different sites, so Needle needs access to request both.').replace('data-grant="all-sites"', 'data-grant="all-sites" data-retry="variants-check"'));
     return;

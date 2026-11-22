@@ -14,7 +14,8 @@ const read = (f) => readFileSync(path.join(ROOT, f), "utf8");
  *   activeTab: a tab saved from an earlier visit ("technical", "ai" …); local: more chrome.storage.local data;
  *   onpage: fields to change in the demo page's ANALYZE_ONPAGE answer;
  *   unreadable: a Chrome error text, to act as a tab Needle can't read (no internet, the Web Store …)
- * @returns {Promise<{markedBeforePopupJs: boolean}>} whether theme-boot.js marked the side panel
+ * @returns {Promise<{markedBeforePopupJs: boolean, storage: Object}>} whether theme-boot.js marked the side
+ *   panel, and the stubbed chrome.storage (to read what the popup saved)
  */
 export async function loadPopup({ panel = false, activeTab = null, local = {}, onpage = {}, unreadable = "" } = {}) {
   history.replaceState(null, "", "/popup.html");
@@ -61,6 +62,7 @@ export async function loadPopup({ panel = false, activeTab = null, local = {}, o
   (0, eval)(read("theme-boot.js"));
   const markedBeforePopupJs = document.documentElement.classList.contains("side-panel");
   await import(pathToFileURL(path.join(ROOT, "popup.js")).href);
-  await new Promise((r) => setTimeout(r, 50));
+  // Wait until the On-page tab shows something (an audit, a notice or an error), at most 3 s.
+  for (let t = 0; t < 300 && !document.querySelector("#panel-onpage > *:not(.loading)"); t++) await new Promise((r) => setTimeout(r, 10));
   return { markedBeforePopupJs, storage: globalThis.chrome.storage };
 }
