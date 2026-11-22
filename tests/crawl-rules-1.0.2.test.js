@@ -257,7 +257,7 @@ describe("server HTML: robots metas and canonical (A4)", () => {
       <link rel="preload canonical" href="item?id=1&amp;ref=a">
       <link rel="canonical" href="/second">
       </head><body><meta name="googlebot" content='nosnippet'><link rel="canonical" href="/in-body"></body></html>`;
-    expect(serverIndexingTags(served, "https://e.com/p")).toEqual({ robots: "noindex, follow, nosnippet", canonical: "https://e.com/shop/item?id=1&ref=a" });
+    expect(serverIndexingTags(served, "https://e.com/p")).toEqual({ robots: "noindex, follow, googlebot: nosnippet", canonical: "https://e.com/shop/item?id=1&ref=a" });
   });
 
   it("ignores tags in comments, scripts, templates and noscript, which are no elements in the page", () => {

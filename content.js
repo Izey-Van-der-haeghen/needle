@@ -67,7 +67,7 @@
   function cleanText(el) {
     if (!el) return "";
     const c = document.implementation.createHTMLDocument("").importNode(el, true);
-    c.querySelectorAll("script, style, noscript, template, title, [data-needle-inserted]").forEach(n => n.remove());
+    c.querySelectorAll("script, style, noscript, template, title, [data-needle-inserted], [hidden]:not([hidden='until-found' i])").forEach(n => n.remove());
     c.querySelectorAll("br").forEach(br => br.replaceWith(" "));
     return (c.textContent || "").replace(/[ \t\n\f\r]+/g, " ").trim(); // ASCII whitespace only: no-break spaces stay
   }
@@ -90,6 +90,17 @@
    * Not aria-hidden: that hides text from screen readers only, and some dialog libraries put it on
    * the whole page while a cookie wall is open. The text is still on screen and indexed.
    */
+  /** The text alternative of a heading without text: aria-label, an image's alt or an SVG title. */
+  function headingAlt(h) {
+    const label = h.getAttribute("aria-label")?.trim();
+    if (label) return label;
+    for (const el of h.querySelectorAll('img[alt], svg[aria-label], [role="img"][aria-label], svg > title')) {
+      const t = (el.matches("svg > title") ? el.textContent : el.getAttribute(el.matches("img") ? "alt" : "aria-label"))?.trim();
+      if (t) return t;
+    }
+    return "";
+  }
+
   function isHidden(el) {
     if (el.closest("[hidden]")) return true;
     for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
@@ -597,7 +608,7 @@
 
     const headings = $$("h1, h2, h3, h4, h5, h6").map(h => ({
       level: parseInt(h.tagName.slice(1), 10),
-      text: Array.from(cleanText(h)).slice(0, 200).join(""),
+      text: Array.from(cleanText(h) || headingAlt(h)).slice(0, 200).join(""),
       hidden: isHidden(h)
     }));
 
@@ -925,7 +936,11 @@
       canonicalOutsideHead,
       canonicalDistinct,
       // Google honours robots metas anywhere in the document, for robots and googlebot.
-      robots: $$('meta[name="robots" i], meta[name="googlebot" i]').map(m => m.getAttribute("content")?.trim()).filter(Boolean).join(", "),
+      robots: [
+        ...$$('meta[name="robots" i]').map(m => m.getAttribute("content")?.trim()),
+        ...$$('meta[name="googlebot" i]').map(m => m.getAttribute("content")?.trim()).filter(Boolean).map(c => `googlebot: ${c}`),
+        ...$$('meta[name="bingbot" i], meta[name="msnbot" i]').map(m => m.getAttribute("content")?.trim()).filter(Boolean).map(c => `bingbot: ${c}`)
+      ].filter(Boolean).join(", "),
       lang: document.documentElement.getAttribute("lang") || "",
       viewport: getMeta("viewport"),
       publisherMeta: getMeta("publisher"),
@@ -998,14 +1013,14 @@
     const bodyText = (document.body?.innerText || "").slice(0, 50000);
     const lowerBody = bodyText.toLowerCase();
 
-    const hasBreadcrumb = !!document.querySelector(
+    const hasBreadcrumb = [...document.querySelectorAll(
       '#breadcrumb, #breadcrumbs, [id*="breadcrumb" i], ' +
       '.breadcrumb, .breadcrumbs, [class*="breadcrumb" i], ' +
       '[class*="kruimel" i], [class*="brotkrumen" i], ' +
       'nav[aria-label*="breadcrumb" i], nav[aria-label*="brood" i], nav[aria-label*="kruimel" i], ' +
       '[role="navigation"][aria-label*="breadcrumb" i], ' +
       '[itemtype*="BreadcrumbList" i], [itemprop="breadcrumb"]'
-    );
+    )].some(el => el.querySelector("a[href]"));
 
     // A video someone can watch. A background video (autoplay and muted, or looping, without
     // controls; Vimeo's background mode) is decoration, not a watch page's video.

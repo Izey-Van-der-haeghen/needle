@@ -21,10 +21,12 @@ const tech = { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { a
 const check = (op, t, label) => computeHealthScore(op, t).checks.find((c) => c.label === label).score;
 
 describe("the score, Fix this first and the report agree", () => {
-  it("a hidden H1 doesn't count in the score either", () => {
+  it("a hidden H1 counts for half in the score, and gets one finding that says it's hidden", () => {
     const op = page({ headings: [{ level: 1, text: "Hidden", hidden: true }, { level: 2, text: "Visible" }] });
-    expect(check(op, tech, "H1 structure")).toBe(0);
-    expect(collectFindings({ onpage: op, tech }).map((f) => f.id)).toContain("h1-missing");
+    expect(check(op, tech, "H1 structure")).toBe(0.5);
+    const ids = collectFindings({ onpage: op, tech }).map((f) => f.id);
+    expect(ids).toContain("h1-hidden");
+    expect(ids).not.toContain("h1-missing");
   });
 
   it("a canonical in the HTTP Link header counts in the score", () => {

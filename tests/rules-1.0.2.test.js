@@ -271,3 +271,56 @@ describe("a bot wall instead of the page", () => {
     expect(rawSnapshot('<html><head><title>Shop</title><meta name="robots" content="noindex"><script src="https://js.datadome.co/tags.js"></script></head><body><div id="app"></div><script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script></body></html>', "https://e.com/page").challenge).toBe(false);
   });
 });
+
+describe("ground truth on public pages (22 November 2026)", () => {
+  it("reads Bing's own meta tag (nos.nl: bingbot nocache) for Copilot, not for Google", async () => {
+    const d = await analyze(html("<p>x</p>", '<meta name="robots" content="max-image-preview:large"><meta content="nocache" name="bingbot">'));
+    expect(d.robots).toBe("max-image-preview:large, bingbot: nocache");
+    expect(copilotLimit(d.robots, "")).toBe("nocache");
+    expect(snippetDirectives(d.robots, "")).toEqual(["max-image-preview:large"]);
+  });
+
+  it("names a logo heading by its text alternative (BBC: an SVG titled News)", async () => {
+    const d = await analyze(html('<h1><svg aria-label="News" role="img"><title>News</title><path d="M0 0"/></svg></h1>'));
+    expect(d.headings[0].text).toBe("News");
+  });
+
+  it("leaves hidden text out of a heading (web.dev: a hidden tooltip inside the H1)", async () => {
+    const d = await analyze(html("<h1>Web Vitals<span hidden>Stay organized with collections</span></h1>"));
+    expect(d.headings[0].text).toBe("Web Vitals");
+  });
+
+  it("an H1 that is only hidden gets one finding, not also 'No H1 heading' (Le Monde)", () => {
+    const ids = collectFindings({ onpage: page({ headings: [{ level: 1, text: "Actualités", hidden: true }, { level: 2, text: "A" }] }), tech: tech() }).map((x) => x.id);
+    expect(ids).toContain("h1-hidden");
+    expect(ids).not.toContain("h1-missing");
+  });
+
+  it("an empty breadcrumb container isn't a breadcrumb trail (IKEA's home page)", async () => {
+    const d = await analyze(html('<div class="hnf-pageheader__breadcrumbs hnf-pageheader__breadcrumbs--empty"></div><p>x</p>'));
+    expect(d.schemaSignals.hasBreadcrumb).toBe(false);
+  });
+});
+
+describe("trust signals by kind of page", () => {
+  it("a byline and dates are information on a home or category page, and scored on an article", async () => {
+    const { analyzeEEAT, aiReadinessScore } = await import("../lib/geo.js");
+    const shop = analyzeEEAT({ schema: [], og: { type: "website" }, externalLinkCount: 0 });
+    expect(shop.filter((s) => s.info).map((s) => s.label)).toEqual(["Author byline", "Published date", "Modified date"]);
+    expect(collectFindings({ onpage: page(), tech: tech(), geo: { eeat: shop } }).map((x) => x.id)).not.toContain("eeat");
+    const article = analyzeEEAT({ schema: [{ type: "Article", raw: { "@type": "Article", headline: "x" } }], og: {}, externalLinkCount: 0 });
+    expect(article.filter((s) => s.info)).toEqual([]);
+    expect(aiReadinessScore({ blockedSearchCount: 0 }, shop, []).score).toBeGreaterThan(aiReadinessScore({ blockedSearchCount: 0 }, article, []).score);
+  });
+
+  it("a sitemap that refuses Needle (HTTP 403, as Wikipedia's did) is not checked, not missing", async () => {
+    const { analyzeTechnical } = await import("../lib/technical.js");
+    const fetcher = async (reqs) => reqs.map((r) => (r.url.endsWith("/robots.txt")
+      ? { ok: true, status: 200, text: "User-agent: *\nAllow: /\nSitemap: https://e.com/sitemap.xml\n", headers: {} }
+      : r.url.endsWith("sitemap.xml") ? { ok: false, status: 403, text: "", headers: {} }
+      : { ok: true, status: 200, text: "<html><body><p>x</p></body></html>", headers: { "content-type": "text/html" } }));
+    const t = await analyzeTechnical("https://e.com/page", fetcher);
+    expect(t.sitemap).toMatchObject({ unchecked: true, reason: "refused the check (HTTP 403)" });
+    expect(collectFindings({ onpage: page(), tech: { ...tech(), sitemap: t.sitemap } }).map((x) => x.id)).not.toContain("sitemap");
+  });
+});

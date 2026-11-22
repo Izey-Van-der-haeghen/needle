@@ -29,6 +29,7 @@
 - **Side panel:** after the page reloads, the side panel audits it again, and a fresh audit shows when it was made with a Refresh button. A side panel and a popup open at once no longer overwrite each other's settings. A campaign link (`?utm_…`) is the same page for the speed test, the keyword lookup, CrUX, Bing, the sitemap check and history.
 - **Noindex pages:** Fix this first, the report and the copy for a developer list the findings left out.
 - **Copy for a developer:** tags show as code on GitHub and GitLab.
+- **Checked on real sites:** Bing's own `<meta name="bingbot">` is read (for Copilot, not for Google); a heading that is only a logo is named by its text alternative; text hidden inside a heading is left out; an H1 that is only hidden gets one finding instead of also "No H1 heading"; an empty breadcrumb container no longer suggests BreadcrumbList; a sitemap that refuses Needle's request is "not checked" instead of missing; author and dates count only on article pages.
 
 ## 1.0.1 (21 November 2026)
 

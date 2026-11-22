@@ -273,7 +273,7 @@ describe("ANALYZE_ONPAGE on the fr-BE edge-case page", () => {
   });
 
   it("reads every robots and googlebot meta, in any case", () => {
-    expect(res.robots).toBe("NOINDEX, index, follow, noindex, nofollow");
+    expect(res.robots).toBe("NOINDEX, index, follow, googlebot: noindex, nofollow");
   });
   it("flags metadata that an invalid head element (the img here) pushed into <body>", () => {
     expect(res.descriptionOutsideHead).toBe(true);
