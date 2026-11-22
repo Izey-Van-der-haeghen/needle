@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.2 (not yet released)
+## 1.0.2 (22 November 2026)
 
 - **Labels:** labels that are information only ("near the limit", "note", "not scored", "external", "nofollow", "not found" …) have their own outlined look, so they no longer look like a "Low" finding.
 - **Side panel:** the side panel shows its own layout from the first frame, instead of the popup's for a moment.
