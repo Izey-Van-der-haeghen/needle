@@ -90,6 +90,32 @@
    * Not aria-hidden: that hides text from screen readers only, and some dialog libraries put it on
    * the whole page while a cookie wall is open. The text is still on screen and indexed.
    */
+  /**
+   * The text of a heading as the page shows it: parts that have no box on screen are left out,
+   * such as a custom element's text that its shadow DOM never shows (web.dev's tooltip inside its
+   * H1). Source text, not innerText, so CSS uppercase doesn't change it. A hidden heading, or a
+   * browser without checkVisibility (jsdom), gets the cleaned text instead.
+   */
+  function headingText(h) {
+    let text = "";
+    if (!isHidden(h) && typeof h.checkVisibility === "function") {
+      const walk = (node) => {
+        for (const c of node.childNodes) {
+          if (c.nodeType === 3) text += c.data;
+          else if (c.nodeType === 1) {
+            if (c.matches("script, style, noscript, template, title, [data-needle-inserted]")) continue;
+            if (c.tagName === "BR") { text += " "; continue; }
+            if (!c.checkVisibility() && getComputedStyle(c).display !== "contents") continue;
+            walk(c);
+          }
+        }
+      };
+      walk(h);
+      text = text.replace(/[ \t\n\f\r]+/g, " ").trim();
+    } else text = cleanText(h);
+    return Array.from(text || headingAlt(h)).slice(0, 200).join("");
+  }
+
   /** The text alternative of a heading without text: aria-label, an image's alt or an SVG title. */
   function headingAlt(h) {
     const label = h.getAttribute("aria-label")?.trim();
@@ -456,7 +482,7 @@
       // A consent banner or a re-render can add a heading above it, and the popup may show a saved
       // read: check it is the same heading (level and text), else look for it by those.
       const all = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6"));
-      const same = (h) => (target.level == null || h.tagName === `H${target.level}`) && (target.text == null || Array.from(cleanText(h)).slice(0, 200).join("") === target.text);
+      const same = (h) => (target.level == null || h.tagName === `H${target.level}`) && (target.text == null || headingText(h) === target.text);
       const el = all[target.index];
       if (el && same(el)) return el;
       return target.text == null && target.level == null ? el || null : all.find(same) || null;
@@ -608,7 +634,7 @@
 
     const headings = $$("h1, h2, h3, h4, h5, h6").map(h => ({
       level: parseInt(h.tagName.slice(1), 10),
-      text: Array.from(cleanText(h) || headingAlt(h)).slice(0, 200).join(""),
+      text: headingText(h),
       hidden: isHidden(h)
     }));
 

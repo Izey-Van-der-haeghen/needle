@@ -324,3 +324,14 @@ describe("trust signals by kind of page", () => {
     expect(collectFindings({ onpage: page(), tech: { ...tech(), sitemap: t.sitemap } }).map((x) => x.id)).not.toContain("sitemap");
   });
 });
+
+describe("heading text as the page shows it", () => {
+  it("leaves out a custom element's text that has no box (web.dev's tooltip), keeps display:contents text", async () => {
+    // jsdom has no layout: stub checkVisibility as Chrome answers it for these elements.
+    const setup = (window) => {
+      window.Element.prototype.checkVisibility = function () { return !this.hasAttribute("data-no-box"); };
+    };
+    const d = await analyze(html('<h1>Web Vitals<devsite-actions data-no-box>Stay organized with collections</devsite-actions></h1><h2><span data-no-box style="display: contents">Prijzen</span> 2026</h2><h3 style="text-transform: uppercase">Afspraak maken</h3>'), { setup });
+    expect(d.headings.map((h) => h.text)).toEqual(["Web Vitals", "Prijzen 2026", "Afspraak maken"]);
+  });
+});
