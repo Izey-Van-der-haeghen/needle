@@ -254,8 +254,10 @@ confirmClick($("clear-cache"), async () => {
 confirmClick($("clear-history"), async () => {
   await withStoreLock("history", () => withStoreLock("snapshots", () => chrome.storage.local.set({ history: [], snapshots: {} })));
   // The country and language picked per website name those sites too.
-  const { popupState } = await chrome.storage.local.get("popupState");
-  if (popupState) await chrome.storage.local.set({ popupState: withoutSiteChoices(popupState) });
+  await withStoreLock("popupState", async () => {
+    const { popupState } = await chrome.storage.local.get("popupState");
+    if (popupState) await chrome.storage.local.set({ popupState: withoutSiteChoices(popupState) });
+  });
   say("maint-status", "History and change snapshots cleared.");
   refreshCacheStats();
 });

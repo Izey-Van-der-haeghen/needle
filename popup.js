@@ -6,7 +6,7 @@ import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
 import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate } from './lib/popup-helpers.js';
-import { computeHealthScore, computeIndexability, detectMarketFromUrl, withoutTracking } from './lib/popup-compute.js';
+import { computeHealthScore, computeIndexability, detectMarketFromUrl } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { initTheme, setTheme } from './lib/theme.js';
 import { validateHreflang } from './lib/hreflang.js';
@@ -14,7 +14,7 @@ import { analyzeTechnical } from './lib/technical.js';
 import { pageFetcher, fetchInPage } from './lib/page-fetch.js';
 import { fetchCompetitor } from './lib/compare.js';
 import { parseCompetitorHtml } from './lib/parse-competitor.js';
-import { getSecrets, getPrefs, getImageRules, withoutSiteChoices } from './lib/settings.js';
+import { getSecrets, getPrefs, getImageRules } from './lib/settings.js';
 import { imageSizeIssues, leadImageCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH, lazyNote, measureNote } from './lib/image-rules.js';
 import { hasOrigins, requestOrigins, ALL_SITES, DATAFORSEO, NEEDS_PERMISSION } from './lib/permissions.js';
 import { DFS_COST } from './lib/offpage.js';
@@ -30,7 +30,8 @@ import { readability } from './lib/readability.js';
 import { findInSitemaps } from './lib/sitemap-check.js';
 import { checkHostVariants } from './lib/variants.js';
 import { checkHreflangCluster, alternatesOf, CLUSTER_MAX } from './lib/hreflang-cluster.js';
-import { urlKey } from './lib/urls.js';
+import { urlKey, withoutTracking } from './lib/urls.js';
+import { noConnection } from './lib/link-checker.js';
 import { whatsNewFor, CHANGELOG_URL } from './lib/whats-new.js';
 import { MAX_IMAGES as MAX_MEASURED_IMAGES } from './lib/image-sizer.js';
 import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, LEVEL_KIND, leftOutNote } from './lib/labels.js';
@@ -72,6 +73,8 @@ let onpageAge = 0;
 let technicalData = null;
 let technicalAge = 0;
 let renderedData = null;
+// The current audit came from Refresh: don't bring back saved link-check or llms.txt answers.
+let refreshForced = false;
 // Result of "Check the alternates" for Fix this first: {rows, total}; null until it has run on this page.
 let hreflangCluster = null;
 let geoData = null;
@@ -252,9 +255,41 @@ async function loadPopupState() {
   popupState = r.popupState || {};
 }
 
-function flushState() {
+// Another Needle view (a side panel in another window, the popup next to the panel) saves the same
+// popupState. Each view writes only the paths it changed onto the stored copy, and takes over the
+// other views' changes, so one view never puts back an old copy of the rest.
+let dirtyPaths = [];
+const getIn = (obj, parts) => parts.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), obj);
+function setIn(obj, parts, value) {
+  let o = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!o[parts[i]] || typeof o[parts[i]] !== 'object') o[parts[i]] = {};
+    o = o[parts[i]];
+  }
+  if (value === undefined) delete o[parts[parts.length - 1]];
+  else o[parts[parts.length - 1]] = value;
+}
+/** base with the values of `paths` taken from `from`. */
+function withPaths(base, from, paths) {
+  const out = JSON.parse(JSON.stringify(base || {}));
+  for (const p of paths) {
+    const v = getIn(from, p);
+    setIn(out, p, v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+  }
+  return out;
+}
+
+async function flushState() {
   clearTimeout(saveStateTimer);
-  chrome.storage.local.set({ popupState });
+  if (!dirtyPaths.length) return;
+  const paths = dirtyPaths;
+  dirtyPaths = [];
+  await withStoreLock('popupState', async () => {
+    const { popupState: stored } = await chrome.storage.local.get('popupState');
+    const merged = withPaths(stored, popupState, paths);
+    await chrome.storage.local.set({ popupState: merged });
+    popupState = withPaths(merged, popupState, dirtyPaths);
+  });
 }
 
 function queueSaveState() {
@@ -262,21 +297,24 @@ function queueSaveState() {
   saveStateTimer = setTimeout(flushState, 150);
 }
 
-/** path: "a.b" or ["marketByHost", "www.example.com"] (host names contain dots). */
+/** path: "a.b" or ["marketByHost", "www.example.com"] (host names contain dots). undefined removes it. */
 function setStatePath(path, value) {
   const parts = Array.isArray(path) ? path : path.split('.');
-  let obj = popupState;
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (!obj[parts[i]] || typeof obj[parts[i]] !== 'object') obj[parts[i]] = {};
-    obj = obj[parts[i]];
-  }
-  obj[parts[parts.length - 1]] = value;
+  setIn(popupState, parts, value);
+  dirtyPaths.push(parts);
   queueSaveState();
 }
 
-// Save typed input even when the popup closes within the debounce window.
+chrome.storage.local.onChanged.addListener((changes) => {
+  if (!('popupState' in changes)) return;
+  popupState = withPaths(changes.popupState.newValue, popupState, dirtyPaths);
+});
+
+// Save typed input even when the popup closes within the debounce window. There is no time to read
+// the stored copy first; the copy in memory follows the other views, so it is written as it is.
 window.addEventListener('pagehide', () => {
-  flushState();
+  clearTimeout(saveStateTimer);
+  if (dirtyPaths.length) chrome.storage.local.set({ popupState });
 });
 
 // ---------------------------------------------------------------------------
@@ -401,6 +439,20 @@ async function init() {
   const sync = await chrome.storage.sync.get(['popupShortcuts', 'csvSeparator']);
   shortcutsOn = sync.popupShortcuts !== false;
   csvSeparator = sync.csvSeparator === ';' ? ';' : ',';
+  // The side panel stays open while the user changes Settings: follow them.
+  chrome.storage.sync.onChanged?.addListener(async (changes) => {
+    if ('popupShortcuts' in changes) shortcutsOn = changes.popupShortcuts.newValue !== false;
+    if ('csvSeparator' in changes) csvSeparator = changes.csvSeparator.newValue === ';' ? ';' : ',';
+    if (['defaultLocation', 'defaultLanguage'].some((k) => k in changes)) prefs = await getPrefs();
+    if (['imgMaxKB', 'imgWidth', 'imgHeight', 'imgMode'].some((k) => k in changes)) {
+      imageRules = await getImageRules();
+      if (onpageData) {
+        applyImageRules(onpageData.images, imageRules);
+        renderImagesCard();
+        renderVerdict();
+      }
+    }
+  });
 
   populateSelect($('serp-location'), LOCATIONS);
   populateSelect($('serp-language'), LANGUAGES);
@@ -411,7 +463,7 @@ async function init() {
 
   restoreInputs();
   attachStatePersistence();
-  delete popupState.pendingCompare; // older versions kept it here
+  if ('pendingCompare' in popupState) setStatePath('pendingCompare', undefined); // older versions kept it here
   if (popupState.activeTab) selectTab(popupState.activeTab);
   // "Compare this link's page" from the right-click menu: now, or while this view is open.
   const { pendingCompare, whatsNew } = await chrome.storage.local.get(['pendingCompare', 'whatsNew']);
@@ -453,6 +505,7 @@ async function startForTab(tab) {
   dfsRunning = false;
   currentTab = tab;
   currentFindings = [];
+  issuesShown = false;
   pageUrl = tab?.url || '';
   onpageData = null;
   technicalData = null;
@@ -513,16 +566,31 @@ async function startForTab(tab) {
 /** Side panel: follow the active tab of this window. */
 function followTabs() {
   let timer = null;
-  const later = () => {
+  // The current audit read a page that was still loading (or being reloaded): read it again once it's done.
+  let readAgainWhenLoaded = false;
+  const later = (delay = 400) => {
     clearTimeout(timer);
     timer = setTimeout(async () => {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab && (tab.id !== currentTab?.id || (tab.url || '') !== pageUrl)) startForTab(tab);
-    }, 400);
+      if (!tab) return;
+      // A #fragment (an anchor, a scroll-spy menu) is the same page: don't restart the audit.
+      if (tab.id !== currentTab?.id || pageId(tab.url || '') !== pageId(pageUrl)) {
+        readAgainWhenLoaded = tab.status === 'loading';
+        startForTab(tab);
+      } else if (tab.status === 'complete' && readAgainWhenLoaded) {
+        readAgainWhenLoaded = false;
+        loadOnpageAndTechnical(true);
+      }
+    }, delay);
   };
-  chrome.tabs.onActivated.addListener(later);
+  chrome.tabs.onActivated.addListener(() => later());
   chrome.tabs.onUpdated.addListener((tabId, info) => {
-    if (tabId === currentTab?.id && (info.status === 'complete' || info.url)) later();
+    if (tabId !== currentTab?.id) return;
+    // A reload starts loading without a new address.
+    if (info.status === 'loading' && !info.url) readAgainWhenLoaded = true;
+    if (info.status === 'complete') later();
+    // A new address while the page doesn't reload (a single-page app): give its new view time to render.
+    else if (info.url) later(info.status === 'loading' ? 400 : 1200);
   });
 }
 
@@ -613,7 +681,7 @@ function attachStatePersistence() {
       // A market change shows that market's saved result, if any. It never bills by itself.
       offpageData.dfs = null;
       offpageData.dfsError = null;
-      restoreDfsFromCache();
+      restoreDfsFromCache({ clearOnMiss: true });
     });
   });
   ['serp-keyword', 'serp-device', 'serp-mydomain'].forEach((id) => {
@@ -643,7 +711,15 @@ function attachStatePersistence() {
 
 async function loadOnpageAndTechnical(forceRefresh = false) {
   const gen = ++auditGen;
+  // Refresh means a fresh look at everything, the saved link check and llms.txt answer included.
+  refreshForced = forceRefresh;
   hreflangCluster = null; // the hreflang card is drawn again without its check result
+  // A report made now must not mix the new page read with the last server check or AI checks.
+  technicalData = null;
+  renderedData = null;
+  geoData = null;
+  mainText = null;
+  $('export-audit-header').hidden = true;
   const tab = currentTab;
   const url = pageUrl;
   techPending = true;
@@ -734,8 +810,11 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
     loadGEO(gen).finally(() => { if (gen === auditGen) $('export-audit-header').hidden = false; });
     const verdict = computeIndexability(onpageData, technicalData);
     const health = computeHealthScore(onpageData, technicalData, snippetPx());
-    saveToHistory(url, onpageData.title || '', verdict.level, health?.score ?? null);
-    showChanges(health?.score ?? null, gen);
+    // Without a server answer the score is incomplete and the headers are unknown: that is no change
+    // to record ("X-Robots-Tag: noindex → (empty)"), and no score for the history.
+    const serverAnswered = !!technicalData?.status;
+    saveToHistory(pageId(withoutTracking(url)), onpageData.title || '', verdict.level, serverAnswered ? health?.score ?? null : null);
+    if (serverAnswered) showChanges(health?.score ?? null, gen);
   }
 }
 
@@ -746,6 +825,13 @@ const snippetPx = () => ({
 });
 
 let showAllFindings = false;
+// Whether "Show all on page" marks are on the page. Kept here, not read from the button: Fix this
+// first can redraw while the page answers, and the new button must still say "Hide from page".
+let issuesShown = false;
+function setIssuesButton() {
+  const b = $('toggle-issues');
+  if (b) { b.setAttribute('aria-pressed', String(issuesShown)); b.textContent = issuesShown ? 'Hide from page' : 'Show all on page'; }
+}
 
 /** "Fix this first": every problem from every check, most important first. */
 function renderFindings() {
@@ -763,7 +849,6 @@ function renderFindings() {
   const wasOpen = $('findings-card') ? $('findings-card').open : true;
   // Re-renders (AI checks, link check, image sizes) keep what the reader opened and focused.
   const openWhy = new Set([...slot.querySelectorAll('details.sub[open]')].map((d) => d.dataset.fid));
-  const overlayOn = $('toggle-issues')?.getAttribute('aria-pressed') === 'true';
   rerender(slot, `<details class="card collapsible" id="findings-card"${wasOpen ? ' open' : ''}>
     <summary id="findings-summary" data-focus-fallback><h2 class="card-title">Fix this first</h2>
       ${f.length ? counts.map(([sv, n]) => tag(`${n} ${SEVERITY_LABEL[sv].toLowerCase()}`, SEV_KIND[sv])).join(' ') : tag('nothing found', 'good')}${f.leftOut?.length ? ` ${tag(`${f.leftOut.length} left out`, 'info')}` : ''}</summary>
@@ -785,7 +870,7 @@ function renderFindings() {
       ${f.length > 8 ? `<button type="button" class="link-btn" id="findings-more">${showAllFindings ? 'Show the top 8' : `Show all ${f.length}`}</button>` : ''}`
       : '<p class="muted">The automated checks found nothing to fix. Still read the page as a visitor would.</p>'}
       <div class="actions">
-        ${f.some((x) => x.targets?.length) ? `<button type="button" class="secondary-btn" id="toggle-issues" aria-pressed="${overlayOn}">${overlayOn ? 'Hide from page' : 'Show all on page'}</button>` : ''}
+        ${f.some((x) => x.targets?.length) ? `<button type="button" class="secondary-btn" id="toggle-issues" aria-pressed="${issuesShown}">${issuesShown ? 'Hide from page' : 'Show all on page'}</button>` : ''}
         <button type="button" class="secondary-btn copy-btn" id="copy-dev" data-copy-fn="issuesMarkdown">Copy for a developer</button>
         <button type="button" class="secondary-btn copy-btn" id="copy-ai" data-copy-fn="aiPrompt">Copy for AI</button>
       </div>
@@ -794,12 +879,12 @@ function renderFindings() {
   </details>`);
 }
 
-/** Mark findings on the page: all of them, or one finding's elements. */
+/** Mark findings on the page: all of them, or one finding's elements. Resolves false when the page didn't answer. */
 async function showIssuesOnPage(findings, on = true) {
   try {
     if (!on) {
       await safeSendTabMessage(currentTab.id, { type: 'UNHIGHLIGHT_ISSUES' });
-      return;
+      return true;
     }
     const items = findings.flatMap((x) => (x.targets || []).map((target) => ({ target, label: x.title.replace(/^\d+ /, ''), severity: x.severity })));
     const res = await safeSendTabMessage(currentTab.id, { type: 'HIGHLIGHT_ISSUES', items });
@@ -807,8 +892,10 @@ async function showIssuesOnPage(findings, on = true) {
     if (res.hidden) parts.push(`${res.hidden} hidden`);
     if (res.missing) parts.push(`${res.missing} not found (refresh?)`);
     showToast(parts.join(', '));
+    return true;
   } catch (e) {
     showToast(e.message);
+    return false;
   }
 }
 
@@ -879,7 +966,7 @@ async function loadRendered(gen = auditGen) {
 
 async function loadGEO(gen = auditGen) {
   if (!onpageData) return;
-  const pagePath = (() => { try { const u = new URL(pageUrl); return u.pathname + u.search; } catch { return '/'; } })();
+  const pagePath = (() => { try { const u = new URL(withoutTracking(pageUrl)); return u.pathname + u.search; } catch { return '/'; } })();
   const aiAccess = analyzeAIAccess(technicalData?.robotsTxt?.ok ? technicalData.robotsTxt : null, pagePath);
   const eeat = analyzeEEAT(onpageData);
   const citability = analyzeCitability(onpageData);
@@ -893,7 +980,7 @@ async function loadGEO(gen = auditGen) {
         // A network failure says nothing about the files: don't keep it for an hour.
         if (r.summary.error && r.full.error) throw new Error(r.summary.error);
         return r;
-      })).data;
+      }, { force: refreshForced })).data;
     } catch {}
   }
   if (gen !== auditGen) return;
@@ -944,7 +1031,8 @@ async function loadGEO(gen = auditGen) {
 
 async function restoreOffpageFromCache() {
   const tg = tabGen;
-  const psi = await getCache(cacheKey('psi', pageId(pageUrl)));
+  // The same key the worker keeps them under: the page without campaign parameters.
+  const psi = await getCache(cacheKey('psi', pageId(withoutTracking(pageUrl))));
   if (tg !== tabGen) return;
   if (psi) {
     offpageData.psi = psi.data;
@@ -954,16 +1042,18 @@ async function restoreOffpageFromCache() {
   restoreDfsFromCache();
 }
 
-async function restoreDfsFromCache() {
+async function restoreDfsFromCache({ clearOnMiss = false } = {}) {
+  // A lookup is running, or just showed its answer or error: leave it.
+  if (dfsRunning) return;
   const tg = tabGen;
   const { locationCode, languageCode } = getOffpageSelection();
-  const hit = await getCache(cacheKey('dfs', `${pageId(pageUrl)}|${locationCode}|${languageCode}`));
+  const hit = await getCache(cacheKey('dfs', `${pageId(withoutTracking(pageUrl))}|${locationCode}|${languageCode}`));
   if (tg !== tabGen) return;
   if (hit) {
     offpageData.dfs = hit.data;
     rerender($('dfs-result'), renderDfs(hit.data, hit.age));
     $('run-dfs').textContent = 'Look up again';
-  } else {
+  } else if (clearOnMiss) {
     rerender($('dfs-result'), '');
     $('run-dfs').textContent = 'Look up keywords';
   }
@@ -988,7 +1078,7 @@ async function runPsi(force = false) {
   rerender($('psi-result'), loading('Running Lighthouse on mobile and desktop. This takes 20 to 60 seconds…'));
   announce('Speed test started');
   try {
-    const res = await sendWithRetry({ type: 'RUN_PSI', url: pageUrl, force });
+    const res = await sendWithRetry({ type: 'RUN_PSI', url: withoutTracking(pageUrl), force });
     if (tg !== tabGen) return;
     offpageData.psi = res.data;
     offpageData.psiError = null;
@@ -1028,7 +1118,7 @@ async function runDfs(force = false) {
   const { locationCode, languageCode } = getOffpageSelection();
   rerender($('dfs-result'), loading('Asking DataForSEO…'));
   try {
-    const res = await sendWithRetry({ type: 'RUN_DFS', url: pageUrl, locationCode, languageCode, force });
+    const res = await sendWithRetry({ type: 'RUN_DFS', url: withoutTracking(pageUrl), locationCode, languageCode, force });
     if (tg !== tabGen) return;
     offpageData.dfs = res.data;
     offpageData.dfsError = null;
@@ -1074,7 +1164,7 @@ function sparkline(values, good, poor, fmt) {
   </svg>`;
 }
 
-function renderCrux(d, age) {
+function renderCrux(d, age, formFactor) {
   const metric = (key, label, fmt) => {
     const vals = d[key] || [];
     const lastVal = [...vals].reverse().find((v) => v != null);
@@ -1083,7 +1173,7 @@ function renderCrux(d, age) {
     return `<div class="crux-row"><div><strong>${label}</strong> ${lastVal != null ? `${escapeHtml(fmt(lastVal))} ${tag(word, kind)}` : tag('no data', 'neutral')}</div>${sparkline(vals, CWV_GOOD[key], CWV_POOR[key], fmt)}</div>`;
   };
   return `${cachedBanner(age, null)}
-    <p class="muted">${d.scope === 'page' ? 'This page' : 'Whole site (not enough data for this page alone)'}, weeks ending ${escapeHtml(d.weeks[0] || '')} to ${escapeHtml(d.weeks[d.weeks.length - 1] || '')}. The dashed line is Google's "good" limit.</p>
+    <p class="muted">${formFactor === 'DESKTOP' ? 'Desktop' : 'Phones'}: ${d.scope === 'page' ? 'this page' : 'the whole site (not enough data for this page alone)'}, weeks ending ${escapeHtml(d.weeks[0] || '')} to ${escapeHtml(d.weeks[d.weeks.length - 1] || '')}. The dashed line is Google's "good" limit.</p>
     ${metric('lcp', 'LCP', (v) => `${(v / 1000).toFixed(2)} s`)}
     ${metric('inp', 'INP', (v) => `${Math.round(v)} ms`)}
     ${metric('cls', 'CLS', (v) => v.toFixed(2))}`;
@@ -1101,8 +1191,9 @@ async function runCrux() {
   setBusy(btn, true);
   rerender($('crux-result'), loading('Asking the Chrome UX Report…'));
   try {
-    const res = await sendWithRetry({ type: 'RUN_CRUX', url: pageUrl, formFactor: $('crux-desktop').checked ? 'DESKTOP' : 'PHONE' });
-    if (tg === tabGen) rerender($('crux-result'), renderCrux(res.data, res.age));
+    const formFactor = $('crux-desktop').checked ? 'DESKTOP' : 'PHONE';
+    const res = await sendWithRetry({ type: 'RUN_CRUX', url: withoutTracking(pageUrl), formFactor });
+    if (tg === tabGen) rerender($('crux-result'), renderCrux(res.data, res.age, formFactor));
   } catch (e) {
     if (tg === tabGen) rerender($('crux-result'), errorBox('No trend available', e.message));
   } finally {
@@ -1122,7 +1213,7 @@ async function runBing() {
   setBusy(btn, true);
   rerender($('bing-result'), loading('Asking Bing Webmaster Tools…'));
   try {
-    const res = await sendWithRetry({ type: 'RUN_BING', url: pageUrl });
+    const res = await sendWithRetry({ type: 'RUN_BING', url: withoutTracking(pageUrl) });
     if (tg !== tabGen) return;
     const d = res.data;
     rerender($('bing-result'), `${cachedBanner(res.age, null)}
@@ -1378,8 +1469,7 @@ $('clear-compare').addEventListener('click', () => {
   visibleComps = 1;
   updateCompSlots();
   rerender($('compare-result'), '');
-  popupState.compare = { visibleComps: 1, competitorUrls: [], selfUrl: '', keyword: '' };
-  queueSaveState();
+  setStatePath('compare', { visibleComps: 1, competitorUrls: [], selfUrl: '', keyword: '' });
 });
 
 $('run-compare').addEventListener('click', () => loadCompare(false));
@@ -1666,6 +1756,11 @@ async function runLinkCheck() {
   rerender($('link-check-status'), `${loading(`Checking ${plural(urls.length, 'link')}…`)}<span class="muted" id="link-check-progress" aria-hidden="true"></span>`);
   try {
     const res = await sendWithRetry({ type: 'CHECK_LINKS', urls, pageUrl, viewId: viewId() });
+    // Every link failed without an answer: that's the connection, not the links. Don't keep it.
+    if (noConnection(res.data)) {
+      if (gen === auditGen) rerender($('link-check-status'), errorBox('No internet connection', 'None of the links answered. Check the connection and try again.'));
+      return;
+    }
     await setCache(key, res.data);
     if (gen === auditGen) applyLinkCheckResults(res.data, 0);
   } catch (e) {
@@ -1911,7 +2006,7 @@ function renderOnpage(d, age) {
     const from = prev;
     prev = h.level;
     return `<li class="h-row" style="--indent:${(h.level - 1) * 14}px">
-      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'heading', index: i }))}" aria-label="Show this heading on the page">${ICON.locate}</button>
+      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'heading', index: i, level: h.level, text: h.text }))}" aria-label="Show this heading on the page">${ICON.locate}</button>
       <span class="h-level">H${h.level}</span>
       <span class="h-text">${escapeHtml(h.text) || '<em class="muted">empty heading</em>'}</span>
       ${skipped ? tag(`skips from H${from}`, 'warn') : ''}
@@ -2204,7 +2299,7 @@ function attachOnpageHandlers() {
   renderLinkList();
   renderImagesCard();
   const gen = auditGen;
-  getCache(cacheKey('linkcheck', pageId(pageUrl))).then((hit) => { if (hit && gen === auditGen && onpageData) applyLinkCheckResults(hit.data, hit.age); });
+  if (!refreshForced) getCache(cacheKey('linkcheck', pageId(pageUrl))).then((hit) => { if (hit && gen === auditGen && onpageData) applyLinkCheckResults(hit.data, hit.age); });
 }
 
 // Delegated handlers for everything inside the on-page panel.
@@ -2234,16 +2329,16 @@ $('panel-onpage').addEventListener('click', async (e) => {
   else if (t.id === 'kw-check') checkKeyword();
   else if (t.id === 'findings-more') { showAllFindings = !showAllFindings; renderFindings(); }
   else if (t.id === 'toggle-issues') {
-    const on = t.getAttribute('aria-pressed') !== 'true';
-    await showIssuesOnPage(currentFindings, on);
-    t.setAttribute('aria-pressed', String(on));
-    t.textContent = on ? 'Hide from page' : 'Show all on page';
+    const on = !issuesShown;
+    issuesShown = on;
+    setIssuesButton();
+    if (!(await showIssuesOnPage(currentFindings, on)) && on) { issuesShown = false; setIssuesButton(); }
   } else if (t.dataset.findingShow != null) {
     const finding = (showAllFindings ? currentFindings : currentFindings.slice(0, 8))[Number(t.dataset.findingShow)];
     if (finding) {
-      await showIssuesOnPage([finding]);
-      const all = $('toggle-issues');
-      if (all) { all.setAttribute('aria-pressed', 'true'); all.textContent = 'Hide from page'; }
+      issuesShown = true;
+      setIssuesButton();
+      if (!(await showIssuesOnPage([finding]))) { issuesShown = false; setIssuesButton(); }
     }
   }
   else if (t.id === 'hreflang-check') runHreflangCluster();
@@ -2372,7 +2467,7 @@ async function sitemapCheck(box) {
   rerender(box, loading('Reading the sitemaps…'));
   const gen = auditGen;
   try {
-    const r = await findInSitemaps(pageUrl, starts, pageFetcher(currentTab.id));
+    const r = await findInSitemaps(withoutTracking(pageUrl), starts, pageFetcher(currentTab.id));
     if (gen !== auditGen) return;
     rerender(box, r.unreadable
       ? `<p>${tag('could not read the sitemap', 'neutral')}</p><div class="hint">The sitemap did not answer, or it is on another site, which this check can't read. Open it in a tab to check it.</div>`
@@ -2508,7 +2603,8 @@ $('close-history').addEventListener('click', closeHistory);
 confirmClick($('clear-history'), async () => {
   await withStoreLock('history', () => withStoreLock('snapshots', () => chrome.storage.local.set({ history: [], snapshots: {} })));
   // The country and language picked per website name those sites too.
-  popupState = withoutSiteChoices(popupState);
+  setStatePath('marketByHost', undefined);
+  setStatePath('serpMarketByHost', undefined);
   flushState();
   $('history-list').innerHTML = '<p class="muted">History cleared.</p>';
   announce('History cleared');
@@ -2620,8 +2716,8 @@ document.addEventListener('keydown', (e) => {
       const b = $(id);
       if (b) { b.setAttribute('aria-pressed', 'false'); b.textContent = 'Show on page'; }
     });
-    const ti = $('toggle-issues');
-    if (ti) { ti.setAttribute('aria-pressed', 'false'); ti.textContent = 'Show all on page'; }
+    issuesShown = false;
+    setIssuesButton();
     return;
   }
   if (!shortcutsOn) return;

@@ -140,7 +140,7 @@ describe("design review of 1.0.1 (Impeccable)", () => {
 
 describe("stress test of 1.0.1 (Break UI)", () => {
   it("a campaign link is the same page: tracking parameters go, real ones stay", async () => {
-    const { withoutTracking } = await import("../lib/popup-compute.js");
+    const { withoutTracking } = await import("../lib/urls.js");
     expect(withoutTracking("https://site.example/fr/?utm_source=news&utm_medium=mail#top")).toBe("https://site.example/fr/");
     expect(withoutTracking("https://site.example/?lang=fr&gclid=abc")).toBe("https://site.example/?lang=fr");
   });
@@ -156,7 +156,7 @@ describe("stress test of 1.0.1 (Break UI)", () => {
   });
 
   it("the alternates of a campaign link don't include the page itself", async () => {
-    const { withoutTracking } = await import("../lib/popup-compute.js");
+    const { withoutTracking } = await import("../lib/urls.js");
     const hreflang = [{ lang: "en", href: "https://site.example/en/" }, { lang: "fr", href: "https://site.example/fr/" }];
     expect(alternatesOf(withoutTracking("https://site.example/en/?utm_campaign=x"), hreflang).map((a) => a.lang)).toEqual(["fr"]);
   });

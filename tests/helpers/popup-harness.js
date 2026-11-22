@@ -31,15 +31,22 @@ export async function loadPopup({ panel = false, activeTab = null, local = {}, o
   const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
   const later = (fn) => new Promise((res, rej) => setTimeout(() => { try { res(clone(fn())); } catch (e) { rej(e); } }, 0));
   const listeners = () => { const s = new Set(); return { addListener: (f) => s.add(f), removeListener: (f) => s.delete(f), hasListener: (f) => s.has(f), _all: s }; };
-  const area = (seed) => {
+  // Like Chrome, a write tells the area's and the global onChanged listeners, a moment later.
+  const anyChange = listeners();
+  const area = (seed, areaName) => {
     const data = clone(seed) || {};
+    const own = listeners();
+    const tell = (changes) => { if (Object.keys(changes).length) setTimeout(() => { own._all.forEach((f) => f(clone(changes))); anyChange._all.forEach((f) => f(clone(changes), areaName)); }, 0); };
     const pick = (keys) => {
       if (keys == null) return clone(data);
       if (typeof keys === "string") keys = [keys];
       if (Array.isArray(keys)) return Object.fromEntries(keys.filter((k) => k in data).map((k) => [k, clone(data[k])]));
       return Object.fromEntries(Object.entries(keys).map(([k, d]) => [k, k in data ? clone(data[k]) : d]));
     };
-    return { get: async (k) => pick(k), set: async (o) => { Object.assign(data, clone(o)); }, remove: async (ks) => { [].concat(ks).forEach((k) => delete data[k]); }, clear: async () => {}, setAccessLevel: async () => {}, onChanged: listeners() };
+    return { get: async (k) => pick(k),
+      set: async (o) => { const ch = {}; for (const [k, v] of Object.entries(clone(o))) { ch[k] = { oldValue: clone(data[k]), newValue: v }; data[k] = v; } tell(ch); },
+      remove: async (ks) => { const ch = {}; [].concat(ks).forEach((k) => { if (k in data) { ch[k] = { oldValue: data[k] }; delete data[k]; } }); tell(ch); },
+      clear: async () => {}, setAccessLevel: async () => {}, onChanged: own };
   };
   const TAB = { id: 1, windowId: 1, url: FX.url, title: FX.title, active: true };
   const tabHandlers = { ANALYZE_ONPAGE: () => ({ ...FX.onpage, ...onpage }), GET_RENDERED: () => FX.rendered, GET_MAIN_TEXT: () => FX.main };
@@ -50,7 +57,7 @@ export async function loadPopup({ panel = false, activeTab = null, local = {}, o
       sendMessage: (_i, m) => (unreadable ? Promise.reject(new Error("Could not establish connection. Receiving end does not exist.")) : later(() => (tabHandlers[m?.type] || (() => undefined))(m))), create: async () => ({ id: 2 }), update: async () => clone(TAB), onActivated: listeners(), onUpdated: listeners() },
     windows: { getCurrent: async () => ({ id: 1 }) },
     scripting: { executeScript: () => (unreadable ? Promise.reject(new Error(unreadable)) : later(() => [{ result: undefined }])) },
-    storage: { local: area({ popupState: { onboardingDismissed: true, ...(activeTab ? { activeTab } : {}) }, ...local }), sync: area({ theme: "light" }), onChanged: listeners() },
+    storage: { local: area({ popupState: { onboardingDismissed: true, ...(activeTab ? { activeTab } : {}) }, ...local }, "local"), sync: area({ theme: "light" }, "sync"), onChanged: anyChange },
     permissions: { contains: async () => false, request: async () => false, remove: async () => true, onAdded: listeners(), onRemoved: listeners() },
     extension: { getViews: ({ type } = {}) => (type === "popup" && !panel ? [window] : []) },
     commands: { getAll: async () => [] },

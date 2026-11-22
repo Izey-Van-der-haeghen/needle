@@ -401,7 +401,15 @@
   }
 
   function findElement(target) {
-    if (target?.kind === "heading") return document.querySelectorAll("h1,h2,h3,h4,h5,h6")[target.index] || null;
+    if (target?.kind === "heading") {
+      // A consent banner or a re-render can add a heading above it, and the popup may show a saved
+      // read: check it is the same heading (level and text), else look for it by those.
+      const all = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6"));
+      const same = (h) => (target.level == null || h.tagName === `H${target.level}`) && (target.text == null || cleanText(h).slice(0, 200) === target.text);
+      const el = all[target.index];
+      if (el && same(el)) return el;
+      return target.text == null && target.level == null ? el || null : all.find(same) || null;
+    }
     if (target?.kind === "image") {
       // The popup may show a saved result: refill the index from the page, then check it is the same image.
       if (!pageImages.length) document.querySelectorAll("img").forEach((img, i) => { pageImages[i] = img; });

@@ -37,8 +37,8 @@ describe("collectFindings", () => {
       tech: tech()
     });
     const byId = Object.fromEntries(f.map((x) => [x.id, x]));
-    expect(byId["h1-multiple"].targets).toEqual([{ kind: "heading", index: 0 }, { kind: "heading", index: 1 }]);
-    expect(byId["heading-skips"].targets).toEqual([{ kind: "heading", index: 2 }]);
+    expect(byId["h1-multiple"].targets).toEqual([{ kind: "heading", index: 0, level: 1, text: "A" }, { kind: "heading", index: 1, level: 1, text: "B" }]);
+    expect(byId["heading-skips"].targets).toEqual([{ kind: "heading", index: 2, level: 3, text: "C" }]);
     expect(byId["img-alt"].targets).toEqual([{ kind: "image", index: 2, src: "https://e.com/a.jpg" }]);
   });
 
