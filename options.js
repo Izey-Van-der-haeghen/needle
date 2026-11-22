@@ -9,6 +9,8 @@ import { BING_ORIGINS } from "./lib/bing.js";
 import { storeUrl } from "./lib/links.js";
 import { CHANGELOG_URL } from "./lib/whats-new.js";
 import { readableError } from "./lib/errors.js";
+import { normaliseImageRules } from "./lib/image-rules.js";
+import { localDate } from "./lib/popup-helpers.js";
 import { fetchWithTimeout } from "./lib/fetch-helper.js";
 import { FETCH_TIMEOUT_MS, PSI_TIMEOUT_MS } from "./lib/constants.js";
 
@@ -270,7 +272,7 @@ $("export-settings").addEventListener("click", async () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `needle-settings-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `needle-settings-${localDate()}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   say("sync-status", "Settings downloaded.");
@@ -281,14 +283,20 @@ $("import-settings").addEventListener("change", async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   try {
-    const data = JSON.parse(await file.text());
-    const payload = data.settings || data;
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { say("sync-status", "This isn't a Needle settings file (it can't be read as JSON).", "bad"); return; }
+    const payload = data && typeof data === "object" ? data.settings || data : {};
     const prefs = {};
     const secrets = {};
     for (const k of [...PREF_KEYS, "theme", "csvSeparator"]) if (typeof payload[k] === "string") prefs[k] = payload[k];
     if (typeof payload.popupShortcuts === "boolean") prefs.popupShortcuts = payload.popupShortcuts;
     if (typeof payload.openInSidePanel === "boolean") prefs.openInSidePanel = payload.openInSidePanel;
     for (const k of SECRET_KEYS) if (typeof payload[k] === "string") secrets[k] = payload[k];
+    // Image rules go through the same checks as the form: a size needs both numbers, the limit must be positive.
+    if (["imgMaxKB", "imgWidth", "imgHeight", "imgMode"].some((k) => k in prefs)) {
+      const r = normaliseImageRules({ ...(await chrome.storage.sync.get(["imgMaxKB", "imgWidth", "imgHeight", "imgMode"])), ...prefs });
+      Object.assign(prefs, { imgMaxKB: String(r.maxKB), imgWidth: r.width ? String(r.width) : "", imgHeight: r.height ? String(r.height) : "", imgMode: r.mode });
+    }
     const n = Object.keys(prefs).length + Object.keys(secrets).length;
     if (!n) { say("sync-status", "No Needle settings found in this file.", "bad"); return; }
     if (Object.keys(prefs).length) await chrome.storage.sync.set(prefs);

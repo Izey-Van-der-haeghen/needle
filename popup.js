@@ -5,7 +5,7 @@ import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetc
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
-import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice } from './lib/popup-helpers.js';
+import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate } from './lib/popup-helpers.js';
 import { computeHealthScore, computeIndexability, detectMarketFromUrl, withoutTracking } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { initTheme, setTheme } from './lib/theme.js';
@@ -15,7 +15,7 @@ import { pageFetcher, fetchInPage } from './lib/page-fetch.js';
 import { fetchCompetitor } from './lib/compare.js';
 import { parseCompetitorHtml } from './lib/parse-competitor.js';
 import { getSecrets, getPrefs, getImageRules, withoutSiteChoices } from './lib/settings.js';
-import { imageSizeIssues, leadImageCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH, lazyNote } from './lib/image-rules.js';
+import { imageSizeIssues, leadImageCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH, lazyNote, measureNote } from './lib/image-rules.js';
 import { hasOrigins, requestOrigins, ALL_SITES, DATAFORSEO, NEEDS_PERMISSION } from './lib/permissions.js';
 import { DFS_COST } from './lib/offpage.js';
 import { CWV_GOOD, CWV_POOR } from './lib/crux.js';
@@ -32,6 +32,7 @@ import { checkHostVariants } from './lib/variants.js';
 import { checkHreflangCluster, alternatesOf, CLUSTER_MAX } from './lib/hreflang-cluster.js';
 import { urlKey } from './lib/urls.js';
 import { whatsNewFor, CHANGELOG_URL } from './lib/whats-new.js';
+import { MAX_IMAGES as MAX_MEASURED_IMAGES } from './lib/image-sizer.js';
 import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, LEVEL_KIND, leftOutNote } from './lib/labels.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
@@ -1779,7 +1780,8 @@ function renderImagesCard() {
     unclean: imgs.filter((i) => hasUncleanFilename(i.src)).length,
     broken: imgs.filter((i) => i.brokenLoad).length
   };
-  const unknownSizes = imgs.filter((i) => !i.bytes).length;
+  // A data: image has no server to ask, so it isn't counted (its "Measure it" button would do nothing).
+  const unknownSizes = imgs.filter((i) => !i.bytes && /^https?:/.test(i.src)).length;
   const opts = [['all', `All ${imgs.length}`]];
   if (counts.issues) opts.push(['issues', `With issues ${counts.issues}`]);
   if (counts.noAlt) opts.push(['no-alt', `No alt ${counts.noAlt}`]);
@@ -1803,7 +1805,7 @@ function renderImagesCard() {
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
       ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button></p>` : ''}
       <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
-      ${lazyNote(imgs) ? `<p class="muted">${escapeHtml(lazyNote(imgs))}</p>` : ''}
+      ${lazyNote(imgs) ? `<p class="muted">${escapeHtml(lazyNote(imgs))} <button type="button" class="link-btn" data-refresh="onpage">Check again</button></p>` : ''}
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
     : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');
@@ -1852,11 +1854,9 @@ async function measureImages() {
       if (sizes[i.src] != null) i.bytes = sizes[i.src];
     });
     const got = missing.filter((u) => sizes[u] != null).length;
-    // Count files, not <img> elements: a slider can show the same file twice.
-    const known = new Set(getBodyImages().map((i) => i.src)).size - missing.length;
-    imageMeasureNote = got === missing.length ? `Measured ${plural(got, 'image')}.${known > 0 ? ` The other ${known === 1 ? "image's size was" : "images' sizes were"} already known.` : ''}`
-      : got === 0 ? 'The image servers gave no file sizes.'
-      : `Measured ${fmtNum(got)} of ${plural(missing.length, 'image')}; the servers gave no size for the rest.`;
+    // Count web files, not <img> elements: a slider can show the same file twice, and a data: image has no file.
+    const known = new Set(getBodyImages().map((i) => i.src).filter((s) => /^https?:/.test(s))).size - missing.length;
+    imageMeasureNote = measureNote({ got, asked: Math.min(missing.length, MAX_MEASURED_IMAGES), missing: missing.length, known });
     applyImageRules(onpageData.images, imageRules);
     renderImagesCard();
     renderVerdict();
@@ -2599,7 +2599,7 @@ $('export-audit-header').addEventListener('click', async () => {
     storeLink: await storeUrl(),
     fontCss: await reportFontCss()
   });
-  download(`seo-audit-${hostOf(pageUrl) || 'page'}-${new Date().toISOString().slice(0, 10)}.html`, html, 'text/html');
+  download(`seo-audit-${hostOf(pageUrl) || 'page'}-${localDate()}.html`, html, 'text/html');
   showToast('Report downloaded');
 });
 

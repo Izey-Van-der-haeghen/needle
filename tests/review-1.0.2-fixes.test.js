@@ -375,3 +375,38 @@ describe("full check of 1.0.2 (Ponytail): smaller logic gaps", () => {
     expect((await findInSitemaps("https://site.example/fr/#top", ["https://site.example/sitemap.xml"], fetcher)).found).toBe(true);
   });
 });
+
+describe("full check of 1.0.2 (Break UI, read from the code)", () => {
+  it("dates: an ISO date as written, anything else as written too, never guessed", async () => {
+    const { dateAsWritten } = await import("../lib/geo.js");
+    expect(dateAsWritten("2026-11-21Z")).toBe("2026-11-21");
+    expect(dateAsWritten("05/11/2026")).toBe("05/11/2026");
+    expect(dateAsWritten("2026-11")).toBe("2026-11");
+    expect(dateAsWritten("Winter 2026")).toBe("Winter 2026");
+    expect(dateAsWritten({ "@value": "2026-11-21", "@type": "Date" })).toBe("2026-11-21");
+  });
+
+  it("Needle's own dates are the user's day, not UTC", async () => {
+    const { localDate } = await import("../lib/popup-helpers.js");
+    const lateEvening = new Date(2026, 10, 21, 23, 30);
+    expect(localDate(lateEvening)).toBe("2026-11-21");
+    const { readFileSync } = await import("node:fs");
+    for (const f of ["popup.js", "options.js", "lib/export.js", "lib/handoff.js", "lib/ai-prompt.js", "lib/compare-export.js"]) {
+      expect(readFileSync(new URL(`../${f}`, import.meta.url), "utf8"), f).not.toMatch(/toISOString\(\)\.slice\(0, 10\)/);
+    }
+  });
+
+  it("a size rule needs both numbers", async () => {
+    const { normaliseImageRules } = await import("../lib/image-rules.js");
+    expect(normaliseImageRules({ imgWidth: "1200", imgHeight: "0" })).toMatchObject({ width: 0, height: 0 });
+    expect(normaliseImageRules({ imgWidth: "1200", imgHeight: "630", imgMaxKB: "0" })).toMatchObject({ width: 1200, height: 630, maxKB: 100 });
+  });
+
+  it("'Measure them' reports what happened, also past the 300-file limit", async () => {
+    const { measureNote } = await import("../lib/image-rules.js");
+    expect(measureNote({ got: 2, asked: 2, missing: 2, known: 1 })).toBe("Measured 2 images. The other image's size was already known.");
+    expect(measureNote({ got: 300, asked: 300, missing: 320, known: 0 })).toBe("Measured 300 images (the first 300 of 320 images; measure again for the rest).");
+    expect(measureNote({ got: 10, asked: 20, missing: 20, known: 0 })).toBe("Measured 10 of 20 images; the servers gave no size for the rest.");
+    expect(measureNote({ got: 0, asked: 5, missing: 5, known: 0 })).toBe("The image servers gave no file sizes.");
+  });
+});

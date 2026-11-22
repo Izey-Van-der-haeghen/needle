@@ -655,7 +655,10 @@
     };
 
     // The srcset candidates of an <img> and its <picture> sources: [{url, w, x}].
-    const srcsetCandidates = (img) => [img.getAttribute("srcset"), ...[...(img.closest("picture")?.querySelectorAll("source") || [])].map((s) => s.getAttribute("srcset"))]
+    // <source media> that doesn't apply now is another crop (art direction), not a size of this image.
+    const srcsetCandidates = (img) => [img.getAttribute("srcset"), ...[...(img.closest("picture")?.querySelectorAll("source") || [])]
+      .filter((s) => { const m = s.getAttribute("media"); try { return !m || window.matchMedia(m).matches; } catch { return true; } })
+      .map((s) => s.getAttribute("srcset"))]
       .filter(Boolean)
       .flatMap((set) => parseSrcset(set).map(({ u, d }) => ({ url: u ? resolveUrl(u) : "", w: parseInt(d.match(/^(\d+)w$/)?.[1], 10) || 0, x: parseFloat(d.match(/^([\d.]+)x$/)?.[1]) || 0 })))
       .filter((c) => c.url);
