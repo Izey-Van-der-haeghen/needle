@@ -32,6 +32,7 @@ import { checkHostVariants } from './lib/variants.js';
 import { checkHreflangCluster, alternatesOf, CLUSTER_MAX } from './lib/hreflang-cluster.js';
 import { urlKey } from './lib/urls.js';
 import { whatsNewFor, CHANGELOG_URL } from './lib/whats-new.js';
+import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, LEVEL_KIND, leftOutNote } from './lib/labels.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
@@ -449,6 +450,7 @@ async function startForTab(tab) {
   psiRunning = false;
   dfsRunning = false;
   currentTab = tab;
+  currentFindings = [];
   pageUrl = tab?.url || '';
   onpageData = null;
   technicalData = null;
@@ -556,6 +558,8 @@ function showWhatsNewIfNeeded() {
     banner.remove();
     pendingWhatsNew = null;
     chrome.storage.local.remove('whatsNew').catch(() => {});
+    // Someone who updated knows Needle: the welcome note shouldn't come back next time.
+    setStatePath('onboardingDismissed', true);
     // The note is gone with the button: put keyboard focus on the active tab (a panel's inset ring
     // would cover its first line), without scrolling.
     document.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });
@@ -739,7 +743,6 @@ const snippetPx = () => ({
   descPx: pixelWidth(onpageData?.description || '', SNIPPET.descFont)
 });
 
-const SEV_KIND = { critical: 'bad', high: 'bad', medium: 'warn', low: 'neutral' };
 let showAllFindings = false;
 
 /** "Fix this first": every problem from every check, most important first. */
@@ -763,7 +766,7 @@ function renderFindings() {
     <summary id="findings-summary" data-focus-fallback><h2 class="card-title">Fix this first</h2>
       ${f.length ? counts.map(([sv, n]) => tag(`${n} ${SEVERITY_LABEL[sv].toLowerCase()}`, SEV_KIND[sv])).join(' ') : tag('nothing found', 'good')}${f.leftOut?.length ? ` ${tag(`${f.leftOut.length} left out`, 'info')}` : ''}</summary>
     <div class="card-body">
-      ${f.leftOut?.length ? `<p class="muted">${f.leftOut.length === 1 ? '1 finding that only matters in search results is' : `${f.leftOut.length} findings that only matter in search results are`} left out while the page is noindex.</p>` : ''}
+      ${f.leftOut?.length ? `<p class="muted">${escapeHtml(leftOutNote(f.leftOut.length))}</p>` : ''}
       ${f.length ? `<ol class="finding-list">${shown.map((x, i) => {
         const targets = x.targets || [];
         const locate = targets.length === 1
@@ -901,10 +904,9 @@ async function loadGEO(gen = auditGen) {
   renderFindings();
 
   const blockedSearch = aiAccess.bots.filter((b) => !b.allowed && b.kind === 'search');
-  const kindLabel = { search: 'AI search', user: 'user fetch', training: 'training', control: 'Gemini use (token)' };
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
-      <div class="v">${s.ok ? tag('ok', 'good') : s.info ? tag('not scored', 'info') : tag(failText, 'warn')} <span class="muted">${escapeHtml(s.value)}</span>
+      <div class="v">${tag(...signalStatus(s, failText))} <span class="muted">${escapeHtml(s.value)}</span>
       ${s.hint && !s.ok ? `<div class="hint">${escapeHtml(s.hint)}</div>` : ''}</div></div>`).join('');
 
   rerender(slot, `
@@ -916,16 +918,16 @@ async function loadGEO(gen = auditGen) {
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
           <li>
-            ${!robotsKnown ? tag('unknown', 'neutral') : b.allowed ? tag('allowed', 'good') : tag('blocked', b.kind === 'search' ? 'bad' : 'info')}
+            ${tag(...botStatus(b, robotsKnown))}
             <span class="bot-name">${escapeHtml(b.ua)}</span>
-            <span class="muted">${escapeHtml(b.vendor)} · ${kindLabel[b.kind]}</span>
+            <span class="muted">${escapeHtml(b.vendor)} · ${BOT_KIND_LABEL[b.kind]}</span>
             ${!b.allowed && b.rule ? `<span class="mono bot-rule">${escapeHtml(b.rule)}</span>` : ''}
             <span class="bot-purpose">${escapeHtml(b.purpose)}</span>
           </li>`).join('')}
       </ul>
       <h3>llms.txt <span class="muted">(information only)</span></h3>
-      ${row('/llms.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.summary?.ok ? tag(llmsTxt.summary.size ? `found, ${(llmsTxt.summary.size / 1024).toFixed(1)} KB` : 'found', 'good') : tag('not found', 'info'))}
-      ${row('/llms-full.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.full?.ok ? tag('found', 'good') : tag('not found', 'info'))}
+      ${row('/llms.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.summary?.ok ? tag(llmsTxt.summary.size ? `found, ${(llmsTxt.summary.size / 1024).toFixed(1)} KB` : 'found', 'good') : tag(...llmsStatus(llmsTxt.summary)))}
+      ${row('/llms-full.txt', !llmsTxt ? tag('could not check', 'neutral') : tag(...llmsStatus(llmsTxt.full)))}
       <p class="muted">A proposed file that points AI tools to your key pages. Google says no special file is needed for its AI features.</p>
       <h3>Trust signals (E-E-A-T)</h3>
       ${signalRows(eeat, 'missing')}
@@ -2039,7 +2041,7 @@ function renderOnpage(d, age) {
           const warns = s.issues.filter((x) => x.level === 'warn');
           return `<details class="sub"${errors.length ? ' open' : ''}>
             <summary>${escapeHtml(s.types.join(', ') || 'Unknown type')} #${i + 1} ${errors.length ? tag(`${errors.length} error${errors.length === 1 ? '' : 's'}`, 'bad') : warns.length ? tag(`${warns.length} warning${warns.length === 1 ? '' : 's'}`, 'warn') : tag('valid', 'good')}</summary>
-            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'required' : iss.level === 'warn' ? 'warning' : iss.level === 'note' ? 'note' : 'recommended', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : iss.level === 'note' ? 'info' : 'neutral')} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
+            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag({ error: 'required', warn: 'warning', note: 'note' }[iss.level] || 'recommended', LEVEL_KIND[iss.level])} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
             <pre class="code">${escapeHtml(JSON.stringify(s.raw, null, 2))}</pre>
           </details>`;
         }).join('')}
@@ -2184,7 +2186,7 @@ function renderHreflang(d) {
   const issues = validateHreflang(d.hreflang, withoutTracking(pageUrl));
   if (d.hreflangOutsideHead) issues.unshift({ level: 'error', msg: `${d.hreflangOutsideHead} hreflang link${d.hreflangOutsideHead === 1 ? '' : 's'} outside <head>`, hint: 'Google only reads hreflang links in <head>.' });
   const issueHtml = issues.length
-    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'error' : iss.level === 'warn' ? 'warning' : 'note', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : 'info')} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>`
+    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'error' : 'warning', LEVEL_KIND[iss.level])} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>`
     : `<p>${tag('All hreflang checks passed', 'good')}</p>`;
   return `${issueHtml}<table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">URL</th></tr></thead><tbody>
     ${d.hreflang.map((h) => `<tr><td class="mono lang">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(h.href)}</td></tr>`).join('')}</tbody></table>

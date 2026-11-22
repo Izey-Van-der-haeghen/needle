@@ -24,7 +24,8 @@ chrome.runtime.onInstalled.addListener(({ reason, previousVersion }) => {
   if (reason === "update" && previousVersion !== chrome.runtime.getManifest().version) {
     clearCache().catch(() => {});
     // The popup shows "Needle was updated" once, until the user clicks "Got it".
-    chrome.storage.local.set({ whatsNew: { from: previousVersion, at: Date.now() } }).catch(() => {});
+    // Two updates before the popup opens: keep the oldest version, so the note covers both.
+    chrome.storage.local.get("whatsNew").then(({ whatsNew }) => chrome.storage.local.set({ whatsNew: { from: whatsNew?.from || previousVersion } })).catch(() => {});
   }
 });
 

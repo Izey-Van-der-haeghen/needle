@@ -10,6 +10,7 @@ import { storeUrl } from "./lib/links.js";
 import { CHANGELOG_URL } from "./lib/whats-new.js";
 import { readableError } from "./lib/errors.js";
 import { fetchWithTimeout } from "./lib/fetch-helper.js";
+import { FETCH_TIMEOUT_MS, PSI_TIMEOUT_MS } from "./lib/constants.js";
 
 const $ = (id) => document.getElementById(id);
 await initTheme();
@@ -116,7 +117,7 @@ $("test-dfs").addEventListener("click", whileBusy($("test-dfs"), async () => {
     // A deadline, so a request that never answers can't keep the button busy.
     const r = await fetchWithTimeout("https://api.dataforseo.com/v3/appendix/user_data", {
       headers: { Authorization: "Basic " + btoa(`${login}:${password}`) }
-    }, 30000);
+    }, FETCH_TIMEOUT_MS);
     if (r.status === 401) throw new Error("DataForSEO rejected this login or password.");
     if (!r.ok) throw new Error(`DataForSEO answered HTTP ${r.status}.`);
     const user = (await r.json()).tasks?.[0]?.result?.[0];
@@ -161,7 +162,7 @@ $("test-psi").addEventListener("click", whileBusy($("test-psi"), async () => {
   try {
     const params = new URLSearchParams({ url: "https://example.com/", strategy: "mobile", category: "performance", key });
     // PageSpeed takes about 20 seconds; give it a minute.
-    const r = await fetchWithTimeout(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {}, 60000);
+    const r = await fetchWithTimeout(`https://www.googleapis.com/pagespeedonline/v5/runPagespeed?${params}`, {}, PSI_TIMEOUT_MS);
     if (r.status === 400 || r.status === 403) throw new Error("Google rejected this key. Check that the PageSpeed Insights API is enabled for it.");
     if (r.status === 429) throw new Error("This key has reached its quota. Try again later.");
     if (!r.ok) throw new Error(`Google answered HTTP ${r.status}.`);

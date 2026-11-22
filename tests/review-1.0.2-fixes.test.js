@@ -67,8 +67,8 @@ describe("code review of 1.0.2 (Ponytail)", () => {
   it("Settings tests have a deadline, so a hanging request can't keep the button busy", async () => {
     const { readFileSync } = await import("node:fs");
     const src = readFileSync(new URL("../options.js", import.meta.url), "utf8");
-    expect(src).toMatch(/fetchWithTimeout\("https:\/\/api\.dataforseo\.com[\s\S]*?\}, 30000\)/);
-    expect(src).toMatch(/fetchWithTimeout\(`https:\/\/www\.googleapis\.com\/pagespeedonline[^`]*`, \{\}, 60000\)/);
+    expect(src).toMatch(/fetchWithTimeout\("https:\/\/api\.dataforseo\.com[\s\S]*?\}, FETCH_TIMEOUT_MS\)/);
+    expect(src).toMatch(/fetchWithTimeout\(`https:\/\/www\.googleapis\.com\/pagespeedonline[^`]*`, \{\}, PSI_TIMEOUT_MS\)/);
     expect(src).not.toMatch(/await fetch\(/);
   });
 
@@ -114,11 +114,6 @@ describe("design review of 1.0.2 (Impeccable)", () => {
     expect(isLanguageRedirect("https://site.example/", "https://site.example/nl/")).toBe(true);
   });
 
-  it("plain facts use the outlined information label", async () => {
-    const { readFileSync } = await import("node:fs");
-    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
-    for (const s of ["tag('external', 'info')", "tag('nofollow', 'info')", "tag('not found', 'info')", "tag('featured snippet', 'info')", "['partly built by JavaScript', 'info']"]) expect(src).toContain(s);
-  });
 });
 
 describe("polish review of 1.0.2 (Make interfaces feel better)", () => {

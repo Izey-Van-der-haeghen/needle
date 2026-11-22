@@ -15,11 +15,6 @@ describe("information-only labels look different from a 'Low' finding", () => {
     expect(html).toMatch(/\.tag\.info \{[^}]*background: transparent/);
   });
 
-  it("are used for notes, 'not scored' and widths that still fit", () => {
-    const popup = read("popup.js");
-    expect(popup).toContain("s.info ? tag('not scored', 'info')");
-    expect(popup).toContain("iss.level === 'note' ? 'info' : 'neutral'");
-  });
 });
 
 describe("the report's colours", () => {
@@ -122,5 +117,28 @@ describe("izey.dev round of 22 November (link check)", () => {
     expect(t.kind).toBe("timeout");
     expect(calls).toBe(2);
     vi.unstubAllGlobals();
+  });
+});
+
+describe("labels shared by the popup and the report (full check of 1.0.2)", () => {
+  it("give plain facts the information label, problems their colour", async () => {
+    const { botStatus, signalStatus, llmsStatus, cwvStatus, LEVEL_KIND, SEV_KIND, leftOutNote } = await import("../lib/labels.js");
+    expect(botStatus({ allowed: false, kind: "training" }, true)).toEqual(["blocked", "info"]);
+    expect(botStatus({ allowed: false, kind: "search" }, true)).toEqual(["blocked", "bad"]);
+    expect(botStatus({ allowed: true }, false)).toEqual(["unknown", "neutral"]);
+    expect(signalStatus({ ok: false, info: true }, "low")).toEqual(["not scored", "info"]);
+    expect(signalStatus({ ok: false }, "missing")).toEqual(["missing", "warn"]);
+    expect(llmsStatus({ ok: false })).toEqual(["not found", "info"]);
+    expect(cwvStatus("AVERAGE")).toEqual(["needs work", "warn"]);
+    expect([LEVEL_KIND.note, SEV_KIND.low]).toEqual(["info", "neutral"]);
+    expect(leftOutNote(1)).toBe("1 finding that only matters in search results is left out while the page is noindex.");
+  });
+
+  it("the report shows a blocked training bot and a missing llms.txt like the popup does", async () => {
+    const { buildHtmlReport } = await import("../lib/export.js");
+    const geo = { aiAccess: { bots: [{ ua: "GPTBot", vendor: "OpenAI", kind: "training", allowed: false, purpose: "" }] }, robotsKnown: true, llmsTxt: { summary: { ok: false }, full: { ok: false } }, eeat: [], citability: [], score: { score: 90, level: "good" } };
+    const html = buildHtmlReport({ url: "https://site.example/", onpage: { url: "https://site.example/", title: "T", description: "", headings: [], links: { details: [] }, schema: [], hreflang: [], og: {}, twitter: {}, images: [] }, technical: null, offpage: null, geo, health: null, verdict: null, theme: "light" });
+    expect(html).toMatch(/<span class="tag info">blocked<\/span> <strong>GPTBot<\/strong>/);
+    expect(html).toMatch(/<span class="tag info">not found<\/span> \/llms\.txt/);
   });
 });

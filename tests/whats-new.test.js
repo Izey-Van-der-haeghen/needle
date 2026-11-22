@@ -1,5 +1,5 @@
 // "What's new": a note in the popup after an update, a link in Settings, the changelog on GitHub.
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { whatsNewFor, WHATS_NEW, CHANGELOG_URL } from "../lib/whats-new.js";
 
@@ -43,6 +43,8 @@ describe("where users find it", () => {
 });
 
 describe("the update itself", () => {
+  afterEach(() => { delete globalThis.chrome; });
+
   it("remembers the old version for the popup, only on an update", async () => {
     let onInstalled;
     const set = vi.fn(async () => {});
@@ -58,9 +60,31 @@ describe("the update itself", () => {
     };
     await import("../background.js");
     onInstalled({ reason: "install" });
+    await new Promise((r) => setTimeout(r, 0));
     expect(set.mock.calls.some(([o]) => "whatsNew" in o)).toBe(false);
     onInstalled({ reason: "update", previousVersion: "1.0.0" });
-    expect(set.mock.calls.find(([o]) => "whatsNew" in o)?.[0].whatsNew).toMatchObject({ from: "1.0.0" });
+    await vi.waitFor(() => expect(set.mock.calls.find(([o]) => "whatsNew" in o)?.[0].whatsNew).toEqual({ from: "1.0.0" }));
+  });
+});
+
+describe("a second update before the popup opens", () => {
+  it("keeps the oldest version, so the note covers both", async () => {
+    vi.resetModules();
+    let onInstalled;
+    const store = { whatsNew: { from: "1.0.0" } };
+    const area = () => ({ get: vi.fn(async (k) => (k === "whatsNew" ? { whatsNew: store.whatsNew } : {})), set: vi.fn(async (o) => Object.assign(store, o)), remove: vi.fn(async () => {}), onChanged: { addListener: vi.fn() } });
+    globalThis.chrome = {
+      runtime: { id: "abc", getURL: (p) => p, getManifest: () => ({ version: "1.0.2" }), onInstalled: { addListener: (fn) => { onInstalled ??= fn; } },
+        onStartup: { addListener: vi.fn() }, onMessage: { addListener: vi.fn() }, onConnect: { addListener: vi.fn() }, sendMessage: vi.fn(async () => {}) },
+      storage: { local: area(), sync: area() },
+      permissions: { contains: vi.fn(async () => false) },
+      contextMenus: { onClicked: { addListener: vi.fn() }, removeAll: vi.fn(), create: vi.fn() },
+      sidePanel: { setPanelBehavior: vi.fn(async () => {}), open: vi.fn(async () => {}) },
+      action: { setPopup: vi.fn(async () => {}), openPopup: vi.fn(async () => {}), onClicked: { addListener: vi.fn() } }
+    };
+    await import("../background.js");
+    onInstalled({ reason: "update", previousVersion: "1.0.1" });
+    await vi.waitFor(() => expect(store.whatsNew).toEqual({ from: "1.0.0" }));
     delete globalThis.chrome;
   });
 });
