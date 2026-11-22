@@ -161,7 +161,7 @@ describe("ANALYZE_ONPAGE on the well-formed nl-BE landing page", () => {
 
   it("counts internal and external links and skips links to a fragment of the page itself", () => {
     expect(res.links).toMatchObject({ internal: 9, external: 5, nofollow: 2, total: 14 });
-    expect(res.externalLinkCount).toBe(5);
+    expect(res.externalLinkCount).toBe(4); // cited sources: the footer's "Volg ons" is not one
     expect(res.links.details.map((l) => l.index)).toEqual([...Array(14).keys()]);
     expect(res.links.details.map((l) => l.text)).not.toContain("Terug naar de vragen");
   });
@@ -529,10 +529,11 @@ describe("ANALYZE_ONPAGE images: layout, bytes and load state", () => {
   });
 
   it("flags images without width and height, http: files on https pages and data-nosnippet text", async () => {
-    const res = await analyze(html('<img src="/a.jpg" alt="a" width="10" height="10"><img src="http://cdn.example.net/b.jpg" alt="b"><p data-nosnippet>secret</p>'), { url: "https://www.example.be/" });
+    const res = await analyze(html('<img src="/a.jpg" alt="a" width="10" height="10"><img src="http://cdn.example.net/b.jpg" alt="b"><span data-nosnippet>secret</span><p data-nosnippet>ignored by Google</p>'), { url: "https://www.example.be/" });
     expect(res.images.map((i) => i.missingDims)).toEqual([false, true]);
     expect(res.mixedContent).toEqual([{ tag: "img", url: "http://cdn.example.net/b.jpg" }]);
     expect(res.dataNosnippetCount).toBe(1);
+    expect(res.dataNosnippetIgnored).toBe(1);
   });
 
   it("tells a missing alt from an empty (decorative) one", async () => {

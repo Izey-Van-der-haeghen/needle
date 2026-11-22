@@ -137,11 +137,8 @@ describe("polish review of 1.0.2 (Make interfaces feel better)", () => {
 
 describe("stress test of 1.0.2 (Break UI)", () => {
   it("max-snippet:-1 (no limit) is not amber; a real limit is", async () => {
-    const { readFileSync } = await import("node:fs");
-    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
-    expect(src).toContain("tag(x, x === 'nosnippet' || /^max-snippet:(0|[1-9]\\d?)$/.test(x) ? 'warn' : 'info')");
-    const limited = (x) => x === "nosnippet" || /^max-snippet:(0|[1-9]\d?)$/.test(x);
-    expect([limited("max-snippet:-1"), limited("max-snippet:50"), limited("nosnippet"), limited("max-image-preview:large")]).toEqual([false, true, true, false]);
+    const { limitsSnippets } = await import("../lib/popup-compute.js");
+    expect([limitsSnippets("max-snippet:-1"), limitsSnippets("max-snippet:50"), limitsSnippets("nosnippet"), limitsSnippets("max-image-preview:large")]).toEqual([false, true, true, false]);
   });
 
   it("http → https with a language added is a redirect to fix; a home link may only gain the language", async () => {

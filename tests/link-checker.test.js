@@ -60,9 +60,15 @@ describe("checkLinks — status classification", () => {
     expect(r).toMatchObject({ status: 404, kind: "broken" });
   });
 
-  it("503 → kind 'broken'", async () => {
+  it("503 → kind 'blocked' (bot walls answer 503; otherwise it means down for now, not gone)", async () => {
     mockFetch(async () => res(503));
     const [r] = await checkLinks(["https://e.com/down"]);
+    expect(r.kind).toBe("blocked");
+  });
+
+  it("500 → kind 'broken'", async () => {
+    mockFetch(async () => res(500));
+    const [r] = await checkLinks(["https://e.com/error"]);
     expect(r.kind).toBe("broken");
   });
 });

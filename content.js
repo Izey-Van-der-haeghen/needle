@@ -72,9 +72,26 @@
     return (c.textContent || "").replace(/[ \t\n\f\r]+/g, " ").trim(); // ASCII whitespace only: no-break spaces stay
   }
 
-  /** Hidden from readers: hidden attribute, display:none, visibility:hidden, or inside one. */
+  // Words in any language: a copy of countWords in lib/words.js (keep the two the same). Japanese,
+  // Chinese, Thai, Lao, Khmer and Myanmar have no spaces between words.
+  const NO_SPACES = /[\p{sc=Han}\p{sc=Hiragana}\p{sc=Katakana}\p{sc=Thai}\p{sc=Lao}\p{sc=Khmer}\p{sc=Myanmar}]/u;
+  let wordSegmenter = null;
+  function countWords(text) {
+    if (!text || !text.trim()) return 0;
+    if (!NO_SPACES.test(text) || typeof Intl.Segmenter !== "function") return text.trim().split(/\s+/).length;
+    wordSegmenter = wordSegmenter || new Intl.Segmenter(undefined, { granularity: "word" });
+    let n = 0;
+    for (const s of wordSegmenter.segment(text)) if (s.isWordLike) n++;
+    return n;
+  }
+
+  /**
+   * Hidden from readers: hidden attribute, display:none, visibility:hidden, or inside one.
+   * Not aria-hidden: that hides text from screen readers only, and some dialog libraries put it on
+   * the whole page while a cookie wall is open. The text is still on screen and indexed.
+   */
   function isHidden(el) {
-    if (el.closest("[hidden], [aria-hidden='true']")) return true;
+    if (el.closest("[hidden]")) return true;
     for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
       const cs = getComputedStyle(n);
       if (cs.display === "none" || cs.visibility === "hidden") return true;
@@ -331,7 +348,9 @@
     let u = null;
     try { u = new URL(raw, document.baseURI); } catch {}
     const isHttp = !!u && /^https?:$/.test(u.protocol);
-    const internal = isHttp && u.hostname === location.hostname;
+    // www.example.be and example.be are one site; a trailing dot names the same host.
+    const site = (h) => h.replace(/\.$/, "").replace(/^www\./, "");
+    const internal = isHttp && site(u.hostname) === site(location.hostname);
     return { u, isHttp, internal, external: isHttp && !internal, raw };
   }
 
@@ -405,7 +424,7 @@
       // A consent banner or a re-render can add a heading above it, and the popup may show a saved
       // read: check it is the same heading (level and text), else look for it by those.
       const all = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6"));
-      const same = (h) => (target.level == null || h.tagName === `H${target.level}`) && (target.text == null || cleanText(h).slice(0, 200) === target.text);
+      const same = (h) => (target.level == null || h.tagName === `H${target.level}`) && (target.text == null || Array.from(cleanText(h)).slice(0, 200).join("") === target.text);
       const el = all[target.index];
       if (el && same(el)) return el;
       return target.text == null && target.level == null ? el || null : all.find(same) || null;
@@ -551,12 +570,13 @@
     const getMeta = (name) => {
       const el = document.querySelector(`meta[name="${name}" i]`) ||
                  document.querySelector(`meta[property="${name}"]`);
-      return el?.getAttribute("content") || "";
+      // Templates often wrap the value in newlines and indents; Google shows it with single spaces.
+      return (el?.getAttribute("content") || "").replace(/[ \t\n\f\r]+/g, " ").trim();
     };
 
     const headings = $$("h1, h2, h3, h4, h5, h6").map(h => ({
       level: parseInt(h.tagName.slice(1), 10),
-      text: cleanText(h).slice(0, 200),
+      text: Array.from(cleanText(h)).slice(0, 200).join(""),
       hidden: isHidden(h)
     }));
 
@@ -568,12 +588,13 @@
       const k = linkKind(a);
       const rels = (a.getAttribute("rel") || "").toLowerCase().split(/\s+/);
       // Google reads an image link's alt, else the title attribute, as its anchor text.
-      const text = (cleanText(a) || a.querySelector('img[alt]:not([alt=""])')?.getAttribute("alt")?.trim() || a.getAttribute("title")?.trim() || "").slice(0, 100);
+      const text = (cleanText(a) || a.querySelector('img[alt]:not([alt=""])')?.getAttribute("alt")?.trim() || a.getAttribute("title")?.trim() || "");
+      const shortText = Array.from(text).slice(0, 100).join("");
       pageLinks[i] = a;
       return {
         index: i,
         href: k.u ? k.u.href : k.raw,
-        text,
+        text: shortText,
         internal: k.internal,
         external: k.external,
         nofollow: rels.includes("nofollow"),
@@ -586,6 +607,8 @@
 
     const internal = linkDetails.filter(l => l.internal).length;
     const external = linkDetails.filter(l => l.external).length;
+    // Sources the text cites: external links in the main content, not the footer or social icons.
+    const externalInMain = linkDetails.filter(l => l.external && l.context === "main").length;
     const nofollow = linkDetails.filter(l => l.nofollow).length;
     const broken = linkDetails.filter(l => l.broken).length;
 
@@ -797,7 +820,8 @@
     // Resolved against <base href>, as a crawler does.
     const canonical = headCanonical?.getAttribute("href") ? resolveUrl(headCanonical.getAttribute("href")) : "";
     const canonicalOutsideHead = canonicalEls.some(l => !l.closest("head"));
-    const canonicalDistinct = new Set(canonicalEls.map(l => resolveUrl(l.getAttribute("href") || ""))).size;
+    // Google reads canonicals in <head> only (a <body> one is flagged on its own) and ignores #fragments.
+    const canonicalDistinct = new Set(canonicalEls.filter(l => l.closest("head")).map(l => resolveUrl(l.getAttribute("href") || "").split("#")[0])).size;
 
     const microdataTypes = (() => {
       const found = new Set();
@@ -817,13 +841,12 @@
     })();
 
     const bodyText = readableText(document.body).trim();
-    const wordCount = bodyText ? bodyText.split(/\s+/).length : 0;
+    const wordCount = countWords(bodyText);
     const htmlLen = document.documentElement.outerHTML.length;
     const textRatio = htmlLen ? Math.round((bodyText.length / htmlLen) * 100) : 0;
 
     // Main-content word count: prefer <main> or [role=main] when it holds at least
     // half the words of the largest candidate, so outer wrappers don't win.
-    const countWords = (text) => text ? text.trim().split(/\s+/).filter(Boolean).length : 0;
     const candidates = [];
     const addCandidate = (selector, el) => {
       const t = readableText(el).trim();
@@ -897,12 +920,14 @@
         || document.querySelector('time[datetime][pubdate], time[datetime][itemprop="datePublished"]')?.getAttribute("datetime") || "",
       modifiedMeta: document.querySelector('meta[property="article:modified_time"]')?.getAttribute("content")
         || document.querySelector('time[datetime][itemprop="dateModified"]')?.getAttribute("datetime") || "",
-      externalLinkCount: external,
+      externalLinkCount: externalInMain,
       listCount: [...(mainBoundaryEl || document.body || document.documentElement).querySelectorAll("ul, ol")]
         .filter(l => !l.closest("nav, [role=navigation], header, footer, aside")).length,
       tableCount: document.querySelectorAll("table").length,
-      // Text marked data-nosnippet is kept out of Google snippets and AI Overviews.
-      dataNosnippetCount: document.querySelectorAll("[data-nosnippet]").length,
+      // Text marked data-nosnippet is kept out of Google snippets and AI Overviews. Google reads it
+      // on span, div and section only; on other elements it does nothing.
+      dataNosnippetCount: document.querySelectorAll("span[data-nosnippet], div[data-nosnippet], section[data-nosnippet]").length,
+      dataNosnippetIgnored: document.querySelectorAll("[data-nosnippet]:not(span, div, section)").length,
       mixedContent: findMixedContent(),
       schemaSignals: detectSchemaSignals()
     };
@@ -941,7 +966,7 @@
     );
 
     const hasArticleTag = document.querySelectorAll("article").length > 0;
-    const faqQuestionCount = Array.from(document.querySelectorAll("h2, h3, h4")).filter(h => /\?$/.test(cleanText(h))).length;
+    const faqQuestionCount = Array.from(document.querySelectorAll("h2, h3, h4")).filter(h => /[?？؟]$/.test(cleanText(h))).length;
 
     const hasPricing = /(?:€|\$|£)\s*\d|\d[\d.,]*\s*(?:€|\$|£)|\d[.,]\d{2}\s*(?:eur|usd|gbp)\b/i.test(bodyText);
 
@@ -1105,7 +1130,7 @@
       .replace(/&nbsp;|&#160;/gi, " ")
       .replace(/\s+/g, " ")
       .trim();
-    return stripped ? stripped.split(" ").length : 0;
+    return countWords(stripped);
   }
 
   function getRenderedSnapshot() {

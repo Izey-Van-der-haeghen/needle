@@ -1,12 +1,13 @@
+import { charCount } from './lib/snippet.js';
 import { validateSchema, detectFaqDuplicates, collectAllSchemaTypes, suggestMissingSchemas } from './lib/schema-validator.js';
 import { getCache, setCache, cacheKey, cachedCall, pageId, formatAge } from './lib/cache.js';
 import { LOCATIONS, LANGUAGES, FEATURE_LABELS } from './lib/serp.js';
-import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetchLlmsTxt, AI_SCORE_NOTE } from './lib/geo.js';
+import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetchLlmsTxt, AI_SCORE_NOTE, keepsOutOfAnswers } from './lib/geo.js';
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
 import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate } from './lib/popup-helpers.js';
-import { computeHealthScore, computeIndexability, detectMarketFromUrl } from './lib/popup-compute.js';
+import { computeHealthScore, computeIndexability, detectMarketFromUrl, snippetDirectives, limitsSnippets, robotsBlocksIndexing, copilotLimit } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { initTheme, setTheme } from './lib/theme.js';
 import { validateHreflang } from './lib/hreflang.js';
@@ -22,7 +23,7 @@ import { CWV_GOOD, CWV_POOR } from './lib/crux.js';
 import { BING_ORIGINS } from './lib/bing.js';
 import { storeUrl } from './lib/links.js';
 import { buildIssuesMarkdown } from './lib/handoff.js';
-import { collectFindings, snippetDirectives, SEVERITY_LABEL } from './lib/findings.js';
+import { collectFindings, SEVERITY_LABEL } from './lib/findings.js';
 import { buildAiPrompt } from './lib/ai-prompt.js';
 import { snapshotOf, recordSnapshot } from './lib/changes.js';
 import { termFrequency, keywordPlacement } from './lib/terms.js';
@@ -34,7 +35,7 @@ import { urlKey, withoutTracking } from './lib/urls.js';
 import { noConnection } from './lib/link-checker.js';
 import { whatsNewFor, CHANGELOG_URL } from './lib/whats-new.js';
 import { MAX_IMAGES as MAX_MEASURED_IMAGES } from './lib/image-sizer.js';
-import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, LEVEL_KIND, leftOutNote } from './lib/labels.js';
+import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, LEVEL_KIND, leftOutNote, HREFLANG_LEVEL_WORD } from './lib/labels.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
@@ -992,7 +993,7 @@ async function loadGEO(gen = auditGen) {
   geoData = { aiAccess, eeat, citability, llmsTxt, score, robotsKnown };
   renderFindings();
 
-  const blockedSearch = aiAccess.bots.filter((b) => !b.allowed && b.kind === 'search');
+  const blockedSearch = aiAccess.bots.filter((b) => !b.allowed && keepsOutOfAnswers(b));
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
       <div class="v">${tag(...signalStatus(s, failText))} <span class="muted">${escapeHtml(s.value)}</span>
@@ -1993,8 +1994,8 @@ function ogSizeVerdict(w, h) {
 }
 
 function renderOnpage(d, age) {
-  const titleLen = d.title?.length || 0;
-  const descLen = d.description?.length || 0;
+  const titleLen = charCount(d.title);
+  const descLen = charCount(d.description);
   const titlePx = pixelWidth(d.title || '', SNIPPET.titleFont);
   const descPx = pixelWidth(d.description || '', SNIPPET.descFont);
   const h1Count = d.headings.filter((h) => h.level === 1 && !h.hidden).length;
@@ -2282,9 +2283,9 @@ async function runHreflangCluster() {
 function renderHreflang(d) {
   const issues = validateHreflang(d.hreflang, withoutTracking(pageUrl));
   if (d.hreflangOutsideHead) issues.unshift({ level: 'error', msg: `${d.hreflangOutsideHead} hreflang link${d.hreflangOutsideHead === 1 ? '' : 's'} outside <head>`, hint: 'Google only reads hreflang links in <head>.' });
-  const issueHtml = issues.length
-    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'error' : 'warning', LEVEL_KIND[iss.level])} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>`
-    : `<p>${tag('All hreflang checks passed', 'good')}</p>`;
+  const passed = !issues.some((iss) => iss.level !== 'info');
+  const issueHtml = `${passed ? `<p>${tag('All hreflang checks passed', 'good')}</p>` : ''}${issues.length
+    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(HREFLANG_LEVEL_WORD[iss.level], LEVEL_KIND[iss.level])} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}`;
   return `${issueHtml}<table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">URL</th></tr></thead><tbody>
     ${d.hreflang.map((h) => `<tr><td class="mono lang">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(h.href)}</td></tr>`).join('')}</tbody></table>
     ${d.hreflang.length > 1 ? `<div class="actions"><button type="button" class="secondary-btn" id="hreflang-check">Check the alternates</button></div><div id="hreflang-cluster" aria-live="polite"></div>` : ''}`;
@@ -2364,8 +2365,8 @@ const copyFunctions = {
     const d = onpageData;
     const h1s = d.headings.filter((h) => h.level === 1 && !h.hidden);
     return [
-      ['url', d.url], ['title', d.title], ['title_length', d.title.length],
-      ['description', d.description], ['description_length', d.description.length],
+      ['url', d.url], ['title', d.title], ['title_length', charCount(d.title)],
+      ['description', d.description], ['description_length', charCount(d.description)],
       ['canonical', d.canonical], ['robots', d.robots], ['lang', d.lang],
       ['og_title', d.og.title], ['og_description', d.og.description], ['og_image', d.og.image],
       ['h1', h1s.map((h) => h.text).join(' | ')], ['h1_count', h1s.length], ['word_count', d.wordCount]
@@ -2404,7 +2405,7 @@ function renderTechnical(d, age) {
       ${row('HTTP status', statusTag)}
       ${row('Final URL', `<span class="mono">${escapeHtml(d.finalUrl)}</span>`)}
       ${row('Redirects', d.redirected ? tag('this URL redirects', 'warn') : 'none')}
-      ${row('X-Robots-Tag', xrt ? tag(xrt, /noindex|none/i.test(xrt) ? 'bad' : 'neutral') : '<span class="muted">not set</span>')}
+      ${row('X-Robots-Tag', xrt ? tag(xrt, robotsBlocksIndexing(xrt) ? 'bad' : 'neutral') : '<span class="muted">not set</span>')}
       ${row('HTTPS', /^https:/.test(d.finalUrl) ? tag('yes', 'good') : tag('no', 'bad'))}
       ${row('HSTS', d.headers['strict-transport-security'] ? tag('on', 'good') : '<span class="muted">not set</span>')}
       <div class="actions"><button type="button" class="secondary-btn" id="variants-check">Check http, https and www versions</button></div>
@@ -2416,12 +2417,14 @@ function renderTechnical(d, age) {
 
     ${onpageData ? (() => {
       const dirs = snippetDirectives(onpageData.robots, xrt);
-      const limited = dirs.some((x) => x === 'nosnippet' || /^max-snippet:(0|[1-9]\d?)$/.test(x)) || onpageData.dataNosnippetCount > 0;
+      const limited = dirs.some(limitsSnippets) || onpageData.dataNosnippetCount > 0;
+      const copilot = copilotLimit(onpageData.robots, xrt);
       return `<div class="card">
       <h2>Snippet and AI controls</h2>
       <p class="muted">These limit what Google may quote in results and in AI Overviews.</p>
-      ${row('Directives', dirs.length ? dirs.map((x) => tag(x, x === 'nosnippet' || /^max-snippet:(0|[1-9]\d?)$/.test(x) ? 'warn' : 'info')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
-      ${row('data-nosnippet', onpageData.dataNosnippetCount ? `${fmtNum(onpageData.dataNosnippetCount)} element${onpageData.dataNosnippetCount === 1 ? '' : 's'} kept out of snippets` : '<span class="muted">none</span>')}
+      ${row('Directives', dirs.length ? dirs.map((x) => tag(x, limitsSnippets(x) ? 'warn' : 'info')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
+      ${copilot ? row('Microsoft Copilot', tag(copilot === 'nocache' ? 'title and link only' : 'left out of answers', 'warn')) : ''}
+      ${row('data-nosnippet', `${onpageData.dataNosnippetCount ? `${fmtNum(onpageData.dataNosnippetCount)} element${onpageData.dataNosnippetCount === 1 ? '' : 's'} kept out of snippets` : '<span class="muted">none</span>'}${onpageData.dataNosnippetIgnored ? `<div class="hint">${fmtNum(onpageData.dataNosnippetIgnored)} more on other elements, which Google ignores: use it on a span, div or section.</div>` : ''}`)}
       ${limited ? '<div class="hint">Some text may not be quoted in search snippets or AI answers. Check that this is intended.</div>' : ''}
     </div>`;
     })() : ''}

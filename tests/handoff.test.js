@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildIssuesMarkdown } from "../lib/handoff.js";
-import { snippetDirectives } from "../lib/findings.js";
+import { snippetDirectives } from "../lib/popup-compute.js";
 
 describe("snippetDirectives", () => {
   it("collects snippet and AI-use directives from meta robots and X-Robots-Tag", () => {
@@ -26,7 +26,7 @@ describe("buildIssuesMarkdown", () => {
     expect(md).toContain("Checked: 2026-11-20 with Needle");
     expect(md).toContain("Indexability: Not indexable");
     expect(md.indexOf("## Critical")).toBeLessThan(md.indexOf("## High"));
-    expect(md).toContain("No <title>");
+    expect(md).toContain("No `<title>`");
     expect(md).toContain("No H1 heading");
     expect(md).toContain("without an alt attribute");
     expect(md).toContain("https://e.com/a.jpg");
@@ -40,5 +40,17 @@ describe("buildIssuesMarkdown", () => {
     const indexable = buildIssuesMarkdown({ ...onpage, robots: "" }, { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true, rule: null } } }, { now: new Date("2026-11-20T10:00:00Z") });
     expect(indexable).toContain('Product: missing required "name"');
     expect(indexable).toContain("Invalid hreflang region");
+  });
+});
+
+describe("buildIssuesMarkdown on GitHub and GitLab", () => {
+  it("shows tags as code and keeps page text from adding links or tags", async () => {
+    const { buildIssuesMarkdown } = await import("../lib/handoff.js");
+    const onpage = { url: "https://e.com/page", title: "[click](https://evil.example) *Sale*", description: "", robots: "", headings: [{ level: 1, text: "<details>Open" }, { level: 1, text: "B" }], images: [], schema: [], hreflang: [], links: { details: [] }, og: {} };
+    const md = buildIssuesMarkdown(onpage, null, { now: new Date(2026, 10, 22) });
+    expect(md).toContain("# SEO issues: \\[click\\](https://evil.example) \\*Sale\\*");
+    expect(md).toContain("`<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">`");
+    expect(md).toContain("  - \\<details\\>Open");
+    expect(md).not.toMatch(/(^|[^`\\])<details>/);
   });
 });

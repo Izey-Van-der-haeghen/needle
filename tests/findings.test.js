@@ -68,7 +68,7 @@ describe("buildAiPrompt", () => {
     expect(prompt).toContain("prioritised action plan");
     expect(prompt).toContain("(nl-BE)");
     expect(prompt).toContain("H1 Main");
-    expect(prompt).toContain("[High] No meta description");
+    expect(prompt).toContain("[Medium] No meta description");
     expect(prompt).toContain("Audit date: 2026-11-20");
   });
 });

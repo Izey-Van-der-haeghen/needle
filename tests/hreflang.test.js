@@ -117,12 +117,31 @@ describe("validateHreflang — duplicates", () => {
 });
 
 describe("validateHreflang — x-default", () => {
-  it("warns when x-default is missing", () => {
+  it("notes a missing x-default as a recommendation, not a problem (Google: recommended)", () => {
     const issues = validateHreflang([
       { lang: "en", href: "https://e.com/en" },
       { lang: "nl", href: "https://e.com/nl" },
     ]);
-    expect(find(issues, "x-default")?.level).toBe("warn");
+    expect(find(issues, "x-default")?.level).toBe("info");
+  });
+
+  it("the same link listed twice is a note; one code for two URLs is an error", () => {
+    const same = validateHreflang([{ lang: "en", href: "https://e.com/en" }, { lang: "en", href: "https://e.com/en/" }, { lang: "x-default", href: "https://e.com/" }]);
+    expect(same.filter((i) => i.level !== "info")).toEqual([]);
+    expect(find(same, "listed 2×")?.level).toBe("info");
+  });
+
+  it("accepts only ISO 639-1 languages and ISO 3166-1 regions, as Google does", () => {
+    const level = (lang) => validateHreflang([{ lang, href: "https://e.com/a" }, { lang: "x-default", href: "https://e.com/" }]).filter((i) => i.level === "error").map((i) => i.hint);
+    expect(level("nl-BE")).toEqual([]);
+    expect(level("zh-Hant-TW")).toEqual([]);
+    expect(level("se")).toEqual([]); // Northern Sami
+    expect(level("fil")[0]).toMatch(/two-letter ISO 639-1/);
+    expect(level("gb")).toEqual(['"gb" is a country code, not a language code: use en-GB.']);
+    expect(level("jp")).toEqual(['"jp" is a country code, not a language code: use ja.']);
+    expect(level("iw")).toEqual(['"iw" is an old code: use he.']);
+    expect(level("en-XX")[0]).toMatch(/not a two-letter ISO 3166-1 country code/);
+    expect(level("en-UK")).toEqual(['"UK" is not a country code: use GB.']);
   });
 
   it("no warning when x-default is present", () => {
