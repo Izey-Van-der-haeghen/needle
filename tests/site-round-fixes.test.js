@@ -110,7 +110,7 @@ describe("the AI score explanation", () => {
     expect(aiReadinessScore(access(1), [], []).score).toBe(90);
     expect(aiReadinessScore(access(0), [miss, ok], []).score).toBe(95);
     expect(aiReadinessScore(access(0), [], [miss]).score).toBe(96);
-    expect(AI_SCORE_NOTE).toMatch(/blocked AI search bot costs 10 points/);
+    expect(AI_SCORE_NOTE).toMatch(/blocked AI answer bot costs 10 points/);
     expect(AI_SCORE_NOTE).toMatch(/trust signal 5/);
     expect(AI_SCORE_NOTE).toMatch(/quotable structure 4/);
   });

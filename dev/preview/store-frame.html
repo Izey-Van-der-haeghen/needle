@@ -45,8 +45,12 @@
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   f.addEventListener("load", async () => {
     const d = f.contentDocument;
-    for (let i = 0; i < 100 && (d.querySelector("#panel-onpage .loading") || d.querySelector("#verdict-slot .loading")); i++) await wait(50);
+    // The text analysis waits inside the closed Content card until it is opened: don't wait for it.
+    // Wait until the audit is drawn: the verdict is there and nothing but that is still loading.
+    const busy = () => !d.querySelector("#verdict-slot .verdict, #verdict-slot > *:not(.loading)") || d.querySelector("#panel-onpage .loading:not(#text-analysis .loading)") || d.querySelector("#verdict-slot .loading");
+    for (let i = 0; i < 100 && busy(); i++) await wait(50);
     for (const [kind, a, b] of shot.act) {
+      if (["open", "type", "click", "scroll"].includes(kind)) for (let i = 0; i < 60 && !d.getElementById(a); i++) await wait(50);
       if (kind === "tab") d.getElementById(`tab-${a}`).click();
       if (kind === "open") d.getElementById(a).open = true;
       if (kind === "open-css") { for (let i = 0; i < 40 && !d.querySelector(a); i++) await wait(50); const el = d.querySelector(a); if (el) el.open = true; }

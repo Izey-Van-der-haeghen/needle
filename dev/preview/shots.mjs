@@ -20,7 +20,7 @@ try {
   async function capture(url, file, width, height) {
     await page.cmd("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
     await page.goto(url);
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 250; i++) {
       if ((await page.evaluate("document.title")) === "ready") break;
       await new Promise((r) => setTimeout(r, 100));
     }
