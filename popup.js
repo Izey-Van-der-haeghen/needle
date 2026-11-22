@@ -9,6 +9,7 @@ import { classifyIntent } from './lib/intent.js';
 import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate } from './lib/popup-helpers.js';
 import { computeHealthScore, computeIndexability, detectMarketFromUrl, snippetDirectives, limitsSnippets, robotsBlocksIndexing, copilotLimit } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
+import { readableError } from './lib/errors.js';
 import { initTheme, setTheme } from './lib/theme.js';
 import { validateHreflang } from './lib/hreflang.js';
 import { analyzeTechnical } from './lib/technical.js';
@@ -149,9 +150,11 @@ document.addEventListener('click', (e) => {
 
 function errorBox(title, detail, actionsHtml = '') {
   announce(title);
-  return `<div class="notice notice-bad" role="alert">
+  // Chrome's own network texts ("Failed to fetch") become plain words.
+  const plain = typeof detail === 'string' ? readableError({ message: detail }) : detail;
+  return `<div class="notice notice-bad">
     <strong>${escapeHtml(title)}</strong>
-    ${detail ? `<div>${escapeHtml(detail)}</div>` : ''}
+    ${plain ? `<div>${escapeHtml(plain)}</div>` : ''}
     ${actionsHtml ? `<div class="actions">${actionsHtml}</div>` : ''}
   </div>`;
 }
@@ -867,7 +870,8 @@ function renderFindings() {
     <summary id="findings-summary" data-focus-fallback><h2 class="card-title">Fix this first</h2>
       ${f.length ? counts.map(([sv, n]) => tag(`${n} ${SEVERITY_LABEL[sv].toLowerCase()}`, SEV_KIND[sv])).join(' ') : tag('nothing found', 'good')}${f.leftOut?.length ? ` ${tag(`${f.leftOut.length} left out`, 'info')}` : ''}</summary>
     <div class="card-body">
-      ${f.leftOut?.length ? `<p class="muted">${escapeHtml(leftOutNote(f.leftOut.length))}</p>` : ''}
+      ${f.leftOut?.length ? `<p class="muted">${escapeHtml(leftOutNote(f.leftOut.length))}</p>
+        <details class="sub"><summary>Show the ${f.leftOut.length} left out</summary><ul class="plain-list muted">${f.leftOut.map((x) => `<li>${escapeHtml(x.title)}</li>`).join('')}</ul></details>` : ''}
       ${f.length ? `<ol class="finding-list">${shown.map((x, i) => {
         const targets = x.targets || [];
         const locate = targets.length === 1
@@ -928,7 +932,7 @@ async function showChanges(score, gen = auditGen) {
   if (gen !== auditGen || !slot || !res.changes.length) return;
   const fmt = (v) => (v === '' || v == null ? '(empty)' : String(v));
   rerender(slot, `<details class="card collapsible" open>
-    <summary><h2 class="card-title">Changed since ${escapeHtml(timeAgo(res.since))}</h2> ${tag(`${res.changes.length} change${res.changes.length === 1 ? '' : 's'}`, 'neutral')}</summary>
+    <summary><h2 class="card-title">Changed since ${escapeHtml(timeAgo(res.since))}</h2> ${tag(`${res.changes.length} change${res.changes.length === 1 ? '' : 's'}`, 'info')}</summary>
     <div class="card-body"><table class="data-table"><thead><tr><th scope="col">What</th><th scope="col">Before</th><th scope="col">Now</th></tr></thead><tbody>
       ${res.changes.map((c) => `<tr><th scope="row">${escapeHtml(c.label)}</th><td>${escapeHtml(fmt(c.before))}</td><td>${escapeHtml(fmt(c.after))}</td></tr>`).join('')}
     </tbody></table><p class="muted">Compared with your previous audit of this URL in this browser.</p></div>
@@ -1435,7 +1439,7 @@ function renderSerp(d, myDomain, age) {
   return `${cachedBanner(age, 'serp')}
     <p class="muted">${escapeHtml(d.keyword)} · ${escapeHtml(locName)} · ${escapeHtml(langName)} · ${escapeHtml(d.device)}${d.cost ? ` · cost ${usd(d.cost)}` : ''}</p>
     ${banner}
-    ${intent ? `<p>Search intent: ${tag(intent.label, 'neutral')} <span class="muted">${escapeHtml(intent.description)} (${escapeHtml(intent.confidence)} confidence)</span></p>` : ''}
+    ${intent ? `<p>Search intent: ${tag(intent.label, 'info')} <span class="muted">${escapeHtml(intent.description)} (${escapeHtml(intent.confidence)} confidence)</span></p>` : ''}
     ${features.length ? `<div class="card"><h2>On this results page</h2><p>${features.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join(' ')}</p></div>` : ''}
     ${renderAiOverview(d.aiOverview, me)}
     <div class="card">
@@ -1544,7 +1548,7 @@ async function loadCompare(force = false) {
     const sources = [{ label: 'You', data: meData, isMe: true }];
     settled.forEach((r, i) => {
       if (r.status === 'fulfilled') sources.push({ label: `Competitor ${i + 1}`, data: r.value, isMe: false });
-      else failures.push(`${competitorUrls[i]}: ${r.reason?.message || 'failed'}`);
+      else failures.push(`${competitorUrls[i]}: ${readableError(r.reason, { network: 'could not connect: the address may be wrong, or the site refuses automated requests. Open it in a tab to check.' })}`);
     });
 
     let serpData = null;
@@ -1621,7 +1625,7 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
       return `<td>${hit ? tag(normUrl(hit.url) === normUrl(s.data.url) ? 'this page' : 'same site', 'good') : '<span class="muted">no</span>'}</td>`;
     }).join('')}</tr>` : '';
     serpBlock = `<div class="card compare-scroll"><h2>Google for "${escapeHtml(keyword)}"</h2>
-      ${intent ? `<p>Search intent: ${tag(intent.label, 'neutral')}</p>` : ''}
+      ${intent ? `<p>Search intent: ${tag(intent.label, 'info')}</p>` : ''}
       ${ai ? `<p class="muted">${ai.present ? 'Google shows an AI Overview for this search.' : 'No AI Overview for this search.'}</p>` : ''}
       <table class="compare-table"><thead><tr><th scope="col"><span class="visually-hidden">Metric</span></th>${headers}</tr></thead><tbody>${posRow}${aiRow}</tbody></table></div>`;
   } else if (keyword && serpError) {
@@ -1718,7 +1722,7 @@ function linkCheckHint(l) {
   if (!cs) return '';
   // The URL gets its own line in the code font, like the link's own URL above it (long URLs wrap there).
   if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects. Link straight to the final URL:<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
-  if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
+  if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Looks like it opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
   if (cs.kind === 'timeout') return `<div class="hint">${cs.hostTimedOut ? 'Not requested: this website already gave no answer on another link.' : 'No answer within 8 seconds, twice.'} Try again later.</div>`;
@@ -1798,8 +1802,9 @@ function applyLinkCheckResults(results, ageMs) {
   announce(`${plural(results.length, 'link')} checked`);
 }
 
+const FILTER_GROUP_NAME = { kind: 'Filter by type', ctx: 'Filter by place on the page', checkStatus: 'Filter by check result' };
 function filterButtons(group, options, current) {
-  return `<div class="filter-row" role="group" data-filter-group="${group}">${options.map(([val, label]) =>
+  return `<div class="filter-row" role="group" aria-label="${escapeHtml(FILTER_GROUP_NAME[group] || 'Filter')}" data-filter-group="${group}">${options.map(([val, label]) =>
     `<button type="button" class="filter-btn${current === val ? ' active' : ''}" aria-pressed="${current === val}" data-filter-val="${escapeHtml(val)}">${label}</button>`).join('')}</div>`;
 }
 
@@ -1848,7 +1853,7 @@ const imgMissingAlt = (i) => i.altMissing ?? !i.alt;
 function imageIssues(img) {
   const out = [];
   if (img.brokenLoad) out.push(['does not load', 'bad']);
-  if (imgMissingAlt(img)) out.push(['no alt attribute', 'bad']);
+  if (imgMissingAlt(img)) out.push(['no alt attribute', 'warn']);
   out.push(...imageSizeIssues(img, imageRules));
   if (img.lazyAboveFold) out.push(['lazy-loaded above the fold', 'warn']);
   if (img.missingDims) out.push(['no width/height (layout shift)', 'warn']);
@@ -2062,7 +2067,7 @@ function renderOnpage(d, age) {
   const ctxOrder = ['header', 'nav', 'breadcrumb', 'main', 'sidebar', 'footer', 'other'];
 
   return `
-    ${cachedBanner(age, 'onpage')}
+    ${cachedBanner(age, 'onpage', { always: true })}
     <div id="verdict-slot"><div class="loading" role="status">Checking indexability…</div></div>
     <div id="findings-slot"></div>
     <div id="changes-slot"></div>
@@ -2136,7 +2141,7 @@ function renderOnpage(d, age) {
     <details class="card collapsible" id="schema-card">
       <summary><h2 class="card-title">Structured data</h2>
         ${validated.length === 0 && !microdataTypes.length ? tag('none found', 'warn') : schemaErrors ? tag(`${schemaErrors} error${schemaErrors === 1 ? '' : 's'}`, 'bad') : tag('valid', 'good')}
-        ${suggestions.length ? tag(`${suggestions.length} suggestion${suggestions.length === 1 ? '' : 's'}`, 'neutral') : ''}</summary>
+        ${suggestions.length ? tag(`${suggestions.length} suggestion${suggestions.length === 1 ? '' : 's'}`, 'info') : ''}</summary>
       <div class="card-body">
         ${allTypes.length ? `<p>${allTypes.map((t) => `<span class="chip">${escapeHtml(t)}${microdataTypes.includes(t) && !jsonLdTypes.includes(t) ? ' <span class="muted">microdata</span>' : ''}</span>`).join(' ')}</p>` : '<p class="muted">No JSON-LD, microdata or RDFa on this page.</p>'}
         ${suggestions.length ? `<h3>Worth adding</h3><ul class="plain-list">${suggestions.map((s) => `<li><strong>${escapeHtml(s.type)}</strong> <span class="muted">${escapeHtml(s.priority)} priority</span><div class="hint">${escapeHtml(s.reason)}</div></li>`).join('')}</ul>` : ''}
@@ -2407,14 +2412,14 @@ function renderTechnical(d, age) {
   const sitemapPath = d.sitemap?.url ? (() => { try { return new URL(d.sitemap.url).pathname; } catch { return '/sitemap.xml'; } })() : '/sitemap.xml';
   const robots = d.robotsTxt || {};
   return `
-    ${cachedBanner(age, 'onpage')}
+    ${cachedBanner(age, 'onpage', { always: true })}
     <div class="card">
       <h2>Server answer</h2>
       ${d.fetchError ? `<p class="muted">${escapeHtml(d.fetchError)}</p>` : ''}
       ${row('HTTP status', statusTag)}
       ${row('Final URL', `<span class="mono">${escapeHtml(d.finalUrl)}</span>`)}
       ${row('Redirects', d.redirected ? tag('this URL redirects', 'warn') : 'none')}
-      ${row('X-Robots-Tag', xrt ? tag(xrt, robotsBlocksIndexing(xrt) ? 'bad' : 'neutral') : '<span class="muted">not set</span>')}
+      ${row('X-Robots-Tag', xrt ? tag(xrt, robotsBlocksIndexing(xrt) ? 'bad' : 'info') : '<span class="muted">not set</span>')}
       ${row('HTTPS', /^https:/.test(d.finalUrl) ? tag('yes', 'good') : tag('no', 'bad'))}
       ${row('HSTS', d.headers['strict-transport-security'] ? tag('on', 'good') : '<span class="muted">not set</span>')}
       <div class="actions"><button type="button" class="secondary-btn" id="variants-check">Check http, https and www versions</button></div>

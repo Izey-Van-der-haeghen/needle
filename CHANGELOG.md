@@ -13,8 +13,22 @@
 - **Images on high-density screens:** a file the browser picks from `srcset` for a 2x screen (640 px for a photo shown 300 px wide) is no longer called "much larger than shown". A file far larger than any screen needs is still flagged. The Images card says when a lazy image hasn't loaded yet.
 - **Privacy:** "Clear history" also forgets the country and language picked per website. The privacy policy and Settings describe the side panel, the transfers and the links to other tools more precisely.
 - **AI tab, dates:** a page's published and modified dates show the day as the page wrote it. A midnight time with an offset (`2026-11-21T00:00:00+01:00`) no longer shows as the day before.
-- **What's new:** after an update, Needle says once what changed, with a link to this changelog. Settings has a "What's new" link next to the version.
-- **Clearer messages:** when a tab can't be read (no internet, the Chrome Web Store, no access yet), Needle says why in plain words, once, instead of Chrome's own error text. Without internet, the server check says so too.
+- **What's new:** after an update, Needle says what changed until you click "Got it", with a link to this changelog. Settings has a "What's new" link next to the version.
+- **Clearer messages:** when a tab can't be read (no internet, the Chrome Web Store, no access yet), Needle says why in plain words, once, instead of Chrome's own error text. Without internet, the server check and the link check say so too. Compare and the other tools no longer show "Failed to fetch".
+- **Rules checked against Google's documentation:**
+  - Structured data: FAQ, HowTo and sitelinks search box markup no longer counts as a rich-result requirement (Google stopped showing them); JobPosting is no longer suggested from words on the page; WebSite needs `name` and is suggested on the home page only; Offer accepts `priceSpecification`; contact and address fields are recommended, not required; background videos get no VideoObject suggestion; `@graph` as one object, empty blocks and full `https://schema.org/` types are read correctly; microdata counts in the score.
+  - Indexing: a passed `unavailable_after` date counts as noindex; a noindex in the server HTML that JavaScript removes, or a canonical JavaScript changes, is flagged; a missing canonical no longer makes the verdict amber; rules for other crawlers (`bingbot: nosnippet`) don't count for Google; a robots.txt Needle can't read no longer lowers the verdict.
+  - robots.txt is read the way Google's parser reads it (groups, `Googlebot/2.1`, common typos, the 500 KiB limit in bytes).
+  - Sitemaps on another host, gzip, RSS, Atom and text sitemaps no longer give "No valid sitemap".
+  - hreflang: only ISO language and country codes pass (with a hint for `gb` or `jp`); a missing x-default is a recommendation; alternates with a noindex header or another trailing slash are flagged.
+  - Headings: an H1 inside `aria-hidden` still counts; several H1s are low priority.
+  - Images: Discover advice only on articles, and it checks `max-image-preview:large`; "shown larger than the file" uses the real file width; SVGs are never blurry; phone and camera file names count as unclear; images sized by CSS `aspect-ratio` have dimensions.
+- **AI tab:** Anthropic says its bots follow robots.txt, so a blocked Claude-User counts. Applebot and DuckAssistBot are checked too. Bing's `noarchive` and `nocache` are flagged for Copilot answers. External citations count links in the main content only, and question headings are found in Dutch, French, German, Spanish, Italian and other scripts.
+- **Any language:** words are counted in Japanese, Chinese and Thai; soft hyphens, joiners and combining marks stay inside their word; an emoji counts as one character.
+- **Checklist score:** a "Technical basics" check (viewport, https, mixed content), broken images count, content depth asks for more than a thin page only, and hreflang is scored on correctness.
+- **Side panel:** after the page reloads, the side panel audits it again, and a fresh audit shows when it was made with a Refresh button. A side panel and a popup open at once no longer overwrite each other's settings. A campaign link (`?utm_…`) is the same page for the speed test, the keyword lookup, CrUX, Bing, the sitemap check and history.
+- **Noindex pages:** Fix this first, the report and the copy for a developer list the findings left out.
+- **Copy for a developer:** tags show as code on GitHub and GitLab.
 
 ## 1.0.1 (21 November 2026)
 

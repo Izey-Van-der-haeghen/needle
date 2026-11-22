@@ -28,7 +28,7 @@ ON-PAGE
 • Heading outline with skipped levels, shown on the page if you want
 • Links by page region (header, menu, breadcrumb, main content, sidebar, footer), nofollow, sponsored and ugc, plus an optional check of every link
 • Content images: missing alt text, large files, lazy loading above the fold, missing width and height, unclear file names
-• Structured data (JSON-LD, microdata, RDFa) checked against Google's required and recommended properties, with suggestions for what to add
+• Structured data: JSON-LD checked against Google's required and recommended properties, microdata and RDFa types listed, with suggestions for what to add
 • Hreflang validation, Open Graph and X card previews, word counts
 
 TECHNICAL
@@ -72,12 +72,13 @@ Needle has no server, no analytics and no ads. It installs with no access to web
 Free and open source (MIT). No account needed for the on-page, technical and AI checks. Source code: github.com/Izey-Van-der-haeghen/needle
 
 WHAT'S NEW IN 1.0.2
-• Labels that are only information now have an outline, so they don't look like something to fix
+• Rules checked against Google's own documentation: fewer false alarms in structured data, robots.txt, sitemaps, hreflang, images and headings
+• Pages in Japanese, Chinese and Thai are no longer called thin, and words with accents or soft hyphens stay whole
+• AI tab: Claude-User, Applebot and DuckAssistBot are checked, and Bing's noarchive is flagged for Copilot
+• A page set to noindex gets a shorter list, and shows what it left out
 • A link that opens the reader's language version counts as working
-• A page set to noindex gets a shorter list: only what matters before it can be found
 • Clearer messages when a page can't be read, for example without internet
-• The side panel opens in its own layout straight away
-• Fewer false alarms: images on high-density screens, max-snippet:-1 and dates in the AI tab
+• Labels that are only information now have an outline, so they don't look like something to fix
 Every change, version by version: github.com/Izey-Van-der-haeghen/needle/blob/main/CHANGELOG.md
 
 > Replace this section with each new version (the store has no separate field for release notes). The lines are the same as `WHATS_NEW` in `lib/whats-new.js`, which the extension shows after an update.
