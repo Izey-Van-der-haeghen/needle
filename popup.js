@@ -746,8 +746,9 @@ function renderFindings() {
   const overlayOn = $('toggle-issues')?.getAttribute('aria-pressed') === 'true';
   rerender(slot, `<details class="card collapsible" id="findings-card"${wasOpen ? ' open' : ''}>
     <summary id="findings-summary" data-focus-fallback><h2 class="card-title">Fix this first</h2>
-      ${f.length ? counts.map(([sv, n]) => tag(`${n} ${SEVERITY_LABEL[sv].toLowerCase()}`, SEV_KIND[sv])).join(' ') : tag('nothing found', 'good')}</summary>
+      ${f.length ? counts.map(([sv, n]) => tag(`${n} ${SEVERITY_LABEL[sv].toLowerCase()}`, SEV_KIND[sv])).join(' ') : tag('nothing found', 'good')}${f.leftOut?.length ? ` ${tag(`${f.leftOut.length} left out`, 'info')}` : ''}</summary>
     <div class="card-body">
+      ${f.leftOut?.length ? `<p class="muted">${f.leftOut.length === 1 ? '1 finding that only matters in search results is' : `${f.leftOut.length} findings that only matter in search results are`} left out while the page is noindex.</p>` : ''}
       ${f.length ? `<ol class="finding-list">${shown.map((x, i) => {
         const targets = x.targets || [];
         const locate = targets.length === 1
@@ -900,7 +901,7 @@ async function loadGEO(gen = auditGen) {
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
           <li>
-            ${!robotsKnown ? tag('unknown', 'neutral') : b.allowed ? tag('allowed', 'good') : tag('blocked', b.kind === 'search' ? 'bad' : 'neutral')}
+            ${!robotsKnown ? tag('unknown', 'neutral') : b.allowed ? tag('allowed', 'good') : tag('blocked', b.kind === 'search' ? 'bad' : 'info')}
             <span class="bot-name">${escapeHtml(b.ua)}</span>
             <span class="muted">${escapeHtml(b.vendor)} · ${kindLabel[b.kind]}</span>
             ${!b.allowed && b.rule ? `<span class="mono bot-rule">${escapeHtml(b.rule)}</span>` : ''}
@@ -908,8 +909,8 @@ async function loadGEO(gen = auditGen) {
           </li>`).join('')}
       </ul>
       <h3>llms.txt <span class="muted">(information only)</span></h3>
-      ${row('/llms.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.summary?.ok ? tag(llmsTxt.summary.size ? `found, ${(llmsTxt.summary.size / 1024).toFixed(1)} KB` : 'found', 'good') : tag('not found', 'neutral'))}
-      ${row('/llms-full.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.full?.ok ? tag('found', 'good') : tag('not found', 'neutral'))}
+      ${row('/llms.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.summary?.ok ? tag(llmsTxt.summary.size ? `found, ${(llmsTxt.summary.size / 1024).toFixed(1)} KB` : 'found', 'good') : tag('not found', 'info'))}
+      ${row('/llms-full.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.full?.ok ? tag('found', 'good') : tag('not found', 'info'))}
       <p class="muted">A proposed file that points AI tools to your key pages. Google says no special file is needed for its AI features.</p>
       <h3>Trust signals (E-E-A-T)</h3>
       ${signalRows(eeat, 'missing')}
@@ -1322,7 +1323,7 @@ function renderSerp(d, myDomain, age) {
           const safe = isSafeHttpUrl(o.url) ? o.url : '';
           return `<li class="serp-item${isMe ? ' is-me' : ''}">
             <div class="serp-head"><span class="serp-pos">#${o.position}</span> <span class="serp-domain">${escapeHtml(o.domain)}</span>
-              ${isMe ? tag('your site', 'good') : ''}${o.isFeaturedSnippet ? tag('featured snippet', 'neutral') : ''}</div>
+              ${isMe ? tag('your site', 'good') : ''}${o.isFeaturedSnippet ? tag('featured snippet', 'info') : ''}</div>
             ${safe ? `<a class="serp-title" href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(o.title)}</a>` : `<div class="serp-title">${escapeHtml(o.title)}</div>`}
             <div class="serp-snippet">${escapeHtml(o.snippet)}</div>
             ${o.rating ? `<div class="muted">Rating ${escapeHtml(o.rating.value)} (${fmtNum(o.rating.count)} reviews)</div>` : ''}
@@ -1609,10 +1610,10 @@ function renderLinkList() {
   if (!filtered.length) { list.innerHTML = `<p class="muted">${onpageData?.links?.details?.length ? 'No links match this filter.' : 'This page has no links.'}</p>`; return; }
   list.innerHTML = `<ul class="item-list">${filtered.slice(0, 200).map((l) => {
     const flags = [];
-    if (l.external) flags.push(tag('external', 'neutral'));
-    if (l.nofollow) flags.push(tag('nofollow', 'neutral'));
-    if (l.ugc) flags.push(tag('ugc', 'neutral'));
-    if (l.sponsored) flags.push(tag('sponsored', 'neutral'));
+    if (l.external) flags.push(tag('external', 'info'));
+    if (l.nofollow) flags.push(tag('nofollow', 'info'));
+    if (l.ugc) flags.push(tag('ugc', 'info'));
+    if (l.sponsored) flags.push(tag('sponsored', 'info'));
     if (l.broken) flags.push(tag('empty href', 'warn'));
     if (l.checkedStatus) {
       const [label, kind] = CHECK_LABEL[l.checkedStatus.kind] || [l.checkedStatus.kind, 'neutral'];
@@ -1943,9 +1944,9 @@ function renderOnpage(d, age) {
       <summary><h2 class="card-title">Title and description</h2></summary>
       <div class="card-body">
         ${metaField('Title', d.title ? escapeHtml(d.title) : missing('No title'),
-          `${charTag(titleLen, 30, 60, 70, titlePx > 0 && titlePx <= SNIPPET.titleMaxPx)} ${d.title ? pixelTag(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx) : ''} ${d.title ? `<button type="button" class="icon-only copy-btn" data-copy-fn="title" aria-label="Copy title" title="Copy title">${ICON.copy}</button>` : ''}`)}
+          `${charTag(titleLen, 30, 60, 70, titlePx > 0)} ${d.title ? pixelTag(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx) : ''} ${d.title ? `<button type="button" class="icon-only copy-btn" data-copy-fn="title" aria-label="Copy title" title="Copy title">${ICON.copy}</button>` : ''}`)}
         ${metaField('Meta description', d.description ? escapeHtml(d.description) : missing('No meta description'),
-          `${charTag(descLen, 70, 160, 170, descPx > 0 && descPx <= SNIPPET.descMaxPx)} ${d.description ? pixelTag(descPx, SNIPPET.descIdealPx, SNIPPET.descMaxPx) : ''} ${d.description ? `<button type="button" class="icon-only copy-btn" data-copy-fn="description" aria-label="Copy description" title="Copy description">${ICON.copy}</button>` : ''}`)}
+          `${charTag(descLen, 70, 160, 170, descPx > 0)} ${d.description ? pixelTag(descPx, SNIPPET.descIdealPx, SNIPPET.descMaxPx) : ''} ${d.description ? `<button type="button" class="icon-only copy-btn" data-copy-fn="description" aria-label="Copy description" title="Copy description">${ICON.copy}</button>` : ''}`)}
         <div class="serp-preview" aria-label="Preview of the Google result">
           <div class="g-crumbs">${escapeHtml(crumbs)}</div>
           <div class="g-title">${escapeHtml(truncateToPx(d.title || '', SNIPPET.titleMaxPx, SNIPPET.titleFont)) || missing('No title')}</div>
@@ -2165,7 +2166,7 @@ function renderHreflang(d) {
   const issues = validateHreflang(d.hreflang, withoutTracking(pageUrl));
   if (d.hreflangOutsideHead) issues.unshift({ level: 'error', msg: `${d.hreflangOutsideHead} hreflang link${d.hreflangOutsideHead === 1 ? '' : 's'} outside <head>`, hint: 'Google only reads hreflang links in <head>.' });
   const issueHtml = issues.length
-    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'error' : iss.level === 'warn' ? 'warning' : 'note', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : 'neutral')} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>`
+    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(iss.level === 'error' ? 'error' : iss.level === 'warn' ? 'warning' : 'note', iss.level === 'error' ? 'bad' : iss.level === 'warn' ? 'warn' : 'info')} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>`
     : `<p>${tag('All hreflang checks passed', 'good')}</p>`;
   return `${issueHtml}<table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">URL</th></tr></thead><tbody>
     ${d.hreflang.map((h) => `<tr><td class="mono lang">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(h.href)}</td></tr>`).join('')}</tbody></table>
@@ -2302,7 +2303,7 @@ function renderTechnical(d, age) {
       return `<div class="card">
       <h2>Snippet and AI controls</h2>
       <p class="muted">These limit what Google may quote in results and in AI Overviews.</p>
-      ${row('Directives', dirs.length ? dirs.map((x) => tag(x, /nosnippet|max-snippet/.test(x) ? 'warn' : 'neutral')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
+      ${row('Directives', dirs.length ? dirs.map((x) => tag(x, /nosnippet|max-snippet/.test(x) ? 'warn' : 'info')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
       ${row('data-nosnippet', onpageData.dataNosnippetCount ? `${fmtNum(onpageData.dataNosnippetCount)} element${onpageData.dataNosnippetCount === 1 ? '' : 's'} kept out of snippets` : '<span class="muted">none</span>')}
       ${limited ? '<div class="hint">Some text may not be quoted in search snippets or AI answers. Check that this is intended.</div>' : ''}
     </div>`;
@@ -2381,7 +2382,7 @@ $('panel-technical').addEventListener('click', (e) => {
 function renderComparison(raw, rendered) {
   const diff = rendered.htmlLen - raw.htmlLen;
   const pct = raw.htmlLen ? Math.round((diff / raw.htmlLen) * 100) : 0;
-  const level = Math.abs(pct) > 50 ? ['mostly built by JavaScript', 'warn'] : Math.abs(pct) > 20 ? ['partly built by JavaScript', 'neutral'] : ['mostly in the HTML', 'good'];
+  const level = Math.abs(pct) > 50 ? ['mostly built by JavaScript', 'warn'] : Math.abs(pct) > 20 ? ['partly built by JavaScript', 'info'] : ['mostly in the HTML', 'good'];
   const wordsLost = raw.wordCount < rendered.wordCount * 0.7;
   return `<details class="card collapsible">
     <summary><h2 class="card-title">JavaScript rendering</h2> ${tag(level[0], level[1])}</summary>

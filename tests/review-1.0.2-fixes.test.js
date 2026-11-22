@@ -82,3 +82,40 @@ describe("code review of 1.0.2 (Ponytail)", () => {
     expect(d.images[0].src).toBe("https://cdn.example/w_800,c_fill/a.jpg");
   });
 });
+
+describe("design review of 1.0.2 (Impeccable)", () => {
+  const page = { url: "https://site.example/a", title: "A title that is long enough", description: "", canonical: "", robots: "noindex",
+    headings: [{ level: 1, text: "Hi" }], images: [], links: { details: [] }, og: {}, schema: [] };
+  const tech = { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true } } };
+
+  it("a noindex page says how many findings it leaves out, and names all of them", async () => {
+    const { collectFindings } = await import("../lib/findings.js");
+    const f = collectFindings({ onpage: page, tech });
+    expect(f.leftOut.map((x) => x.id)).toContain("desc-missing");
+    expect(f.find((x) => x.id === "noindex-meta").why).toMatch(/title, description, thin content, canonical, structured data, hreflang, the main image, snippet limits and trust signals/);
+    expect(collectFindings({ onpage: { ...page, robots: "" }, tech }).leftOut).toBeUndefined();
+  });
+
+  it("one verdict per field: with a known width, the count is information and the finding says 'cut off'", async () => {
+    const { charTag, pixelTag } = await import("../lib/popup-helpers.js");
+    const { collectFindings } = await import("../lib/findings.js");
+    expect(charTag(83, 30, 60, 70, true)).toMatch(/class="tag info">83 characters</);
+    expect(pixelTag(764, 580, 600)).toMatch(/class="tag bad".*764 px, cut off/);
+    const t = collectFindings({ onpage: { ...page, robots: "", title: "t".repeat(83) }, tech, titlePx: 764 }).find((x) => x.id === "title-long");
+    expect(t.title).toBe("Title is cut off in Google results (764 px)");
+  });
+
+  it("only a leading language segment makes a language redirect; common words don't", async () => {
+    const { isLanguageRedirect } = await import("../lib/link-checker.js");
+    expect(isLanguageRedirect("https://site.example/account", "https://site.example/my/account")).toBe(false);
+    expect(isLanguageRedirect("https://site.example/page", "https://site.example/shop/en/page")).toBe(false);
+    expect(isLanguageRedirect("https://privacy.microsoft.com/privacystatement", "https://www.microsoft.com/fr-fr/privacy/privacystatement")).toBe(true);
+    expect(isLanguageRedirect("https://site.example/", "https://site.example/nl/")).toBe(true);
+  });
+
+  it("plain facts use the outlined information label", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
+    for (const s of ["tag('external', 'info')", "tag('nofollow', 'info')", "tag('not found', 'info')", "tag('featured snippet', 'info')", "['partly built by JavaScript', 'info']"]) expect(src).toContain(s);
+  });
+});

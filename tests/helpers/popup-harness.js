@@ -11,10 +11,11 @@ const read = (f) => readFileSync(path.join(ROOT, f), "utf8");
 
 /**
  * @param {{panel?: boolean, activeTab?: string|null, local?: Object}} [opts] - panel: behave as the side panel;
- *   activeTab: a tab saved from an earlier visit ("technical", "ai" …); local: more chrome.storage.local data
+ *   activeTab: a tab saved from an earlier visit ("technical", "ai" …); local: more chrome.storage.local data;
+ *   onpage: fields to change in the demo page's ANALYZE_ONPAGE answer
  * @returns {Promise<{markedBeforePopupJs: boolean}>} whether theme-boot.js marked the side panel
  */
-export async function loadPopup({ panel = false, activeTab = null, local = {} } = {}) {
+export async function loadPopup({ panel = false, activeTab = null, local = {}, onpage = {} } = {}) {
   history.replaceState(null, "", "/popup.html");
   const inner = read("popup.html").replace(/^[\s\S]*?<html[^>]*>/i, "").replace(/<\/html>[\s\S]*$/i, "").replace(/<script[\s\S]*?<\/script>/gi, "");
   document.documentElement.innerHTML = inner;
@@ -39,7 +40,7 @@ export async function loadPopup({ panel = false, activeTab = null, local = {} } 
     return { get: async (k) => pick(k), set: async (o) => { Object.assign(data, clone(o)); }, remove: async (ks) => { [].concat(ks).forEach((k) => delete data[k]); }, clear: async () => {}, setAccessLevel: async () => {}, onChanged: listeners() };
   };
   const TAB = { id: 1, windowId: 1, url: FX.url, title: FX.title, active: true };
-  const tabHandlers = { ANALYZE_ONPAGE: () => FX.onpage, GET_RENDERED: () => FX.rendered, GET_MAIN_TEXT: () => FX.main };
+  const tabHandlers = { ANALYZE_ONPAGE: () => ({ ...FX.onpage, ...onpage }), GET_RENDERED: () => FX.rendered, GET_MAIN_TEXT: () => FX.main };
   globalThis.chrome = window.chrome = {
     runtime: { id: "test", getURL: (p) => `${location.origin}/${p}`, getManifest: () => clone(MANIFEST), openOptionsPage() {},
       sendMessage: (m) => later(() => ({ error: "test: " + m?.type })), onMessage: listeners(), onInstalled: listeners(), onStartup: listeners() },
