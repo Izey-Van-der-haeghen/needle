@@ -13,15 +13,18 @@ const ctx = "https://schema.org";
 const page = { url: "https://person.example/en/", title: "A personal site title", description: "x".repeat(100), canonical: "https://person.example/en/", headings: [{ level: 1, text: "Hi" }], images: [], schema: [], links: { details: [] }, og: {} };
 const tech = { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true } } };
 const errors = (raw) => validateSchema([{ raw: { "@context": ctx, ...raw } }])[0].issues.filter((i) => i.level === "error").map((i) => i.msg);
+const notes = (raw) => validateSchema([{ raw: { "@context": ctx, ...raw } }])[0].issues.filter((i) => i.level === "note").map((i) => i.msg);
 
 describe("nested items get the rules that fit them", () => {
   it("a Q&A question with suggested answers only is fine", () => {
     expect(errors({ "@type": "QAPage", mainEntity: { "@type": "Question", name: "How?", answerCount: 2, suggestedAnswer: [{ "@type": "Answer", text: "Like this" }] } })).toEqual([]);
   });
 
-  it("an FAQ question still needs an accepted answer", () => {
-    expect(errors({ "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Why?", suggestedAnswer: { "@type": "Answer", text: "Maybe" } }] }))
-      .toEqual(['mainEntity › Question: missing required "acceptedAnswer" (an FAQ answer)']);
+  // Google retired the FAQ rich result (7 May 2026), so this is a note, not an error.
+  it("an FAQ question without an accepted answer gets a note", () => {
+    const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Why?", suggestedAnswer: { "@type": "Answer", text: "Maybe" } }] };
+    expect(errors(faq)).toEqual([]);
+    expect(notes(faq)).toEqual(['mainEntity › Question: missing "acceptedAnswer" (an FAQ answer). Google no longer shows FAQ rich results.']);
   });
 
   it("an image named by contentUrl is fine", () => {
@@ -177,9 +180,9 @@ describe("stress test of 1.0.1 (Break UI)", () => {
 
   it("each nested item says which one it is", () => {
     const questions = ["Why?", "How?"].map((name) => ({ "@type": "Question", name, answer: { "@type": "Answer", text: "x" } }));
-    expect(errors({ "@type": "FAQPage", mainEntity: questions })).toEqual([
-      'mainEntity 1 "Why?" › Question: missing required "acceptedAnswer" or "suggestedAnswer"',
-      'mainEntity 2 "How?" › Question: missing required "acceptedAnswer" or "suggestedAnswer"'
+    expect(notes({ "@type": "FAQPage", mainEntity: questions })).toEqual([
+      'mainEntity 1 "Why?" › Question: missing "acceptedAnswer" or "suggestedAnswer". Google no longer shows FAQ rich results.',
+      'mainEntity 2 "How?" › Question: missing "acceptedAnswer" or "suggestedAnswer". Google no longer shows FAQ rich results.'
     ]);
   });
 

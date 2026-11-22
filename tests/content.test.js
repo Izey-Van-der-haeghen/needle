@@ -51,7 +51,7 @@ describe("message contract", () => {
     has(res.schemaSignals, [
       "hasBreadcrumb", "hasVideoEmbed", "hasArticleTag", "faqQuestionCount", "hasRating", "hasAddress",
       "hasPhone", "hasOpeningHours", "hasAuthorByline", "hasPublishDate", "isHomepage", "ingredientHints",
-      "stepsListed", "jobSignals"
+      "stepsListed"
     ]);
     expect(Object.keys(res.links.byContext)).toEqual(["header", "nav", "breadcrumb", "main", "sidebar", "footer", "other"]);
     expect(res).not.toHaveProperty("techSignals");
@@ -415,7 +415,7 @@ describe("ANALYZE_ONPAGE details", () => {
     expect(res.schemaSignals).toMatchObject({
       hasBreadcrumb: true, hasVideoEmbed: true, hasArticleTag: true, faqQuestionCount: 2, hasPricing: true,
       hasCartButton: true, hasRating: true, hasAddress: true, hasPhone: true, hasOpeningHours: true,
-      hasAuthorByline: true, hasPublishDate: true, jobSignals: true
+      hasAuthorByline: true, hasPublishDate: true
     });
   });
 

@@ -132,9 +132,9 @@ describe("structured data nested as the page's mainEntity", () => {
     expect(nested.issues.find((i) => i.level === "note")?.msg).toMatch(/^mainEntity › WebApplication: no star-rating rich result/);
   });
 
-  it("checks FAQ questions under FAQPage", () => {
+  it("checks FAQ questions under FAQPage (as notes: Google retired the FAQ rich result)", () => {
     const [faq] = validateSchema([{ raw: { "@context": ctx, "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Why?" }] } }]);
-    expect(faq.issues.map((i) => i.msg)).toContain('mainEntity › Question: missing required "acceptedAnswer" or "suggestedAnswer"');
+    expect(faq.issues).toContainEqual({ level: "note", msg: 'mainEntity › Question: missing "acceptedAnswer" or "suggestedAnswer". Google no longer shows FAQ rich results.' });
   });
 
   it("doesn't check other nested things, like a Person's address", () => {

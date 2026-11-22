@@ -1,7 +1,7 @@
 import { validateSchema, detectFaqDuplicates, collectAllSchemaTypes, suggestMissingSchemas } from './lib/schema-validator.js';
 import { getCache, setCache, cacheKey, cachedCall, pageId, formatAge } from './lib/cache.js';
 import { LOCATIONS, LANGUAGES, FEATURE_LABELS } from './lib/serp.js';
-import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetchLlmsTxt, AI_SCORE_NOTE } from './lib/geo.js';
+import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetchLlmsTxt, AI_SCORE_NOTE, schemaAuthor } from './lib/geo.js';
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
@@ -2021,16 +2021,8 @@ function renderOnpage(d, age) {
   const suggestions = suggestMissingSchemas(d);
   const schemaErrors = validated.reduce((n, s) => n + s.issues.filter((i) => i.level === 'error').length, 0);
 
-  const author = (() => {
-    for (const s of d.schema || []) {
-      const a = s.raw?.author;
-      if (!a) continue;
-      if (typeof a === 'string') return a;
-      if (Array.isArray(a)) return a.map((x) => (typeof x === 'string' ? x : x?.name)).filter(Boolean).join(', ');
-      if (a.name) return a.name;
-    }
-    return d.authorMeta || d.authorByline || '';
-  })();
+  // The same author the AI tab's E-E-A-T check reads (also an @id reference to a Person node).
+  const author = schemaAuthor(d.schema) || d.authorMeta || d.authorByline || '';
 
   const ogImage = isSafeHttpUrl(d.og?.image) ? d.og.image : '';
   let ogW = d.og?.imageWidth || 0;
