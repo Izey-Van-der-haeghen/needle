@@ -188,3 +188,51 @@ describe("dates as the page wrote them (izey.dev, 22 November)", () => {
     expect(signals.find((s) => s.label === "Modified date").value).toBe("2026-11-22");
   });
 });
+
+describe("images on a 2x screen (izey.dev, 22 November)", () => {
+  // A portrait shown about 300 px wide on a 2x screen; srcset 320w and 640w, the browser loaded 640w.
+  const html = `<!doctype html><html lang="en"><head><title>T</title></head><body><main>
+    <img src="p-640.webp" alt="Portrait" width="640" height="852" srcset="p-320.webp 320w, p-640.webp 640w" sizes="320px">
+  </main></body></html>`;
+  const screen = (shown, loadedFile, dpr = 2) => (window) => {
+    window.devicePixelRatio = dpr;
+    const P = window.HTMLImageElement.prototype;
+    Object.defineProperty(P, "naturalWidth", { get() { return Math.round(loadedFile / dpr); } });
+    Object.defineProperty(P, "naturalHeight", { get() { return Math.round(loadedFile * 852 / 640 / dpr); } });
+    Object.defineProperty(P, "width", { get() { return shown; } });
+    Object.defineProperty(P, "complete", { get() { return true; } });
+    Object.defineProperty(P, "currentSrc", { get() { return `https://site.example/p-${loadedFile}.webp`; } });
+  };
+  const analyze = async (setup) => {
+    const { loadContentScript } = await import("./helpers/content-harness.js");
+    const tab = await loadContentScript(html, { url: "https://site.example/", setup });
+    const d = await tab.send({ type: "ANALYZE_ONPAGE" });
+    tab.window.close();
+    return d.images[0];
+  };
+
+  it("doesn't call the browser's own srcset choice 'much larger than shown'", async () => {
+    expect((await analyze(screen(280, 640))).downscaled).toBe(false);
+  });
+
+  it("still flags a file far larger than any screen needs", async () => {
+    const big = `<!doctype html><html lang="en"><head><title>T</title></head><body><main>
+      <img src="h.jpg" alt="Hero" width="2400" height="1600"></main></body></html>`;
+    const { loadContentScript } = await import("./helpers/content-harness.js");
+    const tab = await loadContentScript(big, { url: "https://site.example/", setup: (w) => {
+      const P = w.HTMLImageElement.prototype;
+      Object.defineProperty(P, "naturalWidth", { get() { return 2400; } });
+      Object.defineProperty(P, "naturalHeight", { get() { return 1600; } });
+      Object.defineProperty(P, "width", { get() { return 300; } });
+      Object.defineProperty(P, "complete", { get() { return true; } });
+    } });
+    const d = await tab.send({ type: "ANALYZE_ONPAGE" });
+    tab.window.close();
+    expect(d.images[0].downscaled).toBe(true);
+  });
+
+  it("says when a lazy image hasn't loaded yet", async () => {
+    const { readFileSync } = await import("node:fs");
+    expect(readFileSync(new URL("../popup.js", import.meta.url), "utf8")).toMatch(/loaded yet \(lazy loading\), so how large/);
+  });
+});

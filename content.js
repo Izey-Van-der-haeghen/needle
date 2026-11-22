@@ -700,6 +700,14 @@
       const largestWidth = Math.max(naturalW, ...cands.map((c) => c.w));
       // Larger than even a 2x (retina) screen needs for the box it fills.
       const needed = (img.width || 0) * Math.max(2, window.devicePixelRatio || 1);
+      // With a srcset the browser picks the smallest file that covers the box at this screen's
+      // density (640w for a 300 px box on a 2x screen). That choice is only a problem when a smaller
+      // candidate would have covered the box too, or when the page offers nothing near the size.
+      const shownPx = (img.width || 0) * (window.devicePixelRatio || 1);
+      const widths = cands.map((c) => c.w).filter(Boolean);
+      const smallerWouldDo = widths.some((w) => w < fileW && w >= shownPx);
+      const downscaled = fileW > 0 && img.width > 0 && fileW > needed &&
+        (!widths.length || smallerWouldDo || fileW > needed * 1.5);
 
       // A lazy image still waiting reports complete=false, so complete with no pixels means it failed, lazy or not.
       const brokenLoad = img.complete && !!src && !isDataUrl && img.naturalWidth === 0 && img.naturalHeight === 0 &&
@@ -721,7 +729,9 @@
         bytes,
         oversized: bytes > 100 * 1024,
         largestWidth,
-        downscaled: fileW > 0 && img.width > 0 && fileW > needed,
+        downscaled,
+        // A lazy image that hasn't loaded yet can't be judged on how large it is shown.
+        loaded,
         // The file the browser loaded is smaller than the box it fills: it looks blurry.
         upscaled: img.naturalWidth > 0 && img.width > img.naturalWidth * 1.05,
         aboveFold,

@@ -31,6 +31,7 @@ const NO_RESPONSE_MS = 2000;
  * @param {Record<string, (msg: object) => any>} [options.runtimeHandlers] chrome.runtime.sendMessage replies by msg.type; other types get no answer (undefined)
  * @param {object[]} [options.resourceEntries] PerformanceResourceTiming-like objects for performance.getEntriesByType("resource")
  * @param {Record<string, boolean>} [options.media] media queries that match, e.g. { "(prefers-reduced-motion: reduce)": true }
+ * @param {(window: Window) => void} [options.setup] runs before the page parses, e.g. to stub image properties
  * @returns {Promise<{window: Window, document: Document, send: (msg: object) => Promise<any>, reinject: () => void}>}
  */
 export async function loadContentScript(html, options = {}) {
@@ -39,7 +40,8 @@ export async function loadContentScript(html, options = {}) {
     viewport: { width = 1366, height = 768 } = {},
     runtimeHandlers = {},
     resourceEntries = [],
-    media = {}
+    media = {},
+    setup = null
   } = options;
 
   const dom = new JSDOM(html, {
@@ -48,7 +50,11 @@ export async function loadContentScript(html, options = {}) {
     // "dangerously" turns on scripting, so <noscript> parses as text as it does in
     // Chrome. Any inline page <script> in the HTML runs too (fixtures have none).
     runScripts: "dangerously",
-    beforeParse: (window) => installPolyfills(window, { width, height, resourceEntries, media })
+    beforeParse: (window) => {
+      installPolyfills(window, { width, height, resourceEntries, media });
+      // Tests set what jsdom can't do itself, such as a loaded image's file or the screen density.
+      if (setup) setup(window);
+    }
   });
   const { window } = dom;
   // run_at: document_idle. Chrome injects somewhere between DOMContentLoaded and

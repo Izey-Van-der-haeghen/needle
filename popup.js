@@ -1795,6 +1795,7 @@ function renderImagesCard() {
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
       ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button></p>` : ''}
       <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
+      ${(() => { const waiting = imgs.filter((i) => i.lazy && i.loaded === false).length; return waiting ? `<p class="muted">${waiting === 1 ? "1 image hasn't" : `${fmtNum(waiting)} images haven't`} loaded yet (lazy loading), so how large ${waiting === 1 ? 'it is' : 'they are'} shown can't be checked. Scroll to ${waiting === 1 ? 'it' : 'them'} and refresh to include ${waiting === 1 ? 'it' : 'them'}.</p>` : ''; })()}
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
     : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');
@@ -1843,7 +1844,8 @@ async function measureImages() {
       if (sizes[i.src] != null) i.bytes = sizes[i.src];
     });
     const got = missing.filter((u) => sizes[u] != null).length;
-    imageMeasureNote = got === missing.length ? `Measured ${plural(got, 'image')}.`
+    const known = getBodyImages().length - missing.length;
+    imageMeasureNote = got === missing.length ? `Measured ${plural(got, 'image')}.${known > 0 ? ` The other ${known === 1 ? "image's size was" : "images' sizes were"} already known.` : ''}`
       : got === 0 ? 'The image servers gave no file sizes.'
       : `Measured ${fmtNum(got)} of ${plural(missing.length, 'image')}; the servers gave no size for the rest.`;
     applyImageRules(onpageData.images, imageRules);

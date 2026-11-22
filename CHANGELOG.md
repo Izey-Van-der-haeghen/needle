@@ -10,6 +10,7 @@
 - **Noindex pages:** while a page asks not to be indexed, Fix this first leaves out what only matters in search results and shows how many it left out, also in the report and the copy for a developer.
 - **Title and description:** once the width is measured, the width gives the verdict ("cut off in Google results") and the character count is information, in the popup and the report.
 - **Robots directives:** `max-snippet:-1` (no limit) is no longer shown as a warning.
+- **Images on high-density screens:** a file the browser picks from `srcset` for a 2x screen (640 px for a photo shown 300 px wide) is no longer called "much larger than shown". A file far larger than any screen needs is still flagged. The Images card says when a lazy image hasn't loaded yet.
 - **AI tab, dates:** a page's published and modified dates show the day as the page wrote it. A midnight time with an offset (`2026-11-21T00:00:00+01:00`) no longer shows as the day before.
 - **What's new:** after an update, Needle says once what changed, with a link to this changelog. Settings has a "What's new" link next to the version.
 - **Clearer messages:** when a tab can't be read (no internet, the Chrome Web Store, no access yet), Needle says why in plain words, once, instead of Chrome's own error text. Without internet, the server check says so too.
