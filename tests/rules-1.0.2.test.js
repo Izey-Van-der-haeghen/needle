@@ -248,3 +248,13 @@ describe("changes since the last audit", () => {
     expect(r.changes.map((c) => [c.before, c.after])).toEqual([[1000, 886]]);
   });
 });
+
+describe("noindex removed by JavaScript", () => {
+  it("makes the verdict 'Not indexable', as Fix this first does", () => {
+    const t = tech({ raw: { robots: "noindex", canonical: "https://e.com/page" } });
+    expect(computeIndexability(page(), t).level).toBe("bad");
+    expect(collectFindings({ onpage: page(), tech: t }).map((x) => x.id)).toContain("noindex-js");
+    // A redirect means the server sent another document: no verdict from it.
+    expect(computeIndexability(page(), { ...t, redirected: true, finalUrl: "https://e.com/other" }).issues.some((i) => /JavaScript removes it/.test(i.msg))).toBe(false);
+  });
+});
