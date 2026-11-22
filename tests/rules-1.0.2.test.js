@@ -258,3 +258,16 @@ describe("noindex removed by JavaScript", () => {
     expect(computeIndexability(page(), { ...t, redirected: true, finalUrl: "https://e.com/other" }).issues.some((i) => /JavaScript removes it/.test(i.msg))).toBe(false);
   });
 });
+
+describe("a bot wall instead of the page", () => {
+  it("its noindex isn't the page's: no noindex-js, no Not indexable", async () => {
+    const { rawSnapshot } = await import("../lib/technical.js");
+    const wall = rawSnapshot('<html><head><title>Just a moment...</title><meta name="robots" content="noindex,nofollow"></head><body><script>window._cf_chl_opt = {};</script></body></html>', "https://e.com/page");
+    expect(wall.challenge).toBe(true);
+    const t = tech({ raw: wall });
+    expect(collectFindings({ onpage: page(), tech: t }).map((x) => x.id)).not.toContain("noindex-js");
+    expect(computeIndexability(page(), t).level).toBe("good");
+    // An ordinary page with Cloudflare's or DataDome's scripts on it is not a wall.
+    expect(rawSnapshot('<html><head><title>Shop</title><meta name="robots" content="noindex"><script src="https://js.datadome.co/tags.js"></script></head><body><div id="app"></div><script src="/cdn-cgi/challenge-platform/scripts/jsd/main.js"></script></body></html>', "https://e.com/page").challenge).toBe(false);
+  });
+});
