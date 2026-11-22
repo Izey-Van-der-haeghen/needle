@@ -825,22 +825,23 @@
     const imagesByContext = { header: 0, nav: 0, breadcrumb: 0, main: 0, sidebar: 0, footer: 0, other: 0 };
     images.forEach(i => { imagesByContext[i.context] = (imagesByContext[i.context] || 0) + 1; });
 
+    // The nodes of one JSON-LD block: a top-level array, "@graph" as an array or as one node, or an
+    // array of such documents; a node keeps the @context around it. null and {} give no node.
+    // Copy of flattenJsonLd in lib/schema-validator.js (this script can't import): change both together.
+    const flattenJsonLd = (parsed, context) => {
+      if (Array.isArray(parsed)) return parsed.flatMap((p) => flattenJsonLd(p, context));
+      if (!parsed || typeof parsed !== "object" || !Object.keys(parsed).length) return [];
+      if (parsed["@graph"] !== undefined) return flattenJsonLd([].concat(parsed["@graph"]), parsed["@context"] ?? context);
+      return [context && !parsed["@context"] ? { "@context": context, ...parsed } : parsed];
+    };
     const schema = $$('script[type="application/ld+json"]').map(s => {
+      const text = (s.textContent || "").trim();
+      if (!text) return []; // an empty block holds no structured data
       try {
-        const parsed = JSON.parse(s.textContent || "{}");
-        const parentContext = parsed?.["@context"];
-        const items = Array.isArray(parsed) ? parsed : parsed?.["@graph"] ? parsed["@graph"] : [parsed];
-        return items.map(item => {
-          const withContext = (item && typeof item === "object" && !item["@context"] && parentContext)
-            ? { "@context": parentContext, ...item }
-            : item;
-          return {
-            type: withContext?.["@type"]
-              ? (Array.isArray(withContext["@type"]) ? withContext["@type"].join(", ") : withContext["@type"])
-              : "Unknown",
-            raw: withContext
-          };
-        });
+        return flattenJsonLd(JSON.parse(text)).map(item => ({
+          type: item["@type"] ? (Array.isArray(item["@type"]) ? item["@type"].join(", ") : item["@type"]) : "Unknown",
+          raw: item
+        }));
       } catch (e) {
         return [{ type: "Invalid JSON", raw: { error: e.message, text: (s.textContent || "").slice(0, 200) } }];
       }
@@ -1003,8 +1004,11 @@
       '[itemtype*="BreadcrumbList" i], [itemprop="breadcrumb"]'
     );
 
+    // A video someone can watch. A background video (autoplay and muted, or looping, without
+    // controls; Vimeo's background mode) is decoration, not a watch page's video.
     const hasVideoEmbed = !!document.querySelector(
-      'video, iframe[src*="youtube.com" i], iframe[src*="youtu.be" i], iframe[src*="vimeo.com" i], iframe[src*="wistia" i]'
+      'video[controls], video:not([autoplay]):not([loop]), video:not([muted]):not([loop]), ' +
+      'iframe[src*="youtube.com" i], iframe[src*="youtu.be" i], iframe[src*="vimeo.com" i]:not([src*="background=1" i]), iframe[src*="wistia" i]'
     );
 
     const hasArticleTag = document.querySelectorAll("article").length > 0;
@@ -1047,12 +1051,10 @@
     const stepsListed = !!document.querySelector('[class*="step" i] ol, [itemprop="recipeInstructions"]') ||
                         (document.querySelectorAll("ol > li").length >= 3 && /\b(step|stap|étape|schritt|paso|passo)\b/i.test(bodyText.slice(0, 5000)));
 
-    const jobSignals = /\b(vacature|job posting|we're hiring|we are hiring|nous recrutons|stelle|empleo|posizione|salary|salaris|salaire|gehalt)\b/i.test(bodyText.slice(0, 5000));
-
     return {
       hasBreadcrumb, hasVideoEmbed, hasArticleTag, faqQuestionCount, hasPricing, hasCartButton,
       hasRating, hasAddress, hasPhone, hasOpeningHours, hasAuthorByline, hasPublishDate,
-      isHomepage, ingredientHints, stepsListed, jobSignals
+      isHomepage, ingredientHints, stepsListed
     };
   }
 

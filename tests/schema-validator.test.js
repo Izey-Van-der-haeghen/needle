@@ -128,7 +128,7 @@ describe("suggestMissingSchemas", () => {
   });
 
   it("suggests WebSite + Organization or Person on homepage with nothing", () => {
-    const r = suggestMissingSchemas({ schema: [], schemaSignals: { isHomepage: true } });
+    const r = suggestMissingSchemas({ url: "https://www.example.be/", schema: [], schemaSignals: { isHomepage: true } });
     const types = r.map(s => s.type);
     expect(types).toContain("WebSite");
     expect(types).toContain("Organization or Person");
@@ -188,9 +188,10 @@ describe("suggestMissingSchemas", () => {
     expect(r.find(s => s.type === "VideoObject")).toBeDefined();
   });
 
-  it("suggests JobPosting when job signals detected", () => {
+  // Google allows JobPosting only on a page with a single job posting (never a list or careers page).
+  it("never suggests JobPosting from words on the page", () => {
     const r = suggestMissingSchemas({ schema: [], schemaSignals: { jobSignals: true } });
-    expect(r.find(s => s.type === "JobPosting")).toBeDefined();
+    expect(r.find(s => s.type === "JobPosting")).toBeUndefined();
   });
 
   it("respects priority levels", () => {
