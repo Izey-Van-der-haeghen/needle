@@ -691,7 +691,8 @@
       const cands = srcsetCandidates(img);
       // Not loaded yet (lazy): without a srcset the attributes usually give the file's size;
       // with one, the file depends on the screen, so it isn't judged until it loads.
-      const loaded = img.naturalWidth > 0;
+      // A lazy-load placeholder (a 1×1 data: GIF while the real file waits in data-src) is not the image.
+      const loaded = img.naturalWidth > 0 && !(rawSrc.startsWith("data:") && src !== rawSrc);
       const fileW = loaded ? loadedFileWidth(img, cands) : (cands.length ? 0 : attrW);
       const fileH = loaded ? Math.round(img.naturalHeight * fileW / img.naturalWidth) : (cands.length ? 0 : attrH);
       const naturalW = fileW || attrW;
@@ -733,7 +734,7 @@
         // A lazy image that hasn't loaded yet can't be judged on how large it is shown.
         loaded,
         // The file the browser loaded is smaller than the box it fills: it looks blurry.
-        upscaled: img.naturalWidth > 0 && img.width > img.naturalWidth * 1.05,
+        upscaled: loaded && img.width > img.naturalWidth * 1.05,
         aboveFold,
         lazyAboveFold: isLazy && aboveFold,
         brokenLoad,

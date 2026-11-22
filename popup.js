@@ -15,7 +15,7 @@ import { pageFetcher, fetchInPage } from './lib/page-fetch.js';
 import { fetchCompetitor } from './lib/compare.js';
 import { parseCompetitorHtml } from './lib/parse-competitor.js';
 import { getSecrets, getPrefs, getImageRules, withoutSiteChoices } from './lib/settings.js';
-import { imageSizeIssues, leadImageCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH } from './lib/image-rules.js';
+import { imageSizeIssues, leadImageCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH, lazyNote } from './lib/image-rules.js';
 import { hasOrigins, requestOrigins, ALL_SITES, DATAFORSEO, NEEDS_PERMISSION } from './lib/permissions.js';
 import { DFS_COST } from './lib/offpage.js';
 import { CWV_GOOD, CWV_POOR } from './lib/crux.js';
@@ -678,7 +678,7 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   }
   if (op.error || !op.data) {
     onpageData = null;
-    const noAccess = op.noAccess || /Cannot access|permission|activeTab/i.test(op.error || '');
+    const noAccess = !!op.noAccess;
     if (IS_PANEL && noAccess) {
       rerender(onpagePanel, panelAccessNotice());
       rerender(technicalPanel, '');
@@ -1613,7 +1613,7 @@ function linkCheckHint(l) {
   if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
-  if (cs.kind === 'timeout') return `<div class="hint">No answer within 8 seconds, twice. Try again later.</div>`;
+  if (cs.kind === 'timeout') return `<div class="hint">${cs.hostTimedOut ? 'Not requested: this website already gave no answer on another link.' : 'No answer within 8 seconds, twice.'} Try again later.</div>`;
   return '';
 }
 
@@ -1800,7 +1800,7 @@ function renderImagesCard() {
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
       ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button></p>` : ''}
       <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
-      ${(() => { const waiting = imgs.filter((i) => i.lazy && i.loaded === false).length; return waiting ? `<p class="muted">${waiting === 1 ? "1 image hasn't" : `${fmtNum(waiting)} images haven't`} loaded yet (lazy loading), so how large ${waiting === 1 ? 'it is' : 'they are'} shown can't be checked. Scroll to ${waiting === 1 ? 'it' : 'them'} and refresh to include ${waiting === 1 ? 'it' : 'them'}.</p>` : ''; })()}
+      ${lazyNote(imgs) ? `<p class="muted">${escapeHtml(lazyNote(imgs))}</p>` : ''}
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
     : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');

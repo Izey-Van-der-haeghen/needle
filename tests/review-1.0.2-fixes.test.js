@@ -1,6 +1,7 @@
 // Fixes from the review round of 1.0.2 (22 November 2026).
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { readablePageError, safeSendTabMessage } from "../lib/popup-messaging.js";
+import { safeSendTabMessage } from "../lib/popup-messaging.js";
+import { readablePageError } from "../lib/errors.js";
 
 afterEach(() => { delete globalThis.chrome; });
 
@@ -231,9 +232,30 @@ describe("images on a 2x screen (izey.dev, 22 November)", () => {
     expect(d.images[0].downscaled).toBe(true);
   });
 
-  it("says when a lazy image hasn't loaded yet", async () => {
-    const { readFileSync } = await import("node:fs");
-    expect(readFileSync(new URL("../popup.js", import.meta.url), "utf8")).toMatch(/loaded yet \(lazy loading\), so how large/);
+  it("says when lazy images haven't loaded yet, but not for ones that failed", async () => {
+    const { lazyNote } = await import("../lib/image-rules.js");
+    expect(lazyNote([{ lazy: true, loaded: false }])).toMatch(/^1 image hasn't loaded yet \(lazy loading\)/);
+    expect(lazyNote([{ lazy: true, loaded: false }, { lazy: true, loaded: false }, { lazy: true, loaded: false, brokenLoad: true }])).toMatch(/^2 images haven't loaded yet/);
+    expect(lazyNote([{ lazy: true, loaded: true }, { lazy: false, loaded: false }])).toBe("");
+  });
+
+  it("a lazy-load placeholder (1×1 GIF in src, real file in data-src) is not judged blurry", async () => {
+    const { loadContentScript } = await import("./helpers/content-harness.js");
+    const gif = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+    const html = `<!doctype html><html lang="en"><head><title>T</title></head><body><main>
+      <img class="lazyload" src="${gif}" data-src="https://site.example/photo.jpg" alt="Photo" width="600" height="400">
+    </main></body></html>`;
+    const tab = await loadContentScript(html, { url: "https://site.example/", setup: (w) => {
+      const P = w.HTMLImageElement.prototype;
+      Object.defineProperty(P, "naturalWidth", { get() { return 1; } });
+      Object.defineProperty(P, "naturalHeight", { get() { return 1; } });
+      Object.defineProperty(P, "width", { get() { return 600; } });
+      Object.defineProperty(P, "complete", { get() { return true; } });
+      Object.defineProperty(P, "currentSrc", { get() { return gif; } });
+    } });
+    const d = await tab.send({ type: "ANALYZE_ONPAGE" });
+    tab.window.close();
+    expect(d.images[0]).toMatchObject({ src: "https://site.example/photo.jpg", loaded: false, upscaled: false, naturalWidth: 600 });
   });
 });
 
@@ -284,5 +306,45 @@ describe("full check of 1.0.2: public texts and privacy", () => {
         expect(before, `${f}: "…${text.slice(Math.max(0, m.index - 30), m.index + 12)}"`).toMatch(/built to $/);
       }
     }
+  });
+});
+
+describe("full check of 1.0.2 (Ponytail): a host that doesn't answer", () => {
+  it("is asked once, not again for each of its links", async () => {
+    const { checkLinks } = await import("../lib/link-checker.js");
+    const calls = [];
+    vi.stubGlobal("fetch", vi.fn(async (url) => {
+      calls.push(url);
+      if (url.startsWith("https://dead.example/")) throw new DOMException("Timed out", "TimeoutError");
+      return { status: 200, url, redirected: false, type: "basic" };
+    }));
+    const urls = [1, 2, 3, 4, 5, 6].map((n) => `https://dead.example/${n}`).concat("https://ok.example/");
+    const res = await checkLinks(urls);
+    vi.unstubAllGlobals();
+    const dead = res.filter((r) => r.url.startsWith("https://dead.example/"));
+    expect(dead.every((r) => r.kind === "timeout")).toBe(true);
+    expect(dead.filter((r) => r.hostTimedOut).length).toBeGreaterThan(0);
+    // 3 links run at once on a host (PER_HOST), each tried twice; the rest are not requested.
+    expect(calls.filter((u) => u.startsWith("https://dead.example/")).length).toBeLessThanOrEqual(6);
+    expect(res.find((r) => r.url === "https://ok.example/").kind).toBe("ok");
+  });
+});
+
+describe("full check of 1.0.2 (Ponytail): one rule for short and long", () => {
+  const page = { url: "https://site.example/", title: "", description: "d".repeat(100), canonical: "https://site.example/", headings: [{ level: 1, text: "Hi" }], images: [], links: { details: [] }, og: {}, schema: [] };
+  const tech = { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true } } };
+
+  it("the card, Fix this first and the score agree once the width is measured", async () => {
+    const { collectFindings } = await import("../lib/findings.js");
+    const { computeHealthScore } = await import("../lib/popup-compute.js");
+    const { snippetWidthVerdict, SNIPPET } = await import("../lib/popup-helpers.js");
+    const run = (title, titlePx) => ({
+      card: snippetWidthVerdict(titlePx, SNIPPET.titleIdealPx, SNIPPET.titleMaxPx).kind,
+      finding: collectFindings({ onpage: { ...page, title }, tech, titlePx }).find((f) => f.id.startsWith("title-"))?.id || null,
+      score: computeHealthScore({ ...page, title }, tech, { titlePx }).checks.find((c) => c.label === "Title length").score
+    });
+    expect(run("t".repeat(25), 300)).toEqual({ card: "good", finding: null, score: 1 });
+    expect(run("t".repeat(36), 280)).toEqual({ card: "warn", finding: "title-short", score: 0.5 });
+    expect(run("t".repeat(50), 640)).toEqual({ card: "bad", finding: "title-long", score: 0.5 });
   });
 });
