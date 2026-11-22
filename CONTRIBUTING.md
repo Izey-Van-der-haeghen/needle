@@ -16,7 +16,7 @@ Changes should keep these promises (see [PRODUCT.md](PRODUCT.md)):
 2. **Nothing leaves the browser by itself.** A page address or keyword is sent to another service only when the user starts a check that says so. No analytics, no server, no remote code.
 3. **Accurate or explicit.** A check that couldn't measure something says so, instead of guessing.
 4. **Plain language.** Every problem says why it matters and how to fix it, in English.
-5. **Accessible.** WCAG 2.2 AA in light and dark: contrast, visible focus, full keyboard use, status as word and symbol, not colour alone.
+5. **Accessible.** Built to WCAG 2.2 AA in light and dark: contrast, visible focus, full keyboard use, status as word and symbol, not colour alone.
 
 ## Working on the code
 

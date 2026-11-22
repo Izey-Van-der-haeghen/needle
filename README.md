@@ -27,7 +27,7 @@
 
 - **One list of what to fix first.** Every check, from robots.txt to alt text, ends in one list, most important first, each with why it matters and how to fix it. Show them all on the page in one click.
 - **Built for AI search too.** It covers classic SEO and optimising for AI search, whatever you call it: GEO, AEO, LLMO or AI SEO. See which AI bots may read the page and how easy it is to quote.
-- **Private by default.** No server, no analytics, no account for the on-page, technical and AI checks. Needle installs with no access to websites and reads a page only when you open it there.
+- **Private by default.** No server, no analytics, no account for the on-page, technical and AI checks. Needle installs with no access to websites and reads a page only when you open it there, or, in the side panel, the tab you switch to.
 
 ## What it checks
 
@@ -59,7 +59,7 @@
 **With your own keys** (optional)
 - Google PageSpeed Insights for mobile and desktop, and the 25-week Core Web Vitals trend from the Chrome UX Report (free Google API key)
 - Clicks, impressions, queries and last crawl from Bing Webmaster Tools (free Bing API key)
-- Keywords a page ranks for, a site's organic traffic, Google's top 20 for a keyword with AI Overview sources, and side-by-side competitor comparison, through your own [DataForSEO](https://dataforseo.com) account (pay per use; the cost is shown before every lookup)
+- Keywords a page ranks for, a site's organic traffic and Google's top 20 for a keyword with AI Overview sources, through your own [DataForSEO](https://dataforseo.com) account (pay per use; the cost is shown before every lookup). Side-by-side comparison with competitor pages works without it; DataForSEO only adds their Google positions.
 
 Settings shows where to find each key.
 
@@ -76,8 +76,8 @@ Settings shows where to find each key.
 
 - Needle reads the page in the tab you open it on, when you open it. In the side panel, with access to websites allowed, it also audits the tab you switch to while the panel is open. It never reads tabs in the background, form fields or passwords.
 - Results, history and your API keys stay in Chrome on your device. Keys are never synced.
-- A page address leaves your browser only when you start a check that sends it: to Google (PageSpeed, Chrome UX Report), Microsoft (Bing Webmaster Tools) or DataForSEO, each with your own key or login.
-- The full policy: [privacy.html](privacy.html).
+- A page address leaves your browser only when you start a check that sends it: to Google (PageSpeed, Chrome UX Report), Microsoft (Bing Webmaster Tools) or DataForSEO, each with your own key or login. Links to other tools open them with the page address, only when you click.
+- The full policy: [izey.dev/needle/privacy](https://izey.dev/needle/privacy/).
 
 ## Permissions
 
@@ -110,7 +110,7 @@ Plain JavaScript ES modules, no build step and no runtime dependencies.
 |---|---|
 | `npm test` | Runs the test suite ([Vitest](https://vitest.dev)); `content.js` runs in jsdom through `tests/helpers/content-harness.js`. |
 | `npm run package` | Builds `dist/needle-<version>.zip` for the Chrome Web Store from an allow-list of files, and refuses to build when a placeholder or a forbidden word is left in them. |
-| `node dev/preview/serve.js` | Opens the real popup and settings page in a normal browser tab at http://localhost:5178, with a stubbed `chrome` API and a fictional demo page. See [dev/preview/README.md](dev/preview/README.md). |
+| `node dev/preview/serve.js` | Serves the real popup and settings page at http://localhost:5178, to open in a normal browser tab, with a stubbed `chrome` API and a fictional demo page. See [dev/preview/README.md](dev/preview/README.md). |
 | `npm run icons` | Redraws the icons (needs Python with Pillow). |
 
 ```

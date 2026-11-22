@@ -247,3 +247,42 @@ describe("full check of 1.0.2: link check progress", () => {
     expect(seen).toEqual(["1/3", "2/3", "3/3"]);
   });
 });
+
+describe("full check of 1.0.2: public texts and privacy", () => {
+  const read = async (f) => (await import("node:fs")).readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+
+  it("Clear history also forgets the country and language picked per website", async () => {
+    const { withoutSiteChoices } = await import("../lib/settings.js");
+    const kept = withoutSiteChoices({ activeTab: "ai", marketByHost: { "site.example": {} }, serpMarketByHost: { "site.example": {} } });
+    expect(kept).toEqual({ activeTab: "ai" });
+    expect(await read("popup.js")).toMatch(/popupState = withoutSiteChoices\(popupState\);/);
+    expect(await read("options.js")).toMatch(/popupState: withoutSiteChoices\(popupState\)/);
+  });
+
+  it("the store's What's new lines are the extension's, for the manifest version", async () => {
+    const { WHATS_NEW } = await import("../lib/whats-new.js");
+    const version = JSON.parse(await read("manifest.json")).version;
+    const listing = await read("store/LISTING.md");
+    const block = listing.slice(listing.indexOf(`WHAT'S NEW IN ${version}`)).split("\n").slice(1);
+    const bullets = block.slice(0, block.findIndex((l) => !l.startsWith("• "))).map((l) => l.slice(2));
+    expect(bullets).toEqual(WHATS_NEW[version].map((l) => l.replace(/\.$/, "")));
+  });
+
+  it("the privacy policy covers the side panel, transfers to the chosen service, and links to other tools", async () => {
+    const p = await read("privacy.html");
+    expect(p).toMatch(/or, if you keep Needle open in the side panel and allow access to websites, when you switch to that tab/);
+    expect(p).toMatch(/It passes data on only to the service you start a check with/);
+    expect(p).not.toMatch(/does not sell or transfer data/);
+    expect(p).toMatch(/with the page address in the link, only when you click them/);
+  });
+
+  it("public files say 'built to' WCAG 2.2 AA, never a bare claim", async () => {
+    for (const f of ["README.md", "CONTRIBUTING.md", "PRODUCT.md", "store/LISTING.md", "privacy.html"]) {
+      const text = await read(f);
+      for (const m of text.matchAll(/WCAG 2\.2 AA/g)) {
+        const before = text.slice(Math.max(0, m.index - 12), m.index).toLowerCase();
+        expect(before, `${f}: "…${text.slice(Math.max(0, m.index - 30), m.index + 12)}"`).toMatch(/built to $/);
+      }
+    }
+  });
+});

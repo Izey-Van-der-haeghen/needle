@@ -14,7 +14,7 @@ import { analyzeTechnical } from './lib/technical.js';
 import { pageFetcher, fetchInPage } from './lib/page-fetch.js';
 import { fetchCompetitor } from './lib/compare.js';
 import { parseCompetitorHtml } from './lib/parse-competitor.js';
-import { getSecrets, getPrefs, getImageRules } from './lib/settings.js';
+import { getSecrets, getPrefs, getImageRules, withoutSiteChoices } from './lib/settings.js';
 import { imageSizeIssues, leadImageCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH } from './lib/image-rules.js';
 import { hasOrigins, requestOrigins, ALL_SITES, DATAFORSEO, NEEDS_PERMISSION } from './lib/permissions.js';
 import { DFS_COST } from './lib/offpage.js';
@@ -2488,6 +2488,9 @@ $('open-history').addEventListener('click', toggleHistory);
 $('close-history').addEventListener('click', closeHistory);
 confirmClick($('clear-history'), async () => {
   await withStoreLock('history', () => withStoreLock('snapshots', () => chrome.storage.local.set({ history: [], snapshots: {} })));
+  // The country and language picked per website name those sites too.
+  popupState = withoutSiteChoices(popupState);
+  flushState();
   $('history-list').innerHTML = '<p class="muted">History cleared.</p>';
   announce('History cleared');
 });

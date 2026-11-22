@@ -28,7 +28,7 @@ One Chrome extension that replaces a stack of single-purpose SEO extensions. Ope
 
 ## Accessibility
 
-WCAG 2.2 AA in light and dark: measured contrast, visible focus rings, targets of at least 24 × 24 px, nothing signalled by colour alone, reduced motion respected, every control usable from the keyboard, and single-key shortcuts that can be turned off.
+Built to WCAG 2.2 AA in light and dark: measured contrast, visible focus rings, targets of at least 24 × 24 px, nothing signalled by colour alone, reduced motion respected, every control usable from the keyboard, and single-key shortcuts that can be turned off.
 
 ## Evidence on hand
 

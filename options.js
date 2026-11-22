@@ -1,6 +1,6 @@
 import { LOCATIONS, LANGUAGES } from "./lib/serp.js";
 import { initTheme, setTheme } from "./lib/theme.js";
-import { getSecrets, setSecrets, getPrefs, SECRET_KEYS, PREF_KEYS } from "./lib/settings.js";
+import { getSecrets, setSecrets, getPrefs, SECRET_KEYS, PREF_KEYS, withoutSiteChoices } from "./lib/settings.js";
 import { hasOrigins, requestOrigins, removeOrigins, ALL_SITES, DATAFORSEO } from "./lib/permissions.js";
 import { TTL, isExpired, clearCache } from "./lib/cache.js";
 import { withStoreLock } from "./lib/store-lock.js";
@@ -250,6 +250,9 @@ confirmClick($("clear-cache"), async () => {
 });
 confirmClick($("clear-history"), async () => {
   await withStoreLock("history", () => withStoreLock("snapshots", () => chrome.storage.local.set({ history: [], snapshots: {} })));
+  // The country and language picked per website name those sites too.
+  const { popupState } = await chrome.storage.local.get("popupState");
+  if (popupState) await chrome.storage.local.set({ popupState: withoutSiteChoices(popupState) });
   say("maint-status", "History and change snapshots cleared.");
   refreshCacheStats();
 });
