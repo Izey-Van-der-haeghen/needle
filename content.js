@@ -363,9 +363,9 @@
     return out;
   }
 
-  /** Every URL an <img> may show: src, the chosen srcset variant, all srcset candidates and lazy-load attributes. */
-  function imageUrls(img) {
-    const urls = new Set([img.currentSrc, img.src].filter(Boolean));
+  /** The URLs an <img> names besides src: lazy-load attributes and all srcset candidates. */
+  function declaredImageUrls(img) {
+    const urls = new Set();
     const fromSrcset = (v) => parseSrcset(v || "").forEach(({ u }) => { if (u) urls.add(resolveUrl(u)); });
     for (const attr of LAZY_SRC_ATTRS) {
       const v = img.getAttribute(attr);
@@ -375,6 +375,27 @@
     fromSrcset(img.getAttribute("data-srcset"));
     img.closest("picture")?.querySelectorAll("source").forEach((src) => { fromSrcset(src.getAttribute("srcset")); fromSrcset(src.getAttribute("data-srcset")); });
     return urls;
+  }
+
+  /** Every URL an <img> may show: src, the chosen srcset variant, all srcset candidates and lazy-load attributes. */
+  function imageUrls(img) {
+    const urls = declaredImageUrls(img);
+    [img.currentSrc, img.src].filter(Boolean).forEach((u) => urls.add(u));
+    return urls;
+  }
+
+  // Vector images: a .svg path, a query value "svg" (?format=svg), or a data:image/svg+xml URL.
+  // Same rule as isSvgSource in lib/image-rules.js (this injected script can't import it).
+  function isSvgSource(src) {
+    const s = String(src || "");
+    if (/^data:image\/svg\+xml[;,]/i.test(s)) return true;
+    try {
+      const u = new URL(s);
+      if (/\.svgz?$/i.test(u.pathname)) return true;
+      return [...u.searchParams.values()].some((v) => /^(svg|image\/svg\+xml)$/i.test(v));
+    } catch {
+      return /\.svgz?(?:[?#]|$)/i.test(s);
+    }
   }
 
   // Elements that paint a CSS background image, by image URL. Built at most once
@@ -668,7 +689,8 @@
       .filter((s) => { const m = s.getAttribute("media"); try { return !m || window.matchMedia(m).matches; } catch { return true; } })
       .map((s) => s.getAttribute("srcset"))]
       .filter(Boolean)
-      .flatMap((set) => parseSrcset(set).map(({ u, d }) => ({ url: u ? resolveUrl(u) : "", w: parseInt(d.match(/^(\d+)w$/)?.[1], 10) || 0, x: parseFloat(d.match(/^([\d.]+)x$/)?.[1]) || 0 })))
+      // set: which srcset the candidate came from (the img's own, or a <source>).
+      .flatMap((set, i) => parseSrcset(set).map(({ u, d }) => ({ url: u ? resolveUrl(u) : "", w: parseInt(d.match(/^(\d+)w$/)?.[1], 10) || 0, x: parseFloat(d.match(/^([\d.]+)x$/)?.[1]) || 0, set: i })))
       .filter((c) => c.url);
     // The pixel width of the file the browser actually loaded. With a srcset, naturalWidth is
     // already divided by the candidate's density, so the descriptor tells the real width.
@@ -685,12 +707,16 @@
       pageImages[idx] = img;
       const rawSrc = img.currentSrc || img.src || "";
       const lazyResolved = realImageSrc(img);
-      const src = (rawSrc.startsWith("data:") || /transparent\.gif|placeholder/i.test(rawSrc))
-        ? lazyResolved
-        : (lazyResolved || rawSrc);
+      const isPlaceholder = rawSrc.startsWith("data:") || /transparent\.gif|placeholder/i.test(rawSrc);
+      // A lazy-load script keeps its data-* attributes after it has run (lazysizes keeps data-srcset):
+      // when the browser shows a URL from the image's srcset or data-* attributes, that file is the image.
+      const swappedIn = !isPlaceholder && declaredImageUrls(img).has(rawSrc);
+      const src = isPlaceholder ? lazyResolved : swappedIn ? rawSrc : (lazyResolved || rawSrc);
       const r = resourceMap[src] || resourceMap[rawSrc];
       const ext = (src.match(/\.([a-z0-9]+)(?:\?|$)/i)?.[1] || "").toLowerCase();
       const isDataUrl = src.startsWith("data:");
+      // Vector images never look blurry, and their pixel size says nothing about the file.
+      const isSvg = isSvgSource(src);
       const bytes = r?.encodedBodySize || 0;
       const rect = img.getBoundingClientRect();
       const isLazy = img.loading === "lazy" || LAZY_ATTRS.some(a => img.hasAttribute(a));
@@ -719,16 +745,29 @@
       // density (640w for a 300 px box on a 2x screen). That choice is only a problem when a smaller
       // candidate would have covered the box too, or when the page offers nothing near the size.
       const shownPx = (img.width || 0) * (window.devicePixelRatio || 1);
-      const widths = cands.map((c) => c.w).filter(Boolean);
+      // Only the srcset the browser picked from: a <source> for another screen (art direction)
+      // and the img's own srcset next to a matching <source> are other crops, not smaller sizes of this file.
+      const picked = img.currentSrc ? cands.find((c) => c.url === img.currentSrc) : null;
+      const widths = cands.filter((c) => !picked || c.set === picked.set).map((c) => c.w).filter(Boolean);
       const smallerWouldDo = widths.some((w) => w < fileW && w >= shownPx);
-      const downscaled = fileW > 0 && img.width > 0 && fileW > needed &&
+      const downscaled = !isSvg && fileW > 0 && img.width > 0 && fileW > needed &&
         (!widths.length || smallerWouldDo || fileW > needed * 1.5);
 
       // A lazy image still waiting reports complete=false, so complete with no pixels means it failed, lazy or not.
       const brokenLoad = img.complete && !!src && !isDataUrl && img.naturalWidth === 0 && img.naturalHeight === 0 &&
         !(isLazy && (img.currentSrc || img.src || "").startsWith("data:"));
       // Without width and height attributes the browser can't reserve space, so the layout shifts (CLS).
-      const missingDims = !(img.hasAttribute("width") && img.hasAttribute("height")) && !img.closest("picture")?.querySelector("source[width][height]");
+      // CSS can reserve it too: an aspect-ratio, or a width and height in the inline style.
+      // (A stylesheet's width and height can't be told from the computed size, so only inline counts.)
+      const cssReservesSpace = () => {
+        try {
+          const ar = getComputedStyle(img).aspectRatio;
+          if (ar && ar !== "auto") return true;
+        } catch {}
+        const { width, height } = img.style;
+        return !!width && !!height && width !== "auto" && height !== "auto";
+      };
+      const missingDims = !(img.hasAttribute("width") && img.hasAttribute("height")) && !img.closest("picture")?.querySelector("source[width][height]") && !cssReservesSpace();
       return {
         domIndex: idx,
         missingDims,
@@ -740,7 +779,7 @@
         displayedWidth: img.width || attrW,
         displayedHeight: img.height || attrH,
         lazy: isLazy,
-        format: isDataUrl ? "data-url" : (ext || "unknown"),
+        format: isSvg ? "svg" : isDataUrl ? "data-url" : (ext || "unknown"),
         bytes,
         oversized: bytes > 100 * 1024,
         largestWidth,
@@ -748,7 +787,8 @@
         // A lazy image that hasn't loaded yet can't be judged on how large it is shown.
         loaded,
         // The file the browser loaded is smaller than the box it fills: it looks blurry.
-        upscaled: loaded && img.width > img.naturalWidth * 1.05,
+        // fileW is the file's real width; naturalWidth is divided by the density that srcset and sizes imply.
+        upscaled: loaded && !isSvg && img.width > fileW * 1.05,
         aboveFold,
         lazyAboveFold: isLazy && aboveFold,
         brokenLoad,
@@ -883,6 +923,8 @@
       links: { internal, external, nofollow, broken, total: linkDetails.length, byContext, details: linkDetails },
       images,
       imagesByContext,
+      // An AMP page, or a page with an AMP version: Discover may show large images without max-image-preview.
+      amp: document.documentElement.hasAttribute("amp") || document.documentElement.hasAttribute("\u26a1") || !!document.querySelector('link[rel~="amphtml" i]'),
       schema,
       microdataTypes,
       hreflang,
