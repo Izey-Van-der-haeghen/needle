@@ -1098,7 +1098,8 @@
   // Keep the word count in sync with extractWordCount in lib/technical.js.
   function htmlWordCount(html) {
     const bodyMatch = html.match(/<body[\s\S]*$/i);
-    const stripped = (bodyMatch ? bodyMatch[0] : html)
+    // The <body> tag is optional: without it, leave out the <head> part (the title isn't page text).
+    const stripped = (bodyMatch ? bodyMatch[0] : html.replace(/<head[\s>][\s\S]*?<\/head\s*>/i, " ").replace(/<title[\s>][\s\S]*?<\/title\s*>/gi, " "))
       .replace(/<!--[\s\S]*?-->/g, " ")
       .replace(/<(script|style|template|noscript|svg)\b[\s\S]*?<\/\1>/gi, " ")
       .replace(/<[^>]+>/g, " ")

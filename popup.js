@@ -2257,7 +2257,7 @@ async function runHreflangCluster() {
       throw new Error('redirects to a local-network address');
     }
     const html = r.ok ? (await readTextCapped(r, 2 * 1024 * 1024)).text : '';
-    return { status: r.status, url: r.url || url, html };
+    return { status: r.status, url: r.url || url, html, headers: { 'x-robots-tag': r.headers.get('x-robots-tag') || '' } };
   };
   const parse = (html) => new DOMParser().parseFromString(html, 'text/html');
   setBusy(btn, true);
@@ -2436,8 +2436,11 @@ function renderTechnical(d, age) {
     </div>
 
     <div class="card">
-      <h2>XML sitemap</h2>
-      ${row(sitemapPath, d.sitemap?.ok ? tag('valid', 'good') : tag(d.sitemap?.reason || 'not found', 'warn'))}
+      <h2>Sitemap</h2>
+      ${row(sitemapPath, d.sitemap?.ok
+        ? `${tag('valid', 'good')}${{ rss: ' <span class="muted">RSS feed</span>', atom: ' <span class="muted">Atom feed</span>', text: ' <span class="muted">text file</span>' }[d.sitemap.format] || ''}`
+        // On another site or compressed: Needle can't read it, which is no sign of a problem.
+        : tag(d.sitemap?.reason || 'not found', d.sitemap?.unchecked ? 'neutral' : 'warn'))}
       ${d.sitemap?.urlCount != null ? row(d.sitemap.isIndex ? 'Sitemaps in this index' : 'URLs listed', `${fmtNum(d.sitemap.urlCount)}${d.sitemap.truncated ? ' <span class="muted">(first 5 MB)</span>' : ''}`) : ''}
       ${d.sitemap?.ok || robots.sitemaps?.length ? `<div class="actions"><button type="button" class="secondary-btn" id="sitemap-check">Is this page in the sitemap?</button></div><div id="sitemap-result" aria-live="polite"></div>` : ''}
     </div>
@@ -2470,11 +2473,11 @@ async function sitemapCheck(box) {
     const r = await findInSitemaps(withoutTracking(pageUrl), starts, pageFetcher(currentTab.id));
     if (gen !== auditGen) return;
     rerender(box, r.unreadable
-      ? `<p>${tag('could not read the sitemap', 'neutral')}</p><div class="hint">The sitemap did not answer, or it is on another site, which this check can't read. Open it in a tab to check it.</div>`
+      ? `<p>${tag('could not read the sitemap', 'neutral')}</p><div class="hint">The sitemap did not answer, is a compressed .gz file, or is on another site: this check can't read those. Open it in a tab to check it.</div>`
       : r.found
       ? `<p>${tag('listed', 'good')} in <span class="mono">${escapeHtml(r.sitemap)}</span></p>`
       : `<p>${tag('not listed', 'warn')} <span class="muted">${r.complete ? `checked ${r.filesRead} sitemap file${r.filesRead === 1 ? '' : 's'}` : r.unread ? `${r.unread} of ${r.filesRead} sitemap files could not be read` : `checked the first ${r.filesRead} files only`}</span></p>
-         <div class="hint">Pages you want in Google belong in the XML sitemap. Sitemaps on another site can't be read from here.</div>`);
+         <div class="hint">Pages you want in Google belong in the sitemap. Sitemaps on another site can't be read from here.</div>`);
   } catch (e) {
     rerender(box, errorBox('The sitemap check failed', e.message));
   }
