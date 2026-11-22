@@ -727,6 +727,13 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   imageMeasureNote = '';
   const onpagePanel = $('panel-onpage');
   const technicalPanel = $('panel-technical');
+  // A refresh asked for inside a card ("Check again" in Images) keeps the reader where they were:
+  // the same cards open, at the same scroll position.
+  const keep = forceRefresh ? {
+    open: [...onpagePanel.querySelectorAll('details.card[open][id]')].map((d) => d.id),
+    main: document.querySelector('main')?.scrollTop || 0,
+    win: window.scrollY
+  } : null;
   rerender(onpagePanel, loading('Reading the page…'));
   rerender(technicalPanel, loading('Checking the server…'));
   rerender($('panel-ai'), loading('Checking AI search access…'));
@@ -784,6 +791,12 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
     renderExternalTools();
     // The page's <html lang> picks the language in multilingual markets (fr-BE → French).
     applyMarket();
+    if (keep) {
+      keep.open.forEach((id) => { if ($(id)) $(id).open = true; });
+      const main = document.querySelector('main');
+      if (main) main.scrollTop = keep.main;
+      window.scrollTo(0, keep.win);
+    }
     announce('Page analysed');
   }
 
@@ -1941,7 +1954,10 @@ async function measureImages() {
   const btn = $('measure-images');
   const hadFocus = document.activeElement === btn;
   setBusy(btn, true);
-  if ($('image-size-status')) $('image-size-status').textContent = `Measuring ${plural(missing.length, 'image')}…`;
+  // The busy text takes the place of "N file sizes unknown", so the list doesn't move twice.
+  const sizeNote = $('image-size-note');
+  if (sizeNote?.firstChild?.nodeType === 3) sizeNote.firstChild.textContent = `Measuring ${plural(missing.length, 'image')}… `;
+  else if ($('image-size-status')) $('image-size-status').textContent = `Measuring ${plural(missing.length, 'image')}…`;
   const gen = auditGen;
   try {
     const res = await sendWithRetry({ type: 'FETCH_IMAGE_SIZES', urls: missing, pageUrl, viewId: viewId() });
