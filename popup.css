@@ -194,7 +194,9 @@ main { min-height: 0; }
 /* scroll-padding keeps a focused row out from under the sticky header. */
 .history-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 14px 16px; background: var(--paper); scroll-padding-top: 56px; }
 body.history-open .tabs, body.history-open main { display: none; }
-.history-header { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; position: sticky; top: -10px; background: var(--paper); padding: 6px 0; z-index: 1; }
+.history-header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-bottom: 6px; position: sticky; top: -10px; background: var(--paper); padding: 6px 0; z-index: 1; }
+/* Narrow side panel: the title takes its own line, the buttons keep their words on one line. */
+.history-header button { white-space: nowrap; }
 .history-header h2 { font-size: 16px; flex: 1; }
 .history-panel .item-list { max-height: none; border-top: 1px solid var(--rule); }
 .history-item .item-title { overflow-wrap: anywhere; }

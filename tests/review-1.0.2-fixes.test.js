@@ -236,3 +236,14 @@ describe("images on a 2x screen (izey.dev, 22 November)", () => {
     expect(readFileSync(new URL("../popup.js", import.meta.url), "utf8")).toMatch(/loaded yet \(lazy loading\), so how large/);
   });
 });
+
+describe("full check of 1.0.2: link check progress", () => {
+  it("reports each link done, so a slow host doesn't look stuck", async () => {
+    const { checkLinks } = await import("../lib/link-checker.js");
+    vi.stubGlobal("fetch", vi.fn(async (url) => ({ status: 200, url, redirected: false, type: "basic" })));
+    const seen = [];
+    await checkLinks(["https://a.example/1", "https://b.example/2", "https://c.example/3"], undefined, "", (done, total) => seen.push(`${done}/${total}`));
+    vi.unstubAllGlobals();
+    expect(seen).toEqual(["1/3", "2/3", "3/3"]);
+  });
+});

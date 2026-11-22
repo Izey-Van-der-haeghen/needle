@@ -89,6 +89,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 // Requests a view (popup or side panel) started stop when that view closes:
 // each view holds a port named "view:<id>" and sends its id with the request.
 const pending = new Map(); // AbortController -> view id
+const viewPorts = new Map(); // view id -> port, for progress messages
 async function withController(viewId, fn) {
   const ctrl = new AbortController();
   pending.set(ctrl, viewId || "");
@@ -102,7 +103,9 @@ async function withController(viewId, fn) {
 chrome.runtime.onConnect.addListener((port) => {
   if (!port.name.startsWith("view:") || !fromExtensionPage(port.sender)) return;
   const viewId = port.name.slice(5);
+  viewPorts.set(viewId, port);
   port.onDisconnect.addListener(() => {
+    viewPorts.delete(viewId);
     for (const [ctrl, v] of pending) if (v === viewId) ctrl.abort();
   });
 });
@@ -162,7 +165,9 @@ const handlers = {
 
   async CHECK_LINKS(msg) {
     if (!(await hasOrigins(ALL_SITES))) return { error: NEEDS_PERMISSION, origins: ALL_SITES };
-    return { data: await withController(msg.viewId, signal => checkLinks(msg.urls || [], signal, msg.pageUrl)) };
+    // A link to a host that doesn't answer takes up to 16 s: tell the view how far the check is.
+    const progress = (done, total) => { try { viewPorts.get(msg.viewId)?.postMessage({ type: "progress", task: "links", done, total }); } catch {} };
+    return { data: await withController(msg.viewId, signal => checkLinks(msg.urls || [], signal, msg.pageUrl, progress)) };
   },
 
   async FETCH_IMAGE_SIZES(msg) {

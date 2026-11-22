@@ -91,6 +91,11 @@ function viewId() {
     try {
       viewPort = chrome.runtime.connect({ name: `view:${VIEW_ID}` });
       viewPort.onDisconnect.addListener(() => { void chrome.runtime.lastError; viewPort = null; });
+      viewPort.onMessage.addListener((m) => {
+        // Link check progress: visible only; screen readers keep the one "Checking N links…" status.
+        const el = m?.type === 'progress' && m.task === 'links' ? $('link-check-progress') : null;
+        if (el) el.textContent = `${fmtNum(m.done)} of ${fmtNum(m.total)} checked`;
+      });
     } catch { viewPort = null; }
   }
   return VIEW_ID;
@@ -1654,7 +1659,7 @@ async function runLinkCheck() {
   }
   const gen = auditGen;
   setBusy(btn, true);
-  rerender($('link-check-status'), loading(`Checking ${plural(urls.length, 'link')}…`));
+  rerender($('link-check-status'), `${loading(`Checking ${plural(urls.length, 'link')}…`)}<span class="muted" id="link-check-progress" aria-hidden="true"></span>`);
   try {
     const res = await sendWithRetry({ type: 'CHECK_LINKS', urls, pageUrl, viewId: viewId() });
     await setCache(key, res.data);
