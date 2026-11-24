@@ -1,18 +1,24 @@
 // @vitest-environment jsdom
 // The real popup: "Show all on page" says what is on the page. When the page doesn't answer,
-// the button goes back to "Show all on page" instead of claiming the marks are there.
+// the button goes back to "Show all on page" instead of claiming the marks are there. Esc takes
+// every mark off the page, and the buttons and the marked count say so.
 import { it, expect, vi } from "vitest";
 import { loadPopup } from "./helpers/popup-harness.js";
 
+let harness;
+let pageAnswers = false;
+
 it("stays pressed only when the page marked the findings", async () => {
-  let pageAnswers = false;
-  await loadPopup({
+  harness = await loadPopup({
     tabHandlers: {
       HIGHLIGHT_ISSUES: ({ items }) => {
         if (!pageAnswers) throw new Error("The tab was closed.");
         return { shown: items.length, hidden: 0, missing: 0 };
       },
-      UNHIGHLIGHT_ISSUES: () => ({ ok: true })
+      UNHIGHLIGHT_ISSUES: () => ({ ok: true }),
+      HIGHLIGHT_LINKS: () => ({ matched: 7 }),
+      UNHIGHLIGHT_LINKS: () => ({ ok: true }),
+      UNHIGHLIGHT_HEADINGS: () => ({ ok: true })
     }
   });
   const btn = () => document.getElementById("toggle-issues");
@@ -31,4 +37,21 @@ it("stays pressed only when the page marked the findings", async () => {
 
   btn().click();
   await vi.waitFor(() => expect(btn().getAttribute("aria-pressed")).toBe("false"));
+});
+
+it("Esc takes the marks off the page and clears the marked count", async () => {
+  const $ = (id) => document.getElementById(id);
+  $("toggle-links").click();
+  await vi.waitFor(() => expect($("highlight-count").textContent).toMatch(/\b7\b/));
+  $("toggle-issues").click();
+  await vi.waitFor(() => expect($("toggle-issues").getAttribute("aria-pressed")).toBe("true"));
+  expect($("toggle-links").getAttribute("aria-pressed")).toBe("true");
+
+  const sent = harness.tabMessages.length;
+  document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  await vi.waitFor(() => expect(harness.tabMessages.slice(sent).map((m) => m.msg.type).sort())
+    .toEqual(["UNHIGHLIGHT_HEADINGS", "UNHIGHLIGHT_ISSUES", "UNHIGHLIGHT_LINKS"]));
+  expect($("highlight-count").textContent).toBe("");
+  expect($("toggle-links").getAttribute("aria-pressed")).toBe("false");
+  expect($("toggle-issues").getAttribute("aria-pressed")).toBe("false");
 });
