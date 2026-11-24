@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- **Accessibility:** the popup has one main heading, and its tabs sit in a navigation landmark, so screen-reader users can jump to both.
+- **Accessibility:** the popup has one main heading, and its tabs sit in a navigation landmark, so screen-reader users can jump to both. Focus stays in place when a pressed button goes away (Got it, Allow access); each result is announced once, in a short sentence; two-step buttons wait as long as you need; focus rings are no longer cut at the edge; the selected tab stays visible in Windows contrast themes; the side panel shows the page address on its own line.
+- **Fewer coral buttons:** "Open Settings" in the key notices is a secondary button, so each view keeps one main action.
+- **Fixed:** an empty keyword no longer says "Could not connect".
 - **AI tab:** Applebot follows Googlebot's rules when robots.txt doesn't name Applebot, as Apple documents.
 - **Clearer and more accurate texts:** the welcome note says the side panel reads the tabs you switch to; "Look up again" says it is billed again; title and description limits are named as Needle's measures, not Google's; the speed-test key, the robots.txt server-error and Bing nocache texts match the vendors' own pages; one name each for "Hide on page", the checklist score and Mobile.
 - **Privacy policy:** links the Limited Use requirements directly and lists everything a change snapshot keeps.

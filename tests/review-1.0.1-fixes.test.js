@@ -174,7 +174,7 @@ describe("stress test of 1.0.1 (Break UI)", () => {
     const html = (titlePx) => buildHtmlReport({ url: op.url, onpage: { ...op, twitter: {} }, technical: null, offpage: null, geo: null, health: null, verdict: null, theme: "light", titlePx });
     // Width known: the count is information, the width gives the verdict (as in the popup card).
     expect(html(559)).toMatch(/class="tag info">66 characters<\/span> <span class="tag good"><span aria-hidden="true">✓<\/span> 559 px<\/span>/);
-    expect(html(640)).toMatch(/class="tag bad"><span aria-hidden="true">✗<\/span> 640 px, cut off/);
+    expect(html(640)).toMatch(/class="tag warn"><span aria-hidden="true">!<\/span> 640 px, cut off/);
     expect(html(0)).toMatch(/class="tag warn">[^<]*<span aria-hidden="true">!<\/span> 66 characters/);
   });
 

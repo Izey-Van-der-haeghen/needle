@@ -30,7 +30,7 @@ describe("the downloaded report", () => {
 
 describe("buttons that can't be undone", () => {
   afterEach(() => vi.useRealTimers());
-  it("ask for a second click within 4 seconds, and keep their width", async () => {
+  it("ask for a second click with no time limit (WCAG 2.2.1), disarm on blur, and keep their width", async () => {
     vi.useFakeTimers();
     const btn = document.createElement("button");
     btn.textContent = "Clear history";
@@ -45,9 +45,10 @@ describe("buttons that can't be undone", () => {
     expect(action).toHaveBeenCalledTimes(1);
     expect(btn.textContent).toBe("Clear history");
     btn.click();
-    vi.advanceTimersByTime(4100);
+    vi.advanceTimersByTime(60000);
+    expect(btn.textContent).toBe("Confirm"); // a screen-reader user has all the time they need
+    btn.dispatchEvent(new FocusEvent("blur"));
     expect(btn.textContent).toBe("Clear history");
-    btn.click();
     expect(action).toHaveBeenCalledTimes(1);
   });
 });

@@ -101,7 +101,7 @@ describe("design review of 1.0.2 (Impeccable)", () => {
     const { charTag, pixelTag } = await import("../lib/popup-helpers.js");
     const { collectFindings } = await import("../lib/findings.js");
     expect(charTag(83, 30, 60, 70, true)).toMatch(/class="tag info">83 characters</);
-    expect(pixelTag(764, 580, 600)).toMatch(/class="tag bad".*764 px, cut off/);
+    expect(pixelTag(764, 580, 600)).toMatch(/class="tag warn".*764 px, cut off/);
     const t = collectFindings({ onpage: { ...page, robots: "", title: "t".repeat(83) }, tech, titlePx: 764 }).find((x) => x.id === "title-long");
     expect(t.title).toBe("Title is cut off in Google results (764 px)");
   });
@@ -338,7 +338,7 @@ describe("full check of 1.0.2 (Ponytail): one rule for short and long", () => {
     });
     expect(run("t".repeat(25), 300)).toEqual({ card: "good", finding: null, score: 1 });
     expect(run("t".repeat(36), 280)).toEqual({ card: "warn", finding: "title-short", score: 0.5 });
-    expect(run("t".repeat(50), 640)).toEqual({ card: "bad", finding: "title-long", score: 0.5 });
+    expect(run("t".repeat(50), 640)).toEqual({ card: "warn", finding: "title-long", score: 0.5 });
   });
 });
 

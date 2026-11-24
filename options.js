@@ -70,11 +70,13 @@ async function refreshAccess() {
 
 $("grant-all").addEventListener("click", async () => {
   await requestOrigins(ALL_SITES);
-  refreshAccess();
+  await refreshAccess();
+  ($("grant-all").hidden ? $("revoke-all") : $("grant-all")).focus();
 });
 $("revoke-all").addEventListener("click", async () => {
   await removeOrigins(ALL_SITES);
-  refreshAccess();
+  await refreshAccess();
+  ($("grant-all").hidden ? $("revoke-all") : $("grant-all")).focus();
 });
 chrome.permissions.onAdded?.addListener(refreshAccess);
 chrome.permissions.onRemoved?.addListener(refreshAccess);
