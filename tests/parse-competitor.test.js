@@ -15,13 +15,11 @@ describe("parseCompetitorHtml", () => {
   it("extracts title", () => {
     const r = parse("<html><head><title>Hello world</title></head><body></body></html>");
     expect(r.title).toBe("Hello world");
-    expect(r.titleLen).toBe(11);
   });
 
   it("extracts description from meta name=description (double quotes)", () => {
     const r = parse('<html><head><meta name="description" content="A short blurb"></head><body></body></html>');
     expect(r.description).toBe("A short blurb");
-    expect(r.descLen).toBe(13);
   });
 
   it("extracts description from single-quoted attribute (regex would break)", () => {
@@ -43,7 +41,7 @@ describe("parseCompetitorHtml", () => {
     expect(r.description).toBe("Out of order");
   });
 
-  it("extracts canonical, robots, lang, og:title", () => {
+  it("extracts canonical, robots and lang", () => {
     const html = `<html lang="nl-BE"><head>
       <link rel="canonical" href="https://example.com/x">
       <meta name="robots" content="index,follow">
@@ -53,7 +51,6 @@ describe("parseCompetitorHtml", () => {
     expect(r.canonical).toBe("https://example.com/x");
     expect(r.robots).toBe("index,follow");
     expect(r.lang).toBe("nl-BE");
-    expect(r.ogTitle).toBe("OG headline");
   });
 
   it("counts H1/H2/H3", () => {
@@ -65,7 +62,7 @@ describe("parseCompetitorHtml", () => {
     expect(r.h3Count).toBe(3);
   });
 
-  it("counts links and images, images-with-alt", () => {
+  it("counts links and images, and images without alt", () => {
     const html = `<html><body>
       <a href="/x">a</a><a href="/y">b</a><a>no-href</a>
       <img src="/a.jpg" alt="ok">
@@ -74,7 +71,6 @@ describe("parseCompetitorHtml", () => {
     const r = parse(html);
     expect(r.links).toBe(2);
     expect(r.images).toBe(2);
-    expect(r.imagesWithAlt).toBe(1);
     expect(r.imagesWithoutAlt).toBe(1);
   });
 

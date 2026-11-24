@@ -1,4 +1,4 @@
-import { charCount } from './lib/snippet.js';
+import { charCount, snippetLength } from './lib/snippet.js';
 import { validateSchema, detectFaqDuplicates, collectAllSchemaTypes, suggestMissingSchemas } from './lib/schema-validator.js';
 import { getCache, setCache, cacheKey, cachedCall, pageId, formatAge } from './lib/cache.js';
 import { LOCATIONS, LANGUAGES, FEATURE_LABELS } from './lib/serp.js';
@@ -1527,7 +1527,7 @@ $('run-compare').addEventListener('click', () => loadCompare(false));
 async function snapshotCurrentTab() {
   try {
     const [r] = await fetchInPage(currentTab.id, [{ url: pageId(pageUrl), maxBytes: 5 * 1024 * 1024 }]);
-    if (r?.ok && r.text) return { ...parseCompetitorHtml(r.text, r.url || pageUrl), requestedUrl: pageUrl };
+    if (r?.ok && r.text) return parseCompetitorHtml(r.text, r.url || pageUrl);
   } catch {}
   return null;
 }
@@ -1637,9 +1637,12 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
       return `<td class="${isBest ? 'best' : ''}">${v == null ? '—' : escapeHtml(fmt(v))}${isBest ? ' <span class="best-mark">best</span>' : ''}</td>`;
     }).join('')}</tr>`;
   };
-  const lenRow = (label, get, min, max) => `<tr><th scope="row">${escapeHtml(label)}</th>${active.map((s) => {
-    const n = (get(s.data) || '').length;
-    return `<td>${n ? tag(String(n), n >= min && n <= max ? 'good' : 'warn') : tag('empty', 'bad')}</td>`;
+  // As the On-page card: characters as a reader counts them, judged by the snippet width.
+  const lenRow = (label, field) => `<tr><th scope="row">${escapeHtml(label)}</th>${active.map((s) => {
+    const text = s.data?.[field] || '';
+    const n = charCount(text);
+    const fit = snippetLength(field, n, pixelWidth(text, field === 'title' ? SNIPPET.titleFont : SNIPPET.descFont));
+    return `<td>${n ? tag(String(n), fit === 'ok' ? 'good' : 'warn') : tag('empty', 'bad')}</td>`;
   }).join('')}</tr>`;
 
   let serpBlock = '';
@@ -1676,9 +1679,9 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
     ${serpBlock}
     ${table('Title and meta', `
       ${textRow('Title', (d) => d.title)}
-      ${lenRow('Title length', (d) => d.title, 30, 60)}
+      ${lenRow('Title length', 'title')}
       ${textRow('Description', (d) => d.description)}
-      ${lenRow('Description length', (d) => d.description, 70, 160)}
+      ${lenRow('Description length', 'description')}
       ${textRow('Canonical', (d) => d.canonical)}
       ${textRow('Robots', (d) => d.robots || 'not set')}
       ${textRow('Language', (d) => d.lang)}`)}

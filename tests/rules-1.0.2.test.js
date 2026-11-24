@@ -1,7 +1,8 @@
 // Full check of 1.0.2, rules against official sources and edge cases: robots meta, AI crawlers,
 // hreflang, headings, the score, text in any language, links and the local-network guard.
 import { describe, it, expect } from "vitest";
-import { robotsBlocksIndexing, robotsRules, unavailableAfter, snippetDirectives, copilotLimit, computeIndexability, computeHealthScore, canonicalFromLinkHeader } from "../lib/popup-compute.js";
+import { robotsRules } from "../lib/robots-meta.js";
+import { robotsBlocksIndexing, unavailableAfter, snippetDirectives, copilotLimit, computeIndexability, computeHealthScore, canonicalFromLinkHeader } from "../lib/popup-compute.js";
 import { collectFindings } from "../lib/findings.js";
 import { analyzeAIAccess, isQuestion } from "../lib/geo.js";
 import { botStatus } from "../lib/labels.js";

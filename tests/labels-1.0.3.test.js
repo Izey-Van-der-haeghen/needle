@@ -45,3 +45,22 @@ describe("one rule for the main content", () => {
     }
   });
 });
+
+describe("Compare reads like the On-page tab", () => {
+  it("counts characters as a reader does, and resolves a relative canonical as the server check", async () => {
+    const { JSDOM } = await import("jsdom");
+    const { parseCompetitorHtml } = await import("../lib/parse-competitor.js");
+    const { buildCompareCsv } = await import("../lib/compare-export.js");
+    const c = parseCompetitorHtml('<html><head><title>Café Brussel 🇧🇪 fietsherstel</title><link rel="canonical" href="/fiets/"><meta name="googlebot" content="nosnippet"></head><body><h1>A</h1></body></html>', "https://c.example/a", new JSDOM("").window.DOMParser);
+    expect(c.canonical).toBe("https://c.example/fiets/");
+    expect(c.robots).toBe("googlebot: nosnippet");
+    const csv = buildCompareCsv([{ isMe: true, url: "https://c.example/a", data: c }], "", ",");
+    expect(csv).toMatch(/Title length \(chars\),27/); // 27 as a reader counts (the flag is one), not 30 code units
+  });
+
+  it("the preview-image setting uses the one robots parser (dates with a comma, scopes)", async () => {
+    const { imagePreviewSetting } = await import("../lib/image-rules.js");
+    expect(imagePreviewSetting("max-image-preview:large, unavailable_after: Sat, 21 Nov 2026 00:00:00 GMT", "bingbot: max-image-preview:none")).toBe("large");
+    expect(imagePreviewSetting("googlebot: max-image-preview:standard", "max-image-preview:large")).toBe("standard");
+  });
+});
