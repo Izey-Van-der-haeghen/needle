@@ -42,7 +42,9 @@ describe("importing a settings file", () => {
     expect(readSettingsFile({ openInSidePanel: false }, lists).prefs).toEqual({ openInSidePanel: false });
     expect(readSettingsFile({ openInSidePanel: "true", popupShortcuts: 1 }, lists).prefs).toEqual({});
   });
-  // The JSDoc says "Anything else is skipped and counted", but a switch that is not true or false is
-  // dropped without being counted, so the import doesn't say it skipped it.
-  it.todo("counts a switch that is not true or false as skipped");
+  it("counts a switch that is not true or false as skipped", () => {
+    const r = readSettingsFile({ openInSidePanel: "yes", popupShortcuts: 1, theme: "dark" }, { locations: [], languages: [] });
+    expect(r.prefs).toEqual({ theme: "dark" });
+    expect(r.skipped).toBe(2);
+  });
 });

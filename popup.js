@@ -112,7 +112,6 @@ function viewId() {
 /** What the export includes: {psi, psiError, dfs, dfsError}. */
 const offpageData = { psi: null, psiError: null, dfs: null, dfsError: null };
 let popupState = {};
-let refreshAnchor = null; // the card a Refresh or "Check again" came from
 let leftOutAnnounceTimer = null;
 let saveStateTimer = null;
 let prefs = { defaultLocation: 2840, defaultLanguage: 'en' };
@@ -723,18 +722,11 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   imageMeasureNote = '';
   const onpagePanel = $('panel-onpage');
   const technicalPanel = $('panel-technical');
-  // A refresh asked for inside a card ("Check again" in Images) keeps the reader where they were:
-  // the same cards open, at the same scroll position.
-  const anchor = refreshAnchor && $(refreshAnchor) ? refreshAnchor : null;
-  refreshAnchor = null;
+  // A refresh keeps the reader where they were: the same cards open, at the same scroll position.
   const keep = forceRefresh ? {
     open: [...onpagePanel.querySelectorAll('details.card[open][id]')].map((d) => d.id),
     main: document.querySelector('main')?.scrollTop || 0,
-    win: window.scrollY,
-    // The card that held the button stays where the reader saw it, also when the server check
-    // redraws the cards above it.
-    anchor,
-    anchorTop: anchor ? $(anchor).getBoundingClientRect().top : 0
+    win: window.scrollY
   } : null;
   rerender(onpagePanel, loading('Reading the page…'));
   rerender(technicalPanel, loading('Checking the server…'));
@@ -798,17 +790,12 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
       const main = document.querySelector('main');
       if (main) main.scrollTop = keep.main;
       window.scrollTo(0, keep.win);
-      keepInPlace(keep);
-      // Back on the button the reader pressed, if it is still there.
-      if (keep.anchor) $(keep.anchor)?.querySelector('[data-refresh]')?.focus({ preventScroll: true });
     }
     announce('Page analysed');
   }
 
   const tech = await techPromise;
   if (gen !== auditGen) return;
-  // The reader may have scrolled meanwhile: keep the card where it is now.
-  if (keep?.anchor && $(keep.anchor)?.getClientRects().length) keep.anchorTop = $(keep.anchor).getBoundingClientRect().top;
   techPending = false;
   if (tech.error) {
     technicalData = null;
@@ -836,20 +823,7 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
     const serverAnswered = !!technicalData?.status;
     saveToHistory(pageId(withoutTracking(url)), onpageData.title || '', verdict.level, serverAnswered ? health?.score ?? null : null);
     if (serverAnswered) showChanges(health?.score ?? null, gen);
-    if (keep) keepInPlace(keep);
   }
-}
-
-/** Scroll so the card a refresh came from is back where it was on screen. */
-function keepInPlace(keep) {
-  const el = keep.anchor && $(keep.anchor);
-  // Not on screen (the reader went to another tab): scrolling would move that tab instead.
-  if (!el || !el.getClientRects().length) return;
-  const delta = el.getBoundingClientRect().top - keep.anchorTop;
-  if (!delta) return;
-  const main = document.querySelector('main');
-  if (main && main.scrollHeight > main.clientHeight) main.scrollTop += delta;
-  else window.scrollBy(0, delta);
 }
 
 /** Snippet widths of the page's title and description; the score, the findings and the report use them. */
@@ -2737,7 +2711,6 @@ document.addEventListener('click', (e) => {
   // The button disappears with the panel's content; keep keyboard focus in the panel (it is not replaced).
   if (r.matches(':focus')) r.closest('[role="tabpanel"]')?.focus();
   const kind = r.dataset.refresh;
-  refreshAnchor = r.closest('details.card[id]')?.id || null;
   if (kind === 'onpage') loadOnpageAndTechnical(true);
   else if (kind === 'serp') loadSerp(true);
   else if (kind === 'compare') loadCompare(true);
