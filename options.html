@@ -50,7 +50,7 @@
 
     <section aria-labelledby="h-dfs">
       <h2 id="h-dfs">DataForSEO <span class="muted">(optional, paid)</span></h2>
-      <p class="muted">Keyword rankings and Google results come from <a href="https://dataforseo.com" target="_blank" rel="noopener noreferrer">DataForSEO</a>, a pay-per-use data provider, through your own account. A keyword lookup costs about $0.025 and a Google search about $0.004; results are kept for 30 to 60 minutes so a repeat costs nothing. Use your API login and API password from the DataForSEO dashboard.</p>
+      <p class="muted">Keyword rankings and Google results come from <a href="https://dataforseo.com" target="_blank" rel="noopener noreferrer">DataForSEO</a>, a pay-per-use data provider, through your own account. A keyword lookup costs about $0.025 and a Google search about $0.004; results are kept for 30 to 60 minutes, so opening them again costs nothing; &ldquo;Look up again&rdquo; asks DataForSEO again and is billed again. Use your API login and API password from the DataForSEO dashboard.</p>
       <label class="field"><span>API login</span>
         <input type="email" id="dfsLogin" autocomplete="off" spellcheck="false">
       </label>
@@ -78,7 +78,7 @@
 
     <section aria-labelledby="h-psi">
       <h2 id="h-psi">PageSpeed Insights</h2>
-      <p class="muted">Free. Google only answers requests that carry an API key. The same key also gives the Core Web Vitals trend.</p>
+      <p class="muted">Free. Needle runs the speed test only with your own Google API key. The same key also gives the Core Web Vitals trend.</p>
       <details class="guide">
         <summary>Where to find your Google API key</summary>
         <ol>
@@ -111,8 +111,8 @@
         <summary>Where to find your Bing API key</summary>
         <ol>
           <li>Sign in to <a href="https://www.bing.com/webmasters" target="_blank" rel="noopener noreferrer">Bing Webmaster Tools</a> and add and verify your site. You can import sites from Google Search Console.</li>
-          <li>Open <strong>Settings</strong> (the gear icon), then <strong>API Access</strong>. Accept the terms the first time.</li>
-          <li>Click <strong>Generate API Key</strong>, copy it, paste it below and click Save. One key works for all your verified sites.</li>
+          <li>Open <strong>Settings</strong> (top right), then <strong>API Access</strong>. Accept the terms the first time.</li>
+          <li>Click <strong>API Key</strong>, then <strong>Generate API Key</strong>. Copy it, paste it below and click Save. One key works for all your verified sites.</li>
         </ol>
       </details>
       <p class="muted">Stored only on this device.</p>
@@ -135,7 +135,7 @@
 
     <section aria-labelledby="h-images">
       <h2 id="h-images">Image checks</h2>
-      <p class="muted">Needle always flags images shown larger than their file (blurry), files far larger than shown, and a main image under 1200 px wide (Google's advice for Discover). Add your own rules below.</p>
+      <p class="muted">Needle always flags images shown larger than their file (blurry) and files far larger than shown. On articles, it also flags a main image under 1200 px wide (Google's advice for Discover). Add your own rules below.</p>
       <label class="field"><span>Flag image files larger than (KB)</span>
         <input type="text" inputmode="numeric" id="imgMaxKB" placeholder="100" autocomplete="off">
       </label>
@@ -170,7 +170,7 @@
         </select>
       </label>
       <label class="check"><input type="checkbox" id="openInSidePanel"> Open Needle in the side panel instead of a popup. The panel stays open and follows your tabs (with site access on; otherwise click the Needle button on each tab).</label>
-      <label class="check"><input type="checkbox" id="popupShortcuts"> Single-key shortcuts in the popup (1 to 6 switch tabs, / jumps to the search field)</label>
+      <label class="check"><input type="checkbox" id="popupShortcuts"> Single-key shortcuts in the popup (1 to 6 switch tabs; / jumps to the keyword field in Compare and SERP)</label>
       <p class="muted">Shortcut to open Needle: <kbd id="open-shortcut">not set</kbd>. <button type="button" class="link-btn" id="change-shortcut">Change it</button></p>
       <p id="display-status" role="status"></p>
     </section>

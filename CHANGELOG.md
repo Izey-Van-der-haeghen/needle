@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Accessibility:** the popup has one main heading, and its tabs sit in a navigation landmark, so screen-reader users can jump to both.
+- **AI tab:** Applebot follows Googlebot's rules when robots.txt doesn't name Applebot, as Apple documents.
+- **Clearer and more accurate texts:** the welcome note says the side panel reads the tabs you switch to; "Look up again" says it is billed again; title and description limits are named as Needle's measures, not Google's; the speed-test key, the robots.txt server-error and Bing nocache texts match the vendors' own pages; one name each for "Hide on page", the checklist score and Mobile.
+- **Privacy policy:** links the Limited Use requirements directly and lists everything a change snapshot keeps.
+
 ## 1.0.2 (22 November 2026)
 
 - **Labels:** labels that are information only ("near the limit", "note", "not scored", "external", "nofollow", "not found" …) have their own outlined look, so they no longer look like a "Low" finding.

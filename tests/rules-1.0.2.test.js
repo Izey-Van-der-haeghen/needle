@@ -80,7 +80,7 @@ describe("AI crawlers", () => {
     const bot = ai.bots.find((b) => b.ua === "Claude-User");
     expect(ai.blockedSearchCount).toBe(1);
     expect(botStatus(bot, true)).toEqual(["blocked", "bad"]);
-    expect(collectFindings({ onpage: page(), tech: tech(), geo: { aiAccess: ai } }).find((x) => x.id === "ai-blocked").why).toMatch(/^Claude-User /);
+    expect(collectFindings({ onpage: page(), tech: tech(), geo: { aiAccess: ai } }).find((x) => x.id === "ai-blocked").why).toMatch(/^robots.txt stops Claude-User from reading this page/);
   });
 
   it("ChatGPT-User and Perplexity-User may ignore robots.txt (their vendors say so): a block there is a plain fact", () => {
@@ -333,5 +333,17 @@ describe("heading text as the page shows it", () => {
     };
     const d = await analyze(html('<h1>Web Vitals<devsite-actions data-no-box>Stay organized with collections</devsite-actions></h1><h2><span data-no-box style="display: contents">Prijzen</span> 2026</h2><h3 style="text-transform: uppercase">Afspraak maken</h3>'), { setup });
     expect(d.headings.map((h) => h.text)).toEqual(["Web Vitals", "Prijzen 2026", "Afspraak maken"]);
+  });
+});
+
+describe("Applebot follows Googlebot's rules when robots.txt doesn't name it (support.apple.com/en-us/119829)", () => {
+  it("uses the Googlebot group before the * group, and its own group when there is one", () => {
+    const ai = (t) => analyzeAIAccess({ ok: true, text: t }, "/").bots.find((b) => b.ua === "Applebot").allowed;
+    expect(ai("User-agent: Googlebot\nAllow: /\n\nUser-agent: *\nDisallow: /\n")).toBe(true);
+    expect(ai("User-agent: Googlebot\nDisallow: /\n\nUser-agent: *\nAllow: /\n")).toBe(false);
+    expect(ai("User-agent: Applebot\nAllow: /\n\nUser-agent: Googlebot\nDisallow: /\n")).toBe(true);
+    expect(ai("User-agent: *\nDisallow: /\n")).toBe(false);
+    // Other bots keep the plain fallback to *.
+    expect(analyzeAIAccess({ ok: true, text: "User-agent: Googlebot\nAllow: /\n\nUser-agent: *\nDisallow: /\n" }, "/").bots.find((b) => b.ua === "GPTBot").allowed).toBe(false);
   });
 });

@@ -104,7 +104,7 @@ Needle audits the web page in the current tab for search engine optimisation (SE
 
 **Data usage** (tick these)
 - Website content: yes. Page text, headings, links, images and metadata of the audited page are processed locally; the page address is sent to Google (PageSpeed Insights, Chrome UX Report), Microsoft Bing Webmaster Tools or DataForSEO only when the user starts one of those checks.
-- Web history: yes. A local list of the last 50 audited pages (address, title, time), stored on the device only. The address of the audited page goes to Google, Microsoft Bing or DataForSEO only when the user starts one of those checks.
+- Web history: yes. A local list of the last 50 audited pages (address, title, score, time), stored on the device only. The address of the audited page goes to Google, Microsoft Bing or DataForSEO only when the user starts one of those checks.
 - Authentication information: yes. The user's own DataForSEO login, Google API key and Bing Webmaster Tools API key, stored on the device and sent only to those services.
 - All other categories: no.
 

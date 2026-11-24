@@ -649,7 +649,7 @@ async function showOnboardingIfNeeded() {
   banner.className = 'notice onboarding';
   banner.innerHTML = `
     <strong>Welcome to Needle</strong>
-    <div>Needle reads only the page you open it on, and only when you open it. Nothing leaves your browser unless you start a check that says it does, like the speed test or a keyword lookup.</div>
+    <div>Needle reads a page only when you open it there, or, in the side panel with access to websites on, when you switch to that tab. Nothing leaves your browser unless you start a check that says it does, like the speed test or a keyword lookup.</div>
     <div class="actions">
       <button type="button" class="primary-btn" data-onb-dismiss>Got it</button>
       <button type="button" class="link-btn" data-action="open-options">Settings and API keys</button>
@@ -870,11 +870,11 @@ const snippetPx = () => ({
 
 let showAllFindings = false;
 // Whether "Show all on page" marks are on the page. Kept here, not read from the button: Fix this
-// first can redraw while the page answers, and the new button must still say "Hide from page".
+// first can redraw while the page answers, and the new button must still say "Hide on page".
 let issuesShown = false;
 function setIssuesButton() {
   const b = $('toggle-issues');
-  if (b) { b.setAttribute('aria-pressed', String(issuesShown)); b.textContent = issuesShown ? 'Hide from page' : 'Show all on page'; }
+  if (b) { b.setAttribute('aria-pressed', String(issuesShown)); b.textContent = issuesShown ? 'Hide on page' : 'Show all on page'; }
 }
 
 /** "Fix this first": every problem from every check, most important first. */
@@ -919,7 +919,7 @@ function renderFindings() {
       ${f.length > 8 ? `<button type="button" class="link-btn" id="findings-more">${showAllFindings ? 'Show the top 8' : `Show all ${f.length}`}</button>` : ''}`
       : '<p class="muted">The automated checks found nothing to fix. Still read the page as a visitor would.</p>'}
       <div class="actions">
-        ${f.some((x) => x.targets?.length) ? `<button type="button" class="secondary-btn" id="toggle-issues" aria-pressed="${issuesShown}">${issuesShown ? 'Hide from page' : 'Show all on page'}</button>` : ''}
+        ${f.some((x) => x.targets?.length) ? `<button type="button" class="secondary-btn" id="toggle-issues" aria-pressed="${issuesShown}">${issuesShown ? 'Hide on page' : 'Show all on page'}</button>` : ''}
         <button type="button" class="secondary-btn copy-btn" id="copy-dev" data-copy-fn="issuesMarkdown">Copy for a developer</button>
         <button type="button" class="secondary-btn copy-btn" id="copy-ai" data-copy-fn="aiPrompt">Copy for AI</button>
       </div>
@@ -1115,7 +1115,7 @@ async function runPsi(force = false) {
   const { psiKey } = await getSecrets();
   if (!psiKey) {
     rerender($('psi-result'), `<div class="notice"><strong>Add a free PageSpeed Insights API key</strong>
-      <div>Google only answers requests that carry a key. It is free: create one in Google Cloud, then paste it in Settings.</div>
+      <div>Needle runs the speed test with your own free Google API key: create one in Google Cloud, then paste it in Settings.</div>
       <div class="actions"><button type="button" class="primary-btn" data-action="open-options" data-section="h-psi">Open Settings</button>
         <a class="link-btn" href="https://pagespeed.web.dev/analysis?url=${encodeURIComponent(pageUrl)}" target="_blank" rel="noopener noreferrer">Test on the PageSpeed Insights website ${ICON.external}</a></div></div>`);
     return;
@@ -1222,7 +1222,7 @@ function renderCrux(d, age, formFactor) {
     return `<div class="crux-row"><div><strong>${label}</strong> ${lastVal != null ? `${escapeHtml(fmt(lastVal))} ${tag(word, kind)}` : tag('no data', 'neutral')}</div>${sparkline(vals, CWV_GOOD[key], CWV_POOR[key], fmt)}</div>`;
   };
   return `${cachedBanner(age, null)}
-    <p class="muted">${formFactor === 'DESKTOP' ? 'Desktop' : 'Phones'}: ${d.scope === 'page' ? 'this page' : 'the whole site (not enough data for this page alone)'}, weeks ending ${escapeHtml(d.weeks[0] || '')} to ${escapeHtml(d.weeks[d.weeks.length - 1] || '')}. The dashed line is Google's "good" limit.</p>
+    <p class="muted">${formFactor === 'DESKTOP' ? 'Desktop' : 'Mobile'}: ${d.scope === 'page' ? 'this page' : 'the whole site (not enough data for this page alone)'}, weeks ending ${escapeHtml(d.weeks[0] || '')} to ${escapeHtml(d.weeks[d.weeks.length - 1] || '')}. The dashed line is Google's "good" limit.</p>
     ${metric('lcp', 'LCP', (v) => `${(v / 1000).toFixed(2)} s`)}
     ${metric('inp', 'INP', (v) => `${Math.round(v)} ms`)}
     ${metric('cls', 'CLS', (v) => v.toFixed(2))}`;
@@ -2473,7 +2473,7 @@ function renderTechnical(d, age) {
       <h2>Snippet and AI controls</h2>
       <p class="muted">These limit what Google may quote in results and in AI Overviews.</p>
       ${row('Directives', dirs.length ? dirs.map((x) => tag(x, limitsSnippets(x) ? 'warn' : 'info')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
-      ${copilot ? row('Microsoft Copilot', tag(copilot === 'nocache' ? 'title and link only' : 'left out of answers', 'warn')) : ''}
+      ${copilot ? row('Microsoft Copilot', tag(copilot === 'nocache' ? 'link, title and snippet only' : 'left out of answers', 'warn')) : ''}
       ${row('data-nosnippet', `${onpageData.dataNosnippetCount ? `${fmtNum(onpageData.dataNosnippetCount)} element${onpageData.dataNosnippetCount === 1 ? '' : 's'} kept out of snippets` : '<span class="muted">none</span>'}${onpageData.dataNosnippetIgnored ? `<div class="hint">${fmtNum(onpageData.dataNosnippetIgnored)} more on other elements, which Google ignores: use it on a span, div or section.</div>` : ''}`)}
       ${limited ? '<div class="hint">Some text may not be quoted in search snippets or AI answers. Check that this is intended.</div>' : ''}
     </div>`;
@@ -2583,7 +2583,7 @@ function renderComparison(raw, rendered) {
         <tr><th scope="row">JSON-LD blocks</th><td>${fmtNum(raw.schema)}</td><td>${fmtNum(rendered.schema)}</td></tr>
         <tr><th scope="row">HTML size</th><td>${fmtNum(raw.htmlLen)}</td><td>${fmtNum(rendered.htmlLen)} <span class="muted">(${pct >= 0 ? '+' : ''}${pct}%)</span></td></tr>
       </tbody></table>
-      ${wordsLost ? `<div class="notice"><strong>Much of the text needs JavaScript</strong><div>Crawlers that don't run JavaScript, including most AI crawlers, miss it.</div></div>` : ''}
+      ${wordsLost ? `<div class="notice"><strong>Much of the text needs JavaScript</strong><div>Crawlers that don't run JavaScript miss it, and tests by others suggest many AI crawlers don't run it.</div></div>` : ''}
       <details class="sub"><summary>First 5 KB of the server HTML</summary><pre class="code">${escapeHtml(raw.htmlSnippet)}</pre></details>
     </div>
   </details>`;
@@ -2662,8 +2662,8 @@ confirmClick($('clear-history'), async () => {
   setStatePath('marketByHost', undefined);
   setStatePath('serpMarketByHost', undefined);
   flushState();
-  $('history-list').innerHTML = '<p class="muted">History cleared.</p>';
-  announce('History cleared');
+  $('history-list').innerHTML = '<p class="muted">History and snapshots cleared.</p>';
+  announce('History and snapshots cleared');
 });
 
 // ---------------------------------------------------------------------------

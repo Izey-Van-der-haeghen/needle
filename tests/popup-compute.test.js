@@ -86,7 +86,7 @@ describe("computeIndexability", () => {
   it("returns 'warn' for canonical pointing elsewhere", () => {
     const r = computeIndexability({ ...baseOnpage, canonical: "https://example.com/other" }, { status: 200, headers: {}, robotsTxt: {} });
     expect(r.level).toBe("warn");
-    expect(r.verdict).toBe("Canonicalized away");
+    expect(r.verdict).toBe("Canonical points elsewhere");
   });
 });
 
@@ -156,13 +156,13 @@ describe("computeIndexability — more cases", () => {
 
   it("warns about several canonicals and a canonical in <body>", () => {
     const v = computeIndexability(op({ canonicalDistinct: 2, canonicalOutsideHead: true }), tech());
-    expect(v.issues.map((i) => i.msg).join(" | ")).toMatch(/2 different canonical URLs.*inside <body>/);
+    expect(v.issues.map((i) => i.msg).join(" | ")).toMatch(/2 different canonical URLs.*outside <head>/);
   });
 
   it("uses a canonical from the HTTP Link header when the page has none", () => {
     expect(canonicalFromLinkHeader('<https://e.com/page>; rel="canonical"')).toBe("https://e.com/page");
     const v = computeIndexability(op({ canonical: "" }), tech({ headers: { link: '<https://e.com/other>; rel="canonical"' } }));
-    expect(v.verdict).toBe("Canonicalized away");
+    expect(v.verdict).toBe("Canonical points elsewhere");
   });
 });
 

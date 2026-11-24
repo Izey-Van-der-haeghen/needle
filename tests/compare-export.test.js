@@ -111,12 +111,12 @@ describe("buildCompareCsv", () => {
 describe("buildCompareMd", () => {
   it("starts with an h1 title that mentions the keyword when given", () => {
     const md = buildCompareMd(sources, serpData, "running shoes");
-    expect(md.split("\n")[0]).toMatch(/^# Compare — keyword "running shoes"/);
+    expect(md.split("\n")[0]).toMatch(/^# Compare: keyword "running shoes"/);
   });
 
   it("starts with an h1 with the user URL when no keyword", () => {
     const md = buildCompareMd(sources, null, "");
-    expect(md.split("\n")[0]).toMatch(/^# Compare — https:\/\/www\.example\.be\/page/);
+    expect(md.split("\n")[0]).toMatch(/^# Compare: https:\/\/www\.example\.be\/page/);
   });
 
   it("renders a proper MD table with header separator", () => {

@@ -155,7 +155,7 @@ describe("stress test of 1.0.1 (Break UI)", () => {
     const f = collectFindings({ onpage: d, tech });
     expect(f.find((x) => x.id === "canonical-elsewhere")).toBeUndefined();
     expect(f.find((x) => x.id === "hreflang")).toBeUndefined();
-    expect(computeIndexability(d, tech).verdict).not.toMatch(/Canonicalized away/);
+    expect(computeIndexability(d, tech).verdict).not.toMatch(/Canonical points elsewhere/);
   });
 
   it("the alternates of a campaign link don't include the page itself", async () => {

@@ -79,14 +79,14 @@
 
         <div class="card">
           <h2>Bing Webmaster Tools</h2>
-          <p class="muted">Clicks, impressions, queries and crawl info for this page from your own Bing account. Free, with your Bing API key.</p>
+          <p class="muted">Clicks, impressions, queries and crawl info for this page from your own Bing account. Free, with your Bing API key. Sends the URL to Bing.</p>
           <div class="actions"><button id="run-bing" type="button" class="secondary-btn">Get Bing data</button></div>
           <div id="bing-result" aria-live="polite"></div>
         </div>
 
         <div class="card">
           <h2>Keywords and traffic</h2>
-          <p class="muted">Keywords this exact page ranks for, and the site's estimated organic traffic. Uses your own DataForSEO account.</p>
+          <p class="muted">Keywords this exact page ranks for, and the site's estimated organic traffic. Uses your own DataForSEO account. Sends the URL to DataForSEO.</p>
           <div class="field-row">
             <label class="field"><span>Country</span><select id="offpage-location"></select></label>
             <label class="field"><span>Language</span><select id="offpage-language"></select></label>
@@ -116,7 +116,7 @@
           <label class="field comp-slot" data-idx="2" hidden><span>Competitor 3</span>
             <input type="url" class="competitor-url" data-idx="2" placeholder="https://" autocomplete="off">
           </label>
-          <label class="field"><span>Keyword <span class="muted">(optional, adds Google positions, <span data-serp-cost>≈ $0.004</span>)</span></span>
+          <label class="field"><span>Keyword <span class="muted">(optional, adds Google positions through DataForSEO, <span data-serp-cost>≈ $0.004</span>)</span></span>
             <input type="text" id="compare-keyword" placeholder="e.g. running shoes" autocomplete="off">
           </label>
           <div class="actions">
@@ -130,7 +130,7 @@
 
       <section class="panel" id="panel-serp" role="tabpanel" aria-labelledby="tab-serp" tabindex="0" hidden>
         <div class="card form-card">
-          <p class="muted">Google's top 20 for a search, with SERP features and your position. Uses your DataForSEO account.</p>
+          <p class="muted">Google's top 20 for a search, with SERP features and your position. Uses your DataForSEO account. Sends the keyword to DataForSEO.</p>
           <label class="field"><span>Keyword</span>
             <input type="text" id="serp-keyword" placeholder="e.g. running shoes" autocomplete="off">
           </label>

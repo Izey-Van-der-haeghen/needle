@@ -40,7 +40,7 @@
 - Links by page region (header, menu, breadcrumb, main content, sidebar, footer), nofollow, sponsored and ugc, and an optional check of every link
 - Content images: missing alt text, large files, lazy loading above the fold, missing width and height, unclear file names
 - Structured data: JSON-LD checked against Google's required and recommended properties, microdata and RDFa types listed, with suggestions
-- Hreflang, Open Graph and X card previews, word counts, readability and keyword placement
+- Hreflang validation, Open Graph and X card previews, word counts, readability and keyword placement
 
 **Technical**
 - Server answer, response headers, HTTPS, HSTS and mixed content
