@@ -32,4 +32,17 @@ describe("importing a settings file", () => {
     const r = readSettingsFile({ theme: "dark", csvSeparator: ";", defaultLocation: "2056", popupShortcuts: false, psiKey: "k" }, lists);
     expect(r).toEqual({ prefs: { theme: "dark", csvSeparator: ";", defaultLocation: "2056", popupShortcuts: false }, secrets: { psiKey: "k" }, skipped: 0 });
   });
+  it("checks the image-rule mode and the language against what the form offers", () => {
+    expect(readSettingsFile({ imgMode: "ratio", defaultLanguage: "nl" }, lists)).toEqual({ prefs: { imgMode: "ratio", defaultLanguage: "nl" }, secrets: {}, skipped: 0 });
+    expect(readSettingsFile({ imgMode: "exact" }, lists).prefs).toEqual({ imgMode: "exact" });
+    expect(readSettingsFile({ imgMode: "fit", defaultLanguage: "xx" }, lists)).toEqual({ prefs: {}, secrets: {}, skipped: 2 });
+  });
+  it("reads the two switches, and only as true or false", () => {
+    expect(readSettingsFile({ openInSidePanel: true, popupShortcuts: true }, lists).prefs).toEqual({ openInSidePanel: true, popupShortcuts: true });
+    expect(readSettingsFile({ openInSidePanel: false }, lists).prefs).toEqual({ openInSidePanel: false });
+    expect(readSettingsFile({ openInSidePanel: "true", popupShortcuts: 1 }, lists).prefs).toEqual({});
+  });
+  // The JSDoc says "Anything else is skipped and counted", but a switch that is not true or false is
+  // dropped without being counted, so the import doesn't say it skipped it.
+  it.todo("counts a switch that is not true or false as skipped");
 });
