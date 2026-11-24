@@ -77,6 +77,7 @@
     UNHIGHLIGHT_LINKS: () => ({ ok: true }),
     HIGHLIGHT_HEADINGS: () => ({ ok: true, count: FX.onpage.headings.length }),
     UNHIGHLIGHT_HEADINGS: () => ({ ok: true }),
+    HIGHLIGHT_ISSUES: (m) => ({ ok: true, shown: (m?.items || []).length, hidden: 0, missing: 0 }),
     UNHIGHLIGHT_ISSUES: () => ({ ok: true })
   };
 

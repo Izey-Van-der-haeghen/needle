@@ -1930,6 +1930,31 @@ function imageFilename(src) {
   }
 }
 
+/** Read the page's images again (lazy ones may have loaded), keeping every other result. */
+async function recheckImages() {
+  const btn = $('recheck-images');
+  if (!btn || !currentTab || !onpageData) return;
+  const gen = auditGen;
+  setBusy(btn, true);
+  try {
+    const fresh = await safeSendTabMessage(currentTab.id, { type: 'ANALYZE_ONPAGE' });
+    if (gen !== auditGen || !fresh?.images) return;
+    // Sizes measured earlier stay with their file.
+    const bytes = new Map(onpageData.images.filter((i) => i.bytes).map((i) => [i.src, i.bytes]));
+    fresh.images.forEach((i) => { if (!i.bytes && bytes.has(i.src)) i.bytes = bytes.get(i.src); });
+    onpageData.images = fresh.images;
+    applyImageRules(onpageData.images, imageRules);
+    renderImagesCard();
+    renderVerdict();
+    announce(lazyNote(getBodyImages()) || 'Images checked again');
+    ($('recheck-images') || $('images-card')?.querySelector('summary'))?.focus({ preventScroll: true });
+  } catch (e) {
+    showToast(e.message);
+  } finally {
+    setBusy($('recheck-images'), false);
+  }
+}
+
 function renderImagesCard() {
   const card = $('images-card');
   if (!card) return;
@@ -1969,7 +1994,7 @@ function renderImagesCard() {
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
       ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button></p>` : ''}
       <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
-      ${lazyNoteText ? `<p class="muted">${escapeHtml(lazyNoteText)} <button type="button" class="link-btn" data-refresh="onpage">Check again</button></p>` : ''}
+      ${lazyNoteText ? `<p class="muted">${escapeHtml(lazyNoteText)} <button type="button" class="link-btn" id="recheck-images">Check again</button></p>` : ''}
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
     : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');
@@ -2398,6 +2423,7 @@ $('panel-onpage').addEventListener('click', async (e) => {
   else if (t.id === 'measure-images') measureImages();
   else if (t.id === 'kw-check') checkKeyword();
   else if (t.id === 'findings-more') { showAllFindings = !showAllFindings; renderFindings(); }
+  else if (t.id === 'recheck-images') recheckImages();
   else if (t.id === 'toggle-issues') {
     const on = !issuesShown;
     issuesShown = on;
@@ -2682,6 +2708,7 @@ confirmClick($('clear-history'), async () => {
   await withStoreLock('history', () => withStoreLock('snapshots', () => chrome.storage.local.set({ history: [], snapshots: {} })));
   // The country and language picked per website name those sites too.
   SITE_CHOICE_KEYS.forEach((k) => setStatePath(k, undefined));
+  if (pageUrl) applyMarket();
   flushState();
   $('history-list').innerHTML = '<p class="muted">History and snapshots cleared.</p>';
   announce('History and snapshots cleared');
@@ -2796,6 +2823,7 @@ document.addEventListener('keydown', (e) => {
     });
     issuesShown = false;
     setIssuesButton();
+    if ($('highlight-count')) $('highlight-count').textContent = '';
     return;
   }
   if (!shortcutsOn) return;

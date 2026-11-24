@@ -282,10 +282,11 @@
     if (docHeightCache <= 0) return null;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return null;
+    // Something as large as a content photo is not page chrome, wherever it sits.
+    if (rect.width >= 300 && rect.height >= 200) return null;
     const absoluteTop = rect.top + window.scrollY;
-    const absoluteBottom = rect.bottom + window.scrollY;
     if (absoluteTop < Math.min(250, docHeightCache * 0.12)) return "header";
-    if (absoluteBottom > docHeightCache * 0.85) return "footer";
+    if (absoluteTop > docHeightCache - Math.min(400, docHeightCache * 0.15)) return "footer";
     return null;
   }
 

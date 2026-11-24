@@ -1,6 +1,6 @@
 import { LOCATIONS, LANGUAGES } from "./lib/serp.js";
 import { initTheme, setTheme } from "./lib/theme.js";
-import { getSecrets, setSecrets, getPrefs, SECRET_KEYS, PREF_KEYS, withoutSiteChoices } from "./lib/settings.js";
+import { getSecrets, setSecrets, getPrefs, SECRET_KEYS, PREF_KEYS, withoutSiteChoices, readSettingsFile } from "./lib/settings.js";
 import { hasOrigins, requestOrigins, removeOrigins, ALL_SITES, DATAFORSEO } from "./lib/permissions.js";
 import { TTL, isExpired, clearCache } from "./lib/cache.js";
 import { withStoreLock } from "./lib/store-lock.js";
@@ -9,7 +9,6 @@ import { BING_ORIGINS } from "./lib/bing.js";
 import { storeUrl } from "./lib/links.js";
 import { CHANGELOG_URL } from "./lib/whats-new.js";
 import { readableError } from "./lib/errors.js";
-import { normaliseImageRules } from "./lib/image-rules.js";
 import { localDate } from "./lib/popup-helpers.js";
 import { fetchWithTimeout } from "./lib/fetch-helper.js";
 import { FETCH_TIMEOUT_MS, PSI_TIMEOUT_MS } from "./lib/constants.js";
@@ -290,27 +289,14 @@ $("import-settings").addEventListener("change", async (e) => {
     let data;
     try { data = JSON.parse(await file.text()); } catch { say("sync-status", "This isn't a Needle settings file (it can't be read as JSON).", "bad"); return; }
     const payload = data && typeof data === "object" ? data.settings || data : {};
-    const prefs = {};
-    const secrets = {};
-    for (const k of [...PREF_KEYS, "theme", "csvSeparator"]) if (typeof payload[k] === "string") prefs[k] = payload[k];
-    // A country or language Needle doesn't offer would leave the field blank.
-    if ("defaultLocation" in prefs && !LOCATIONS.some((l) => String(l.code) === prefs.defaultLocation)) delete prefs.defaultLocation;
-    if ("defaultLanguage" in prefs && !LANGUAGES.some((l) => String(l.code) === prefs.defaultLanguage)) delete prefs.defaultLanguage;
-    if (typeof payload.popupShortcuts === "boolean") prefs.popupShortcuts = payload.popupShortcuts;
-    if (typeof payload.openInSidePanel === "boolean") prefs.openInSidePanel = payload.openInSidePanel;
-    for (const k of SECRET_KEYS) if (typeof payload[k] === "string") secrets[k] = payload[k];
-    // Image rules go through the same checks as the form: a size needs both numbers, the limit must be positive.
-    if (["imgMaxKB", "imgWidth", "imgHeight", "imgMode"].some((k) => k in prefs)) {
-      const r = normaliseImageRules({ ...(await chrome.storage.sync.get(["imgMaxKB", "imgWidth", "imgHeight", "imgMode"])), ...prefs });
-      Object.assign(prefs, { imgMaxKB: String(r.maxKB), imgWidth: r.width ? String(r.width) : "", imgHeight: r.height ? String(r.height) : "", imgMode: r.mode });
-    }
+    const { prefs, secrets, skipped } = readSettingsFile(payload, { locations: LOCATIONS, languages: LANGUAGES });
     const n = Object.keys(prefs).length + Object.keys(secrets).length;
     if (!n) { say("sync-status", "No Needle settings found in this file.", "bad"); return; }
     if (Object.keys(prefs).length) await chrome.storage.sync.set(prefs);
     if (Object.keys(secrets).length) await setSecrets(secrets);
     if (prefs.theme) await setTheme(prefs.theme);
     await Promise.all([loadSecrets(), loadPrefs(), loadImageRules()]);
-    say("sync-status", `Loaded ${n} setting${n === 1 ? "" : "s"}.`);
+    say("sync-status", `Loaded ${n} setting${n === 1 ? "" : "s"}${skipped ? `; skipped ${skipped} that Needle can't use` : ""}.`);
   } catch (err) {
     say("sync-status", `Could not read this file: ${err.message}`, "bad");
   } finally {
