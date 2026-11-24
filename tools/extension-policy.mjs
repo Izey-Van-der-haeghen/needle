@@ -63,7 +63,9 @@ export function remoteCodeProblems(files) {
     const rules = [
       [/\bimport\s*\(\s*(["'`])([^"'`]*)\1/g, (m) => !/^\.{1,2}\//.test(m[2]) && `import("${m[2]}")`],
       [/\bimport\s*\(\s*(?!["'`])/g, () => "import() of a computed address"],
-      [/^\s*import\s[^;]*?from\s*(["'])([^"']*)\1/gm, (m) => !/^\.{1,2}\//.test(m[2]) && `import from "${m[2]}"`],
+      // import … from "x" and export … from "x"; import "x"
+      [/^\s*(?:import|export)\b[^;'"]*?\bfrom\s*(["'])([^"']*)\1/gm, (m) => !/^\.{1,2}\//.test(m[2]) && `${m[0].trim().split(/\s/)[0]} from "${m[2]}"`],
+      [/^\s*import\s*(["'])([^"']*)\1/gm, (m) => !/^\.{1,2}\//.test(m[2]) && `import "${m[2]}"`],
       [/\bimportScripts\s*\(/g, () => "importScripts()"],
       [/(?<![.\w])eval\s*\(/g, () => "eval()"],
       [/\bnew\s+Function\s*\(/g, () => "new Function()"],

@@ -16,7 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { packagedFiles } from "./package-files.mjs";
+import { copyPackage as copyFiles } from "./package-files.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // Pinned, and at least two weeks old when chosen (a newly published version can be a bad one).
@@ -39,18 +39,14 @@ const CHROME_ONLY_API = /^sidePanel\./;
  */
 const KNOWN_HTML = { "popup.js": { UNSAFE_VAR_ASSIGNMENT: 18 } };
 
-const chromeOnlyPermission = (m) => m.code === "MANIFEST_PERMISSIONS" &&
-  [...m.message.matchAll(/"([^"]+)"/g)].every((x) => CHROME_ONLY_PERMISSIONS.includes(x[1]));
+// Only a message that names Chrome-only permissions, and nothing else, is dropped.
+const chromeOnlyPermission = (m) => {
+  const named = [...m.message.matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+  return m.code === "MANIFEST_PERMISSIONS" && named.length > 0 && named.every((p) => CHROME_ONLY_PERMISSIONS.includes(p));
+};
 const chromeOnlyApi = (m) => m.code === "UNSUPPORTED_API" && CHROME_ONLY_API.test(/^(\S+) is not supported/.exec(m.message)?.[1] || "");
 
-function copyPackage(dir, plant) {
-  for (const f of packagedFiles(ROOT)) {
-    fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
-    fs.copyFileSync(path.join(ROOT, f), path.join(dir, f));
-  }
-  plant?.(dir);
-  return dir;
-}
+const copyPackage = (dir, plant) => copyFiles(ROOT, dir, plant);
 
 /** Run the linter on a directory and keep what matters for Chrome. */
 function lint(dir) {
@@ -71,8 +67,9 @@ function lint(dir) {
   for (const [file, codes] of Object.entries(KNOWN_HTML)) {
     for (const [code, n] of Object.entries(codes)) {
       const found = counted[`${file} ${code}`] || [];
-      if (found.length > n) problems.push(`${file}: ${found.length} ${code} (known: ${n}). Lines ${found.map((m) => m.line).join(", ")}: check the new one escapes page text, then raise the count in tools/lint-extension.mjs`);
-      else if (found.length < n) console.log(`  note: ${file} has ${found.length} ${code}, fewer than the known ${n}; lower the count in tools/lint-extension.mjs`);
+      // Any difference fails: after one place is removed, a new unescaped one would otherwise keep the count.
+      if (found.length > n) problems.push(`${file}: ${found.length} ${code} (known: ${n}). Lines ${found.map((m) => m.line).join(", ")}: check the new one escapes page text, then set the count to ${found.length} in tools/lint-extension.mjs`);
+      else if (found.length < n) problems.push(`${file}: ${found.length} ${code}, fewer than the known ${n}: set the count to ${found.length} in tools/lint-extension.mjs`);
     }
   }
   const notices = kept.filter((m) => m.level === "notice" && KNOWN_HTML[m.file]?.[m.code] === undefined);
@@ -88,7 +85,8 @@ const PLANTED = [
   ["eval in the service worker", (d) => fs.appendFileSync(path.join(d, "background.js"), '\nconst plantedValue = eval("1 + 1");\n')],
   ["a script from a website in the popup", (d) => edit(path.join(d, "popup.html"), '<script src="theme-boot.js"></script>', '<script src="theme-boot.js"></script>\n    <script src="https://cdn.example.com/x.js"></script>')],
   ["eval allowed by the content security policy", (d) => edit(path.join(d, "manifest.json"), "script-src 'self';", "script-src 'self' 'unsafe-eval';")],
-  ["one more unescaped HTML assignment", (d) => fs.appendFileSync(path.join(d, "popup.js"), "\nexport function planted(t) { document.body.innerHTML = t; }\n")]
+  ["one more unescaped HTML assignment", (d) => fs.appendFileSync(path.join(d, "popup.js"), "\nexport function planted(t) { document.body.innerHTML = t; }\n")],
+  ["one HTML assignment fewer (the count must follow)", (d) => edit(path.join(d, "popup.js"), "btn.innerHTML = btn.dataset.label;", "btn.textContent = btn.dataset.label;")]
 ];
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "needle-lint-"));
@@ -101,17 +99,19 @@ try {
       console.log(`  ${problems.length ? "✓" : "✗"} ${name}: ${problems.length ? `caught (${problems[0].slice(0, 110)})` : "NOT caught"}`);
       if (!problems.length) exitCode = 1;
     }
-    if (exitCode) { console.log("The lint missed a planted problem: fix it before trusting it."); process.exit(1); }
+    if (exitCode) console.log("The lint missed a planted problem: fix it before trusting it.");
   }
-  console.log(`Linting the store package with ${LINTER}, read for Chrome…`);
-  const { problems, dropped, notices, counted } = lint(copyPackage(path.join(tmp, "clean")));
-  const byCode = dropped.reduce((a, m) => ({ ...a, [m.code]: (a[m.code] || 0) + 1 }), {});
-  console.log(`  dropped as Firefox-only: ${Object.entries(byCode).map(([c, n]) => `${c} ×${n}`).join(", ") || "none"}`);
-  for (const [k, list] of Object.entries(counted)) console.log(`  known HTML from escaped text: ${k} ×${list.length}`);
-  notices.forEach((m) => console.log(`  notice ${m.code} ${m.file || ""}: ${m.message}`));
-  problems.forEach((p) => console.log(`  ✗ ${p}`));
-  console.log(problems.length ? `FAIL: ${problems.length} problem(s)` : "PASS");
-  exitCode = problems.length ? 1 : 0;
+  if (!exitCode) {
+    console.log(`Linting the store package with ${LINTER}, read for Chrome…`);
+    const { problems, dropped, notices, counted } = lint(copyPackage(path.join(tmp, "clean")));
+    const byCode = dropped.reduce((a, m) => ({ ...a, [m.code]: (a[m.code] || 0) + 1 }), {});
+    console.log(`  dropped as Firefox-only: ${Object.entries(byCode).map(([c, n]) => `${c} ×${n}`).join(", ") || "none"}`);
+    for (const [k, list] of Object.entries(counted)) console.log(`  known HTML from escaped text: ${k} ×${list.length}`);
+    notices.forEach((m) => console.log(`  notice ${m.code} ${m.file || ""}: ${m.message}`));
+    problems.forEach((p) => console.log(`  ✗ ${p}`));
+    console.log(problems.length ? `FAIL: ${problems.length} problem(s)` : "PASS");
+    exitCode = problems.length ? 1 : 0;
+  }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

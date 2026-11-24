@@ -933,8 +933,6 @@
     const htmlLen = document.documentElement.outerHTML.length;
     const textRatio = htmlLen ? Math.round((bodyText.length / htmlLen) * 100) : 0;
 
-    const best = main;
-
     return {
       url: location.href,
       // text/plain, XML or an image opened in a tab: the popup shows "not an HTML page" instead of an audit.
@@ -985,8 +983,8 @@
       hreflang,
       hreflangOutsideHead,
       wordCount,
-      mainContentWordCount: best?.count ?? null,
-      mainContentSelector: best?.selector || null,
+      mainContentWordCount: main?.count ?? null,
+      mainContentSelector: main?.selector || null,
       textRatio,
       authorMeta: document.querySelector('meta[name="author" i]')?.getAttribute("content") || "",
       authorByline: cleanText(document.body?.querySelector('a[rel~="author"], .author, .byline, [itemprop="author"]:not(meta):not(link)')).slice(0, 100),

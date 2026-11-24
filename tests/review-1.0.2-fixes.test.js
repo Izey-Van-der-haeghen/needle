@@ -258,8 +258,6 @@ describe("full check of 1.0.2: public texts and privacy", () => {
     const { withoutSiteChoices } = await import("../lib/settings.js");
     const kept = withoutSiteChoices({ activeTab: "ai", marketByHost: { "site.example": {} }, serpMarketByHost: { "site.example": {} } });
     expect(kept).toEqual({ activeTab: "ai" });
-    const { SITE_CHOICE_KEYS } = await import("../lib/settings.js");
-    expect(SITE_CHOICE_KEYS).toEqual(["marketByHost", "serpMarketByHost"]);
     // The buttons themselves: tests/popup-history-clear.test.js and tests/options-page.test.js.
   });
 

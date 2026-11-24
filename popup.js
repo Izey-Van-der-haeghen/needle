@@ -443,9 +443,7 @@ async function init() {
     if (['imgMaxKB', 'imgWidth', 'imgHeight', 'imgMode'].some((k) => k in changes)) {
       imageRules = await getImageRules();
       if (onpageData) {
-        applyImageRules(onpageData.images, imageRules);
-        renderImagesCard();
-        renderVerdict();
+        redrawImages();
       }
     }
   });
@@ -1056,7 +1054,7 @@ async function loadGEO(gen = auditGen) {
           </li>`).join('')}
       </ul>
       <h3>llms.txt <span class="muted">(information only)</span></h3>
-      ${row('/llms.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.summary?.ok ? tag(llmsTxt.summary.size ? `found, ${(llmsTxt.summary.size / 1024).toFixed(1)} KB` : 'found', 'good') : tag(...llmsStatus(llmsTxt.summary)))}
+      ${row('/llms.txt', !llmsTxt ? tag('could not check', 'neutral') : llmsTxt.summary?.ok ? tag(llmsTxt.summary.size ? `found, ${fmtKB(llmsTxt.summary.size)}` : 'found', 'good') : tag(...llmsStatus(llmsTxt.summary)))}
       ${row('/llms-full.txt', !llmsTxt ? tag('could not check', 'neutral') : tag(...llmsStatus(llmsTxt.full)))}
       <p class="muted">A proposed file that points AI tools to your key pages. Google says no special file is needed for its AI features.</p>
       <h3>Trust signals (E-E-A-T)</h3>
@@ -1908,7 +1906,7 @@ function getFilteredImages() {
 }
 
 function imageFilename(src) {
-  if (src !== inlineImageLabel(src)) return inlineImageLabel(src);
+  if (/^data:/i.test(src)) return inlineImageLabel(src);
   try {
     const u = new URL(src);
     return decodeURIComponent(u.pathname.split('/').pop() || u.hostname || src);
@@ -1930,9 +1928,7 @@ async function recheckImages() {
     const bytes = new Map(onpageData.images.filter((i) => i.bytes).map((i) => [i.src, i.bytes]));
     fresh.images.forEach((i) => { if (!i.bytes && bytes.has(i.src)) i.bytes = bytes.get(i.src); });
     onpageData.images = fresh.images;
-    applyImageRules(onpageData.images, imageRules);
-    renderImagesCard();
-    renderVerdict();
+    redrawImages();
     announce(lazyNote(getBodyImages()) || 'Images checked again');
     ($('recheck-images') || $('images-card')?.querySelector('summary'))?.focus({ preventScroll: true });
   } catch (e) {
@@ -1940,6 +1936,13 @@ async function recheckImages() {
   } finally {
     setBusy($('recheck-images'), false);
   }
+}
+
+/** Apply the image rules again and redraw what depends on them: the Images card and the verdict. */
+function redrawImages() {
+  applyImageRules(onpageData.images, imageRules);
+  renderImagesCard();
+  renderVerdict();
 }
 
 function renderImagesCard() {
@@ -2036,9 +2039,7 @@ async function measureImages() {
     // Count web files, not <img> elements: a slider can show the same file twice, and a data: image has no file.
     const known = new Set(getBodyImages().map((i) => i.src).filter((s) => /^https?:/.test(s))).size - missing.length;
     imageMeasureNote = measureNote({ got, asked: Math.min(missing.length, MAX_MEASURED_IMAGES), missing: missing.length, known });
-    applyImageRules(onpageData.images, imageRules);
-    renderImagesCard();
-    renderVerdict();
+    redrawImages();
     announce(imageMeasureNote);
     // The button is gone once every size is known: keep focus in the images card.
     if (hadFocus) ($('measure-images') || $('images-card')?.querySelector('summary'))?.focus();

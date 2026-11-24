@@ -1,7 +1,7 @@
 // What goes into the Chrome Web Store package, and what the shipped files load.
 // Used by tools/package.mjs; tested in tests/package-files.test.js.
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { join, posix } from "node:path";
+import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
+import { join, posix, dirname } from "node:path";
 
 export const INCLUDE = [
   "manifest.json",
@@ -39,8 +39,8 @@ export function packagedFiles(root, include = INCLUDE) {
 }
 
 /**
- * Every file the extension loads, relative to root: src and href in the HTML pages, the manifest's
- * icons and service worker, url(…) and @import in the packaged stylesheets (relative to the
+ * Every file the extension loads, relative to root: the manifest's pages, icons, service worker and
+ * default-locale messages, src and href in the packaged HTML pages, url(…) and @import in the packaged stylesheets (relative to the
  * stylesheet), relative imports in the packaged scripts (relative to the script), and the files
  * chrome.scripting.executeScript injects (relative to the extension root).
  * @param {string} root
@@ -53,11 +53,17 @@ export function referencedFiles(root, files, manifest) {
   const isLocal = (ref) => !/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(ref);
   const resolve = (file, ref) => posix.normalize(posix.join(posix.dirname(file), ref.replace(/[?#].*$/, "")));
   const referenced = new Set();
-  for (const page of ["popup.html", "options.html", "privacy.html"]) {
-    for (const m of read(page).matchAll(/(?:src|href)="([^":#?]+\.(?:js|css|html))"/g)) referenced.add(m[1]);
+  // What the manifest itself loads: its pages, icons, worker and the default locale's messages.
+  [
+    manifest.action?.default_popup, manifest.options_ui?.page, manifest.side_panel?.default_path,
+    ...Object.values(manifest.action?.default_icon || {}), ...Object.values(manifest.icons || {}),
+    manifest.background?.service_worker,
+    manifest.default_locale && `_locales/${manifest.default_locale}/messages.json`
+  ].filter(Boolean).forEach((f) => referenced.add(f));
+  // Every packaged page, and what it loads (relative to the page).
+  for (const page of files.filter((x) => x.endsWith(".html"))) {
+    for (const m of read(page).matchAll(/(?:src|href)="([^":#?]+\.(?:js|css|html))"/g)) referenced.add(resolve(page, m[1]));
   }
-  Object.values(manifest.icons).forEach((i) => referenced.add(i));
-  referenced.add(manifest.background.service_worker);
   for (const f of files.filter((x) => x.endsWith(".css"))) {
     for (const m of read(f).matchAll(/url\(\s*["']?([^"')]+?)["']?\s*\)|@import\s+["']([^"']+)["']/g)) {
       const ref = (m[1] || m[2]).trim();
@@ -85,4 +91,21 @@ export function referencedFiles(root, files, manifest) {
  */
 export function notPackaged(root, files, manifest) {
   return [...referencedFiles(root, files, manifest)].filter((r) => !files.includes(r));
+}
+
+/**
+ * Copy exactly the packaged files to a folder, for a check that loads or lints the store package;
+ * `plant(dir)` then breaks the copy on purpose, to prove the check catches it.
+ * @param {string} root
+ * @param {string} dir
+ * @param {(dir: string) => void} [plant]
+ * @returns {string} dir
+ */
+export function copyPackage(root, dir, plant) {
+  for (const f of packagedFiles(root)) {
+    mkdirSync(dirname(join(dir, f)), { recursive: true });
+    copyFileSync(join(root, f), join(dir, f));
+  }
+  plant?.(dir);
+  return dir;
 }

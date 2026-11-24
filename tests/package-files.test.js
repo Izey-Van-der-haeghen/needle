@@ -36,11 +36,16 @@ describe("the store package", () => {
     expect(notPackaged(ROOT, without("lib"), MANIFEST)).toContain("lib/popup-helpers.js");
   });
 
+  it("stops the build when a page the manifest opens, or the default locale, is left out", () => {
+    expect(notPackaged(ROOT, without("popup.html"), MANIFEST)).toEqual(["popup.html"]);
+    expect(notPackaged(ROOT, without("options.html"), MANIFEST)).toEqual(["options.html"]);
+    expect(notPackaged(ROOT, without("_locales"), MANIFEST)).toEqual(["_locales/en/messages.json"]);
+  });
+
   it("resolves a reference against the file that makes it, and skips data: and web addresses", () => {
     const dir = mkdtempSync(join(tmpdir(), "needle-package-"));
     mkdirSync(join(dir, "css"));
     mkdirSync(join(dir, "lib"));
-    for (const page of ["popup.html", "options.html", "privacy.html"]) writeFileSync(join(dir, page), "");
     writeFileSync(join(dir, "css/a.css"), `@import "b.css"; .x { background: url('../img/x.png?v=2'), url(data:image/png;base64,AA), url("https://cdn.example/y.png"); }`);
     writeFileSync(join(dir, "lib/a.js"), `import { b } from "./b.js";\nexport * from "../c.js";\nchrome.scripting.executeScript({ target, files: ["/inject.js"] });`);
     const refs = referencedFiles(dir, ["css/a.css", "lib/a.js"], { icons: {}, background: { service_worker: "sw.js" } });

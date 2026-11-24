@@ -1,6 +1,6 @@
 import { LOCATIONS, LANGUAGES } from "./lib/serp.js";
 import { initTheme, setTheme } from "./lib/theme.js";
-import { getSecrets, setSecrets, getPrefs, PREF_KEYS, withoutSiteChoices, readSettingsFile } from "./lib/settings.js";
+import { getSecrets, setSecrets, getPrefs, PREF_KEYS, withoutSiteChoices, readSettingsFile, isWholeNumber } from "./lib/settings.js";
 import { hasOrigins, requestOrigins, removeOrigins, ALL_SITES, DATAFORSEO } from "./lib/permissions.js";
 import { TTL, isExpired, clearCache } from "./lib/cache.js";
 import { withStoreLock } from "./lib/store-lock.js";
@@ -181,7 +181,7 @@ async function loadImageRules() {
 
 $("save-images").addEventListener("click", async () => {
   const n = (id) => $(id).value.trim();
-  const bad = ["imgMaxKB", "imgWidth", "imgHeight"].find((id) => n(id) && !/^[1-9]\d{0,4}$/.test(n(id)));
+  const bad = ["imgMaxKB", "imgWidth", "imgHeight"].find((id) => n(id) && !isWholeNumber(n(id)));
   if (bad) { say("images-status", "Use whole numbers from 1 up.", "bad"); return; }
   if (!!n("imgWidth") !== !!n("imgHeight")) { say("images-status", "Fill in both width and height, or neither.", "bad"); return; }
   await chrome.storage.sync.set({ imgMaxKB: n("imgMaxKB"), imgWidth: n("imgWidth"), imgHeight: n("imgHeight"), imgMode: $("imgMode").value });

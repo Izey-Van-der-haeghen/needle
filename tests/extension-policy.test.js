@@ -32,7 +32,13 @@ describe("the manifest asks for what Needle promises, nothing more", () => {
     ["eval allowed", (m) => { m.content_security_policy.extension_pages = "script-src 'self' 'unsafe-eval'; object-src 'self';"; }],
     ["scripts from a website allowed", (m) => { m.content_security_policy.extension_pages = "script-src 'self' https://cdn.example.com; object-src 'self';"; }],
     ["no script-src at all", (m) => { m.content_security_policy.extension_pages = "object-src 'self';"; }],
-    ["a sandbox policy", (m) => { m.content_security_policy.sandbox = "sandbox allow-scripts; script-src 'self' 'unsafe-eval'"; }]
+    ["a sandbox policy", (m) => { m.content_security_policy.sandbox = "sandbox allow-scripts; script-src 'self' 'unsafe-eval'"; }],
+    ["Manifest V2", (m) => { m.manifest_version = 2; }],
+    ["network rules", (m) => { m.declarative_net_request = { rule_resources: [] }; }],
+    ["a replaced new-tab page", (m) => { m.chrome_url_overrides = { newtab: "popup.html" }; }],
+    ["an update address outside the store", (m) => { m.update_url = "https://example.com/updates.xml"; }],
+    ["a fixed key", (m) => { m.key = "MIIB"; }],
+    ["plugins allowed", (m) => { m.content_security_policy.extension_pages = "script-src 'self'; object-src https://cdn.example.com;"; }]
   ])("catches %s", (_, edit) => {
     expect(changed(edit).length).toBeGreaterThan(0);
   });
@@ -50,6 +56,8 @@ describe("Needle runs no code from outside its package", () => {
     ["a remote dynamic import", "x.js", `const m = await import("https://cdn.example.com/m.js");`],
     ["a computed dynamic import", "x.js", "const m = await import(url);"],
     ["a remote static import", "x.js", `import { a } from "https://cdn.example.com/m.js";`],
+    ["a remote side-effect import", "x.js", `import "https://cdn.example.com/m.js";`],
+    ["a re-export from an address", "x.js", `export { a } from "https://cdn.example.com/m.js";`],
     ["importScripts", "x.js", `importScripts("https://cdn.example.com/w.js");`],
     ["eval", "x.js", "const v = eval(text);"],
     ["new Function", "x.js", `const f = new Function("return 1");`],
@@ -63,6 +71,8 @@ describe("Needle runs no code from outside its package", () => {
   it.each([
     ["a local module script", "x.html", `<script src="popup.js" type="module"></script>`],
     ["a relative dynamic import", "x.js", `const { a } = await import("./image-rules.js");`],
+    ["a relative re-export", "x.js", `export { a } from "./a.js";`],
+    ["an export of a string constant", "x.js", `export const URL_TEXT = "https://example.com";`],
     ["an import type in a comment", "x.js", `/** @typedef {import("./page-fetch.js").FetchResult} R */`],
     ["a method named eval", "x.js", "const r = engine.eval(x);"],
     ["a local injected file", "x.js", `chrome.scripting.executeScript({ target, files: ["content.js"] });`],

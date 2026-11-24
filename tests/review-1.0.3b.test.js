@@ -1,0 +1,83 @@
+// The second review round of 24 November 2026: copy, code health and the report.
+import { describe, it, expect } from "vitest";
+import { JSDOM } from "jsdom";
+import { displayUrl, fmtKB, inlineImageLabel } from "../lib/popup-helpers.js";
+import { readSettingsFile, isWholeNumber, THEMES } from "../lib/settings.js";
+import { computeIndexability } from "../lib/popup-compute.js";
+import { collectFindings } from "../lib/findings.js";
+import { buildHtmlReport } from "../lib/export.js";
+import { CONTEXT_NAME } from "../lib/labels.js";
+
+const lists = { locations: [{ code: 2056 }], languages: [{ code: "fr" }] };
+
+describe("displayUrl", () => {
+  it("decodes letters but keeps characters that could make an address read as another", () => {
+    expect(displayUrl("https://e.be/r%C3%A9gion")).toBe("https://e.be/région");
+    expect(displayUrl("https://e.be/a%E2%80%AEgpj.exe")).toBe("https://e.be/a%E2%80%AEgpj.exe");
+    expect(displayUrl("https://e.be/a%E2%80%8Bb")).toBe("https://e.be/a%E2%80%8Bb");
+    expect(displayUrl("https://e.be/a%0Ab")).toBe("https://e.be/a%0Ab");
+  });
+});
+
+describe("readSettingsFile", () => {
+  it("skips and counts a known setting of the wrong type", () => {
+    const r = readSettingsFile({ theme: "dark", imgMaxKB: 200, openInSidePanel: "yes", dfsLogin: 5 }, lists);
+    expect(r.prefs).toEqual({ theme: "dark" });
+    expect(r.secrets).toEqual({});
+    expect(r.skipped).toBe(3);
+  });
+  it("ignores keys it doesn't know, without counting them", () => {
+    expect(readSettingsFile({ somethingElse: 1, theme: "light" }, lists)).toEqual({ prefs: { theme: "light" }, secrets: {}, skipped: 0 });
+  });
+  it("shares its rules with the Settings form", () => {
+    expect(["1", " 99999 ", "250"].every(isWholeNumber)).toBe(true);
+    expect(["0", "100000", "1.5", "", "abc", null].some(isWholeNumber)).toBe(false);
+    expect(THEMES).toEqual(["auto", "light", "dark"]);
+  });
+});
+
+describe("addresses in verdicts read as people write them", () => {
+  const op = { url: "https://e.be/fr/accueil", canonical: "https://e.be/r%C3%A9gion", robots: "" };
+  const tech = { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true } } };
+  it("in the indexing verdict", () => {
+    expect(computeIndexability(op, tech).issues.map((i) => i.msg).join(" ")).toContain("Canonical points elsewhere: https://e.be/région");
+  });
+  it("in the finding's explanation", () => {
+    const f = collectFindings({ onpage: { ...op, title: "T", description: "D", headings: [], links: { details: [] }, images: [], hreflang: [], schema: [] }, tech, imageRules: {} });
+    expect(f.find((x) => x.id === "canonical-elsewhere")?.why).toBe("Google is asked to index https://e.be/région instead.");
+  });
+});
+
+describe("one size format", () => {
+  it("writes inline images with thousands separators, as the image list does", () => {
+    expect(inlineImageLabel(`data:image/png;base64,${"A".repeat(4 * 1024 * 1400 / 3)}`)).toContain(fmtKB(1400 * 1024));
+    expect(fmtKB(1400 * 1024)).toBe("1,400.0 KB");
+  });
+});
+
+describe("the report in the popup's words", () => {
+  const onpage = {
+    url: "https://e.be/", title: "T", description: "D", canonical: "https://e.be/", robots: "", lang: "en", viewport: "width=device-width",
+    og: {}, twitter: {}, headings: [{ level: 1, text: "H" }],
+    links: { total: 3, internal: 3, external: 0, nofollow: 0, broken: 0, byContext: { nav: 2, main: 1, other: 0 } },
+    images: [{ src: "https://e.be/big.jpg", alt: "a", displayedWidth: 800, displayedHeight: 600, context: "main", bytes: 1400 * 1024, naturalWidth: 1600, naturalHeight: 1200 }],
+    schema: [], hreflang: [], wordCount: 10, mainContentWordCount: 8, textRatio: 20, externalLinkCount: 0, listCount: 0, tableCount: 0
+  };
+  const technical = { status: 200, finalUrl: "https://e.be/r%C3%A9gion", headers: {}, robotsTxt: { ok: false, status: 404 }, sitemap: null };
+  const doc = new JSDOM(buildHtmlReport({ url: onpage.url, onpage, technical, geo: null, health: null, verdict: null, theme: "light", version: "0.0.0", offpage: null })).window.document;
+  const text = doc.body.textContent;
+
+  it("calls a robots.txt that answers 404 'none (everything allowed)', not a warning", () => {
+    expect(text).toContain("none (everything allowed)");
+    expect(text).not.toContain("HTTP 404");
+  });
+  it("names link regions as the popup does", () => {
+    expect(text).toContain(`In the ${CONTEXT_NAME.nav}`);
+    expect(text).toContain(`In the ${CONTEXT_NAME.main}`);
+    expect(text).not.toMatch(/\bIn (nav|main)\b/);
+  });
+  it("shows the final address with its letters, and sizes with thousands separators", () => {
+    expect(text).toContain("https://e.be/région");
+    expect(text).toContain("1,400.0 KB");
+  });
+});
