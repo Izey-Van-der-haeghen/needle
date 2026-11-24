@@ -6,7 +6,7 @@ import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetc
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
-import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate, inlineImageLabel } from './lib/popup-helpers.js';
+import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate, inlineImageLabel, displayUrl, pathSlug } from './lib/popup-helpers.js';
 import { computeHealthScore, computeIndexability, detectMarketFromUrl, snippetDirectives, limitsSnippets, robotsBlocksIndexing, copilotLimit } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { readableError } from './lib/errors.js';
@@ -532,7 +532,7 @@ async function startForTab(tab) {
   rerender($('bing-result'), '');
   $('run-psi').textContent = 'Run speed test';
   $('export-audit-header').hidden = true;
-  $('current-url').textContent = pageUrl || '—';
+  $('current-url').textContent = pageUrl ? displayUrl(pageUrl) : '—';
   $('current-url').title = pageUrl;
 
   const webPage = !!tab && /^https?:/.test(pageUrl);
@@ -1799,7 +1799,7 @@ function renderLinkList() {
       <div class="item-body">
         <div class="item-meta">${ctxMark(l.context)}<span class="muted">${escapeHtml(CONTEXT_NAME[l.context] || l.context)}</span> ${flags.join(' ')}</div>
         <div class="item-title">${escapeHtml(l.text) || '<em class="muted">no link text</em>'}</div>
-        <div class="item-url">${escapeHtml(l.href)}</div>
+        <div class="item-url">${escapeHtml(displayUrl(l.href))}</div>
         ${linkCheckHint(l)}
       </div>
     </li>`;
@@ -2012,7 +2012,7 @@ function renderImageItems() {
       ${safe ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy">` : '<span class="thumb thumb-empty" aria-hidden="true">✗</span>'}
       <div class="item-body">
         <div class="item-title" title="${escapeHtml(img.src)}">${escapeHtml(imageFilename(img.src))}</div>
-        <div class="item-meta">${escapeHtml(dims)} · ${img.brokenLoad ? "doesn't load" : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'}</div>
+        <div class="item-meta">${escapeHtml(dims)} · ${img.brokenLoad ? '' : /^data:/i.test(img.src) ? 'inline' : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'}</div>
         <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `alt: ${escapeHtml(img.alt)}` : '<span class="muted">empty alt (decorative)</span>'}</div>
         ${issues.length ? `<div class="item-meta">${issues.map(([t, k]) => tag(t, k)).join(' ')}</div>` : ''}
       </div>
@@ -2034,12 +2034,8 @@ async function measureImages() {
   const btn = $('measure-images');
   const hadFocus = document.activeElement === btn;
   setBusy(btn, true);
-  // The busy text takes the place of "N file sizes unknown", so the list doesn't move twice.
-  const sizeNote = $('image-size-note');
-  if (sizeNote?.firstChild?.nodeType === 3) {
-    sizeNote.firstChild.textContent = `Measuring ${plural(missing.length, 'image')}… `;
-    if ($('measure-images')) $('measure-images').hidden = true;
-  }
+  // The button says it is busy, in place: no line moves, and keyboard focus stays on it.
+  if (btn) btn.textContent = `Measuring ${plural(missing.length, 'image')}…`;
   else if ($('image-size-status')) $('image-size-status').textContent = `Measuring ${plural(missing.length, 'image')}…`;
   const gen = auditGen;
   try {
@@ -2061,7 +2057,7 @@ async function measureImages() {
     if (hadFocus) ($('measure-images') || $('images-card')?.querySelector('summary'))?.focus();
   } catch (e) {
     setBusy($('measure-images'), false);
-    if ($('measure-images')) $('measure-images').hidden = false;
+    if ($('measure-images')) $('measure-images').textContent = missing.length === 1 ? 'Measure it' : 'Measure them';
     if (gen === auditGen && $('image-size-status')) $('image-size-status').textContent = e.message;
   }
 }
@@ -2136,7 +2132,7 @@ function renderOnpage(d, age) {
   const twitterImage = isSafeHttpUrl(d.twitter?.image) ? d.twitter.image : ogImage;
   let crumbs = host;
   try {
-    const parts = new URL(d.url).pathname.split('/').filter(Boolean).slice(0, 2);
+    const parts = new URL(d.url).pathname.split('/').filter(Boolean).slice(0, 2).map(displayUrl);
     if (parts.length) crumbs += ' › ' + parts.join(' › ');
   } catch {}
 
@@ -2165,8 +2161,8 @@ function renderOnpage(d, age) {
         <p class="muted">Google often rewrites titles and descriptions; this shows where yours would be cut.</p>
         <details class="sub">
           <summary>More meta tags</summary>
-          ${metaField('URL', `<span class="mono">${escapeHtml(d.url)}</span>`)}
-          ${metaField('Canonical', d.canonical ? `<span class="mono">${escapeHtml(d.canonical)}</span>` : missing('No canonical'))}
+          ${metaField('URL', `<span class="mono">${escapeHtml(displayUrl(d.url))}</span>`)}
+          ${metaField('Canonical', d.canonical ? `<span class="mono">${escapeHtml(displayUrl(d.canonical))}</span>` : missing('No canonical'))}
           ${metaField('Robots', d.robots ? escapeHtml(d.robots) : '<span class="muted">not set (indexable by default)</span>')}
           ${metaField('Language', d.lang ? escapeHtml(d.lang) : missing('No lang attribute on <html>'))}
           ${metaField('Viewport', d.viewport ? escapeHtml(d.viewport) : missing('No viewport tag: the page is not mobile-friendly'))}
@@ -2498,7 +2494,7 @@ function renderTechnical(d, age) {
       <h2>Server answer</h2>
       ${d.fetchError ? `<p class="muted">${escapeHtml(d.fetchError)}</p>` : ''}
       ${row('HTTP status', statusTag)}
-      ${row('Final URL', `<span class="mono">${escapeHtml(d.finalUrl)}</span>`)}
+      ${row('Final URL', `<span class="mono">${escapeHtml(displayUrl(d.finalUrl))}</span>`)}
       ${row('Redirects', d.redirected ? tag('this URL redirects', 'warn') : 'none')}
       ${row('X-Robots-Tag', xrt ? tag(xrt, robotsBlocksIndexing(xrt) ? 'bad' : 'info') : '<span class="muted">not set</span>')}
       ${row('HTTPS', /^https:/.test(d.finalUrl) ? tag('yes', 'good') : tag('no', 'bad'))}
@@ -2676,7 +2672,7 @@ async function toggleHistory() {
         return `<li class="item history-item">
           <div class="item-body">
             <div class="item-title">${escapeHtml(h.title || 'Untitled page')}</div>
-            <div class="item-url">${escapeHtml(h.url)}</div>
+            <div class="item-url">${escapeHtml(displayUrl(h.url))}</div>
             <div class="item-meta muted">${escapeHtml(timeAgo(h.ts))}${h.healthScore != null ? ` · score ${h.healthScore}${delta ? ` (${delta > 0 ? '+' : ''}${delta})` : ''}` : ''}${verdictWord ? ` · ${verdictWord}` : ''}</div>
           </div>
           <div class="history-actions">
@@ -2800,7 +2796,7 @@ $('export-audit-header').addEventListener('click', async () => {
     storeLink: await storeUrl(),
     fontCss: await reportFontCss()
   });
-  download(`seo-audit-${hostOf(pageUrl) || 'page'}-${localDate()}.html`, html, 'text/html');
+  download(`seo-audit-${hostOf(pageUrl) || 'page'}${pathSlug(pageUrl)}-${localDate()}.html`, html, 'text/html');
   showToast('Report downloaded');
 });
 
