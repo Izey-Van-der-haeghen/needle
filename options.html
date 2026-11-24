@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Needle settings</title>
   <script src="theme-boot.js"></script>
-  <link rel="stylesheet" href="fonts/fonts.css" />
-  <link rel="stylesheet" href="options.css" />
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="options.css">
 </head>
 <body>
   <main class="page">
@@ -20,7 +20,7 @@
       <h2 id="h-about">About Needle</h2>
       <p>Free and open source (MIT licence), made by Izey Van der Haeghen.</p>
       <ul class="plain-list">
-        <li id="store-link-item" hidden><a id="store-link" target="_blank" rel="noopener noreferrer">Needle in the Chrome Web Store</a> (a review helps others find it)</li>
+        <li id="store-link-item" hidden><a id="store-link" href="https://chromewebstore.google.com/detail/khjcjeainolgjipkcjnfaoepnjomnfjc" target="_blank" rel="noopener noreferrer">Needle in the Chrome Web Store</a> (a review helps others find it)</li>
         <li><a href="https://github.com/Izey-Van-der-haeghen/needle" target="_blank" rel="noopener noreferrer">Source code on GitHub</a></li>
         <li><a href="https://github.com/Izey-Van-der-haeghen/needle/issues" target="_blank" rel="noopener noreferrer">Report a problem or suggest a feature</a></li>
         <li>Email: <a href="mailto:hello@izey.dev">hello@izey.dev</a></li>
@@ -51,11 +51,12 @@
     <section aria-labelledby="h-dfs">
       <h2 id="h-dfs">DataForSEO <span class="muted">(optional, paid)</span></h2>
       <p class="muted">Keyword rankings and Google results come from <a href="https://dataforseo.com" target="_blank" rel="noopener noreferrer">DataForSEO</a>, a pay-per-use data provider, through your own account. A keyword lookup costs about $0.025 and a Google search about $0.004; results are kept for 30 to 60 minutes so a repeat costs nothing. Use your API login and API password from the DataForSEO dashboard.</p>
-      <label class="field" for="dfsLogin"><span>API login</span>
-        <input type="email" id="dfsLogin" autocomplete="off" spellcheck="false" />
+      <label class="field"><span>API login</span>
+        <input type="email" id="dfsLogin" autocomplete="off" spellcheck="false">
       </label>
-      <label class="field" for="dfsPassword"><span>API password</span>
-        <input type="password" id="dfsPassword" autocomplete="off" />
+      <label class="field"><span>API password</span>
+        <!-- [html-validate-disable-next autocomplete-password: an API key is not a password; a password manager must not save or generate it] -->
+        <input type="password" id="dfsPassword" autocomplete="off">
       </label>
       <details class="guide">
         <summary>Where to find your API login and password</summary>
@@ -87,8 +88,9 @@
           <li>Safer: in Google Cloud under APIs &amp; Services → Credentials, open the key and limit it to these two APIs.</li>
         </ol>
       </details>
-      <label class="field" for="psiKey"><span>API key</span>
-        <input type="password" id="psiKey" autocomplete="off" spellcheck="false" />
+      <label class="field"><span>API key</span>
+        <!-- [html-validate-disable-next autocomplete-password: an API key is not a password; a password manager must not save or generate it] -->
+        <input type="password" id="psiKey" autocomplete="off" spellcheck="false">
       </label>
       <div class="actions">
         <button type="button" class="primary-btn" id="save-psi">Save</button>
@@ -101,8 +103,9 @@
     <section aria-labelledby="h-bing">
       <h2 id="h-bing">Bing Webmaster Tools <span class="muted">(optional, free)</span></h2>
       <p class="muted">Clicks, impressions, queries and crawl info for your own verified sites in Bing.</p>
-      <label class="field" for="bingKey"><span>API key</span>
-        <input type="password" id="bingKey" autocomplete="off" spellcheck="false" />
+      <label class="field"><span>API key</span>
+        <!-- [html-validate-disable-next autocomplete-password: an API key is not a password; a password manager must not save or generate it] -->
+        <input type="password" id="bingKey" autocomplete="off" spellcheck="false">
       </label>
       <details class="guide">
         <summary>Where to find your Bing API key</summary>
@@ -124,8 +127,8 @@
       <h2 id="h-market">Default market</h2>
       <p class="muted">Used for keyword lookups and Google searches when the page's domain doesn't give the country (.com, .org, .io…).</p>
       <div class="field-row">
-        <label class="field" for="defaultLocation"><span>Country</span><select id="defaultLocation"></select></label>
-        <label class="field" for="defaultLanguage"><span>Language</span><select id="defaultLanguage"></select></label>
+        <label class="field"><span>Country</span><select id="defaultLocation"></select></label>
+        <label class="field"><span>Language</span><select id="defaultLanguage"></select></label>
       </div>
       <p id="market-status" role="status"></p>
     </section>
@@ -133,14 +136,14 @@
     <section aria-labelledby="h-images">
       <h2 id="h-images">Image checks</h2>
       <p class="muted">Needle always flags images shown larger than their file (blurry), files far larger than shown, and a main image under 1200 px wide (Google's advice for Discover). Add your own rules below.</p>
-      <label class="field" for="imgMaxKB"><span>Flag image files larger than (KB)</span>
-        <input type="text" inputmode="numeric" id="imgMaxKB" placeholder="100" autocomplete="off" />
+      <label class="field"><span>Flag image files larger than (KB)</span>
+        <input type="text" inputmode="numeric" id="imgMaxKB" placeholder="100" autocomplete="off">
       </label>
       <p class="muted">Expected size for content images, if your site uses one (for example 1200 × 630). Leave empty for no size rule.</p>
       <div class="field-row">
-        <label class="field" for="imgWidth"><span>Width (px)</span><input type="text" inputmode="numeric" id="imgWidth" autocomplete="off" /></label>
-        <label class="field" for="imgHeight"><span>Height (px)</span><input type="text" inputmode="numeric" id="imgHeight" autocomplete="off" /></label>
-        <label class="field" for="imgMode"><span>Match</span>
+        <label class="field"><span>Width (px)</span><input type="text" inputmode="numeric" id="imgWidth" autocomplete="off"></label>
+        <label class="field"><span>Height (px)</span><input type="text" inputmode="numeric" id="imgHeight" autocomplete="off"></label>
+        <label class="field"><span>Match</span>
           <select id="imgMode">
             <option value="ratio">Same shape (aspect ratio)</option>
             <option value="exact">Exact size</option>
@@ -153,21 +156,21 @@
 
     <section aria-labelledby="h-display">
       <h2 id="h-display">Display and exports</h2>
-      <label class="field" for="theme"><span>Theme</span>
+      <label class="field"><span>Theme</span>
         <select id="theme">
           <option value="auto">Same as my system</option>
           <option value="light">Light</option>
           <option value="dark">Dark</option>
         </select>
       </label>
-      <label class="field" for="csvSeparator"><span>CSV separator for downloads</span>
+      <label class="field"><span>CSV separator for downloads</span>
         <select id="csvSeparator">
           <option value=",">Comma (most spreadsheet apps)</option>
           <option value=";">Semicolon (Excel with European settings)</option>
         </select>
       </label>
-      <label class="check"><input type="checkbox" id="openInSidePanel" /> Open Needle in the side panel instead of a popup. The panel stays open and follows your tabs (with site access on; otherwise click the Needle button on each tab).</label>
-      <label class="check"><input type="checkbox" id="popupShortcuts" /> Single-key shortcuts in the popup (1 to 6 switch tabs, / jumps to the search field)</label>
+      <label class="check"><input type="checkbox" id="openInSidePanel"> Open Needle in the side panel instead of a popup. The panel stays open and follows your tabs (with site access on; otherwise click the Needle button on each tab).</label>
+      <label class="check"><input type="checkbox" id="popupShortcuts"> Single-key shortcuts in the popup (1 to 6 switch tabs, / jumps to the search field)</label>
       <p class="muted">Shortcut to open Needle: <kbd id="open-shortcut">not set</kbd>. <button type="button" class="link-btn" id="change-shortcut">Change it</button></p>
       <p id="display-status" role="status"></p>
     </section>
@@ -185,11 +188,11 @@
     <section aria-labelledby="h-backup">
       <h2 id="h-backup">Back up settings</h2>
       <p class="muted">Download your settings as a file, or load them on another computer.</p>
-      <label class="check"><input type="checkbox" id="export-secrets" /> Include API login, password and key (anyone with the file can use them)</label>
+      <label class="check"><input type="checkbox" id="export-secrets"> Include API login, password and key (anyone with the file can use them)</label>
       <div class="actions">
         <button type="button" class="secondary-btn" id="export-settings">Download settings</button>
         <button type="button" class="secondary-btn" id="import-settings-btn">Load settings from file</button>
-        <input type="file" id="import-settings" accept="application/json" hidden />
+        <input type="file" id="import-settings" accept="application/json" hidden>
       </div>
       <p id="sync-status" role="status"></p>
     </section>

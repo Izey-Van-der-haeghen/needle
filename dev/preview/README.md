@@ -6,7 +6,7 @@ Opens Needle's real popup and settings page in a normal browser tab, without ins
 node dev/preview/serve.js
 ```
 
-Then open http://localhost:5178/popup.html (add `?theme=dark`, `?access=1` for granted site access, `?panel=1` for side-panel mode, `?welcome=1` for the first-run note, `?whatsnew=1` for the note after an update). Open it at 560 px wide to match the popup.
+Then open http://localhost:5178/popup.html (add `?theme=dark`, `?access=1` for granted site access, `?panel=1` for side-panel mode, `?welcome=1` for the first-run note, `?whatsnew=1` for the note after an update, `?tab=ai` to open a tab). Open it at 560 px wide to match the popup.
 
 ## Demo data
 

@@ -51,7 +51,8 @@
       onChanged
     };
   }
-  const local = area("local", { popupState: { onboardingDismissed: q.get("welcome") !== "1" }, ...(q.get("whatsnew") === "1" ? { whatsNew: { from: "1.0.0", at: Date.now() } } : {}) });
+  // ?tab=ai opens that tab, as a saved popupState would (the check pages use it).
+  const local = area("local", { popupState: { onboardingDismissed: q.get("welcome") !== "1", ...(q.get("tab") ? { activeTab: q.get("tab") } : {}) }, ...(q.get("whatsnew") === "1" ? { whatsNew: { from: "1.0.0", at: Date.now() } } : {}) });
   const sync = area("sync", { theme: q.get("theme") || "light" });
 
   // ----- the demo page as the active tab -----

@@ -1,15 +1,15 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
     <title>Needle</title>
     <script src="theme-boot.js"></script>
-    <link rel="stylesheet" href="fonts/fonts.css" />
-    <link rel="stylesheet" href="popup.css" />
+    <link rel="stylesheet" href="fonts/fonts.css">
+    <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <header class="topbar">
-      <div class="brand"><span class="brand-dot" aria-hidden="true"></span>needle</div>
+      <h1 class="brand"><span class="brand-dot" aria-hidden="true"></span>needle</h1>
       <div class="url" id="current-url" title="">—</div>
       <button class="icon-btn" id="export-audit-header" type="button" aria-label="Download report" title="Download report (HTML)" hidden>
         <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16h12"/></svg>
@@ -35,13 +35,15 @@
       <div id="history-list"></div>
     </section>
 
-    <nav class="tabs" role="tablist" aria-label="Audit sections">
-      <button class="tab active" role="tab" id="tab-onpage" data-tab="onpage" aria-controls="panel-onpage" aria-selected="true">On-page</button>
-      <button class="tab" role="tab" id="tab-technical" data-tab="technical" aria-controls="panel-technical" aria-selected="false" tabindex="-1">Technical</button>
-      <button class="tab" role="tab" id="tab-ai" data-tab="ai" aria-controls="panel-ai" aria-selected="false" tabindex="-1">AI</button>
-      <button class="tab" role="tab" id="tab-offpage" data-tab="offpage" aria-controls="panel-offpage" aria-selected="false" tabindex="-1">Speed &amp; keywords</button>
-      <button class="tab" role="tab" id="tab-compare" data-tab="compare" aria-controls="panel-compare" aria-selected="false" tabindex="-1">Compare</button>
-      <button class="tab" role="tab" id="tab-serp" data-tab="serp" aria-controls="panel-serp" aria-selected="false" tabindex="-1">SERP</button>
+    <nav class="tabs-nav">
+    <div class="tabs" role="tablist" aria-label="Audit sections">
+      <button type="button" class="tab active" role="tab" id="tab-onpage" data-tab="onpage" aria-controls="panel-onpage" aria-selected="true">On-page</button>
+      <button type="button" class="tab" role="tab" id="tab-technical" data-tab="technical" aria-controls="panel-technical" aria-selected="false" tabindex="-1">Technical</button>
+      <button type="button" class="tab" role="tab" id="tab-ai" data-tab="ai" aria-controls="panel-ai" aria-selected="false" tabindex="-1">AI</button>
+      <button type="button" class="tab" role="tab" id="tab-offpage" data-tab="offpage" aria-controls="panel-offpage" aria-selected="false" tabindex="-1">Speed &amp; keywords</button>
+      <button type="button" class="tab" role="tab" id="tab-compare" data-tab="compare" aria-controls="panel-compare" aria-selected="false" tabindex="-1">Compare</button>
+      <button type="button" class="tab" role="tab" id="tab-serp" data-tab="serp" aria-controls="panel-serp" aria-selected="false" tabindex="-1">SERP</button>
+    </div>
     </nav>
 
     <main>
@@ -103,19 +105,19 @@
         <div class="card form-card">
           <p class="muted">Put this page next to up to three competitor pages: titles, headings, content length, links and structured data.</p>
           <label class="field"><span>Your page</span>
-            <input type="url" id="compare-self" placeholder="This tab (leave empty)" autocomplete="off" />
+            <input type="url" id="compare-self" placeholder="This tab (leave empty)" autocomplete="off">
           </label>
           <label class="field comp-slot" data-idx="0"><span>Competitor 1</span>
-            <input type="url" class="competitor-url" data-idx="0" placeholder="https://competitor.example/page" autocomplete="off" />
+            <input type="url" class="competitor-url" data-idx="0" placeholder="https://competitor.example/page" autocomplete="off">
           </label>
           <label class="field comp-slot" data-idx="1" hidden><span>Competitor 2</span>
-            <input type="url" class="competitor-url" data-idx="1" placeholder="https://" autocomplete="off" />
+            <input type="url" class="competitor-url" data-idx="1" placeholder="https://" autocomplete="off">
           </label>
           <label class="field comp-slot" data-idx="2" hidden><span>Competitor 3</span>
-            <input type="url" class="competitor-url" data-idx="2" placeholder="https://" autocomplete="off" />
+            <input type="url" class="competitor-url" data-idx="2" placeholder="https://" autocomplete="off">
           </label>
           <label class="field"><span>Keyword <span class="muted">(optional, adds Google positions, <span data-serp-cost>≈ $0.004</span>)</span></span>
-            <input type="text" id="compare-keyword" placeholder="e.g. running shoes" autocomplete="off" />
+            <input type="text" id="compare-keyword" placeholder="e.g. running shoes" autocomplete="off">
           </label>
           <div class="actions">
             <button id="run-compare" type="button" class="primary-btn">Compare</button>
@@ -130,7 +132,7 @@
         <div class="card form-card">
           <p class="muted">Google's top 20 for a search, with SERP features and your position. Uses your DataForSEO account.</p>
           <label class="field"><span>Keyword</span>
-            <input type="text" id="serp-keyword" placeholder="e.g. running shoes" autocomplete="off" />
+            <input type="text" id="serp-keyword" placeholder="e.g. running shoes" autocomplete="off">
           </label>
           <div class="field-row">
             <label class="field"><span>Country</span><select id="serp-location"></select></label>
@@ -143,7 +145,7 @@
             </label>
           </div>
           <label class="field"><span>Find my site</span>
-            <input type="text" id="serp-mydomain" placeholder="Domain of this tab (leave empty)" autocomplete="off" />
+            <input type="text" id="serp-mydomain" placeholder="Domain of this tab (leave empty)" autocomplete="off">
           </label>
           <div class="actions">
             <button id="run-serp" type="button" class="primary-btn">Search Google</button>

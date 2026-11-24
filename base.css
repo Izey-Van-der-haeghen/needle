@@ -82,7 +82,7 @@ details:not(.collapsible)[open] > summary::before { transform: rotate(45deg); }
 .missing { color: var(--bad); font-style: normal; }
 
 /* Brand mark: the only place Martian Mono runs at width. */
-.brand { font: 700 14px/1 var(--mono); font-stretch: 112.5%; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 6px; }
+.brand { margin: 0; font: 700 14px/1 var(--mono); font-stretch: 112.5%; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 6px; }
 .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
 
 /* ----- Buttons ----- */
