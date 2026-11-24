@@ -59,7 +59,7 @@ const ALTERNATE = `<!doctype html><html lang="${escapeAttr(PAYLOAD)}"><head><tit
   <meta name="robots" content="${escapeAttr(`index ${PAYLOAD}`)}">
   <link rel="alternate" hreflang="${escapeAttr(PAYLOAD)}" href="${escapeAttr(`${FX.url}?q=${PAYLOAD}`)}">
   </head><body><h1>${escapeXml(PAYLOAD)}</h1></body></html>`;
-export const COMPETITOR = "https://www.rival.example/";
+const COMPETITOR = "https://www.rival.example/";
 const COMPETITOR_PAGE = `<!doctype html><html lang="${escapeAttr(PAYLOAD)}"><head><title>${escapeXml(PAYLOAD)} Rival Bikes</title>
   <meta name="description" content="${escapeAttr(`${PAYLOAD} Bike repairs while you wait.`)}">
   <meta name="robots" content="${escapeAttr(PAYLOAD)}">

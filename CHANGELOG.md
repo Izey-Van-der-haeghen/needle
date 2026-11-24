@@ -3,6 +3,9 @@
 ## Unreleased
 
 - **Accessibility:** the popup has one main heading, and its tabs sit in a navigation landmark, so screen-reader users can jump to both. When a pressed button goes away (Got it, Allow access), focus moves to the active tab or to what the button started; each result is announced once, in a short sentence; two-step buttons wait as long as you need; focus rings are no longer cut at the edge; the selected tab stays visible in Windows contrast themes; the side panel shows the page address on its own line.
+- **Screen readers:** the sitemap, versions and alternates checks, the "Search Google" key notice and every permission notice say their result, in the words the screen shows; each JSON-LD block has its own name.
+- **Compare:** without permission for DataForSEO, Compare shows the same "Allow DataForSEO" button as the other tools, and compares again after it. "Recent pages" is called History everywhere.
+- **Report:** uses the popup's words (link regions, "Structured data", "not found"), calls a robots.txt that answers 404 "none (everything allowed)", and writes sizes with thousands separators.
 - **Fewer coral buttons:** "Open Settings" in the key notices is a secondary button, so it no longer competes with the card's own run button.
 - **Fixed:** an empty keyword no longer says "Could not connect". Large images near the end of a long page are checked (they counted as footer). "Check again" under the lazy-image note keeps a finished link check. A settings import checks each value on its own and never mixes half an image size with the stored one. Esc also clears the "marked on the page" line.
 - **Any language:** addresses on screen and in the report show their letters (Région, not R%C3%A9gion), while links, copies and the examples under Fix this first keep the raw address; Compare file names keep non-Latin keywords; right-to-left text in the report keeps its punctuation in place.

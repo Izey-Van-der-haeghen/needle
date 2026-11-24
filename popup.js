@@ -2190,7 +2190,7 @@ function renderOnpage(d, age) {
           return `<details class="sub"${errors.length ? ' open' : ''}>
             <summary>${escapeHtml(s.types.join(', ') || 'Unknown type')} #${i + 1} ${errors.length ? tag(`${errors.length} error${errors.length === 1 ? '' : 's'}`, 'bad') : warns.length ? tag(`${warns.length} warning${warns.length === 1 ? '' : 's'}`, 'warn') : tag('valid', 'good')}</summary>
             ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(...(SCHEMA_LEVEL[iss.level] || SCHEMA_LEVEL.info))} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
-            <pre class="code" tabindex="0" role="region" aria-label="JSON-LD">${escapeHtml(JSON.stringify(s.raw, null, 2))}</pre>
+            <pre class="code" tabindex="0" role="region" aria-label="${escapeHtml(`JSON-LD #${i + 1}: ${s.types.join(', ') || 'Unknown type'}`)}">${escapeHtml(JSON.stringify(s.raw, null, 2))}</pre>
           </details>`;
         }).join('')}
         <div class="actions">
