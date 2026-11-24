@@ -10,33 +10,57 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 const read = (f) => readFileSync(path.join(ROOT, f), "utf8");
 
 /**
- * @param {{panel?: boolean, activeTab?: string|null, local?: Object}} [opts] - panel: behave as the side panel;
- *   activeTab: a tab saved from an earlier visit ("technical", "ai" …); local: more chrome.storage.local data;
- *   onpage: fields to change in the demo page's ANALYZE_ONPAGE answer;
- *   unreadable: a Chrome error text, to act as a tab Needle can't read (no internet, the Web Store …)
- * @returns {Promise<{markedBeforePopupJs: boolean, storage: Object}>} whether theme-boot.js marked the side
- *   panel, and the stubbed chrome.storage (to read what the popup saved)
+ * @param {Object} [opts]
+ * @param {boolean} [opts.panel] - behave as the side panel
+ * @param {string|null} [opts.activeTab] - a tab saved from an earlier visit ("technical", "ai" …)
+ * @param {Object} [opts.local] - more chrome.storage.local data
+ * @param {Object} [opts.sync] - more chrome.storage.sync data
+ * @param {Object} [opts.onpage] - fields to change in the demo page's ANALYZE_ONPAGE answer
+ * @param {string} [opts.unreadable] - a Chrome error text, to act as a tab Needle can't read (no internet, the Web Store …)
+ * @param {Object<string, Function>} [opts.tabHandlers] - more answers to chrome.tabs.sendMessage, by msg.type:
+ *   (msg) => answer, or a promise; a throw or a rejected promise makes sendMessage reject
+ * @param {Object<string, Function>} [opts.runtime] - answers to chrome.runtime.sendMessage (the worker), by msg.type;
+ *   other types get {error: "test: TYPE"}
+ * @param {Function} [opts.scripting] - replaces chrome.scripting.executeScript (the server check runs through it)
+ * @param {boolean} [opts.allSites] - access to websites is granted (permissions.contains answers true)
+ * @param {boolean} [opts.deferChanges] - hold chrome.storage.local.onChanged until deliverChanges(), the way a
+ *   change from another view can arrive after this view's own write
+ * @returns {Promise<{markedBeforePopupJs: boolean, storage: Object, chrome: Object, tab: Object, tabMessages: Object[],
+ *   deliverChanges: () => Promise<void>}>} whether theme-boot.js marked the side panel; the stubbed chrome.storage
+ *   (to read what the popup saved) and the whole stub (its onUpdated/onActivated listeners are in `_all`); the
+ *   active tab, which a test may change (tabs.query and tabs.get answer with it); every chrome.tabs.sendMessage
+ *   message, in order; and a function that delivers the held onChanged events
  */
-export async function loadPopup({ panel = false, activeTab = null, local = {}, onpage = {}, unreadable = "" } = {}) {
+export async function loadPopup({ panel = false, activeTab = null, local = {}, sync = {}, onpage = {}, unreadable = "",
+  tabHandlers: moreTabHandlers = {}, runtime = {}, scripting = null, allSites = false, deferChanges = false } = {}) {
   history.replaceState(null, "", "/popup.html");
   const inner = read("popup.html").replace(/^[\s\S]*?<html[^>]*>/i, "").replace(/<\/html>[\s\S]*$/i, "").replace(/<script[\s\S]*?<\/script>/gi, "");
   document.documentElement.innerHTML = inner;
   globalThis.matchMedia = window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
   globalThis.requestAnimationFrame ??= (f) => setTimeout(f, 0);
+  // jsdom has no scrolling; Refresh keeps the reader's scroll position with these.
+  window.scrollTo = window.scrollBy = () => {};
   // jsdom has no canvas; Needle measures snippet widths with one.
   HTMLCanvasElement.prototype.getContext = () => ({ font: "", measureText: (t) => ({ width: String(t).length * 8 }) });
 
   const FX = JSON.parse(read("dev/preview/fixtures/riverside.json"));
   const MANIFEST = JSON.parse(read("manifest.json"));
   const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
-  const later = (fn) => new Promise((res, rej) => setTimeout(() => { try { res(clone(fn())); } catch (e) { rej(e); } }, 0));
+  // A moment later, like a message to another context; fn may return a promise.
+  const later = (fn) => new Promise((res) => setTimeout(res, 0)).then(fn).then(clone);
   const listeners = () => { const s = new Set(); return { addListener: (f) => s.add(f), removeListener: (f) => s.delete(f), hasListener: (f) => s.has(f), _all: s }; };
   // Like Chrome, a write tells the area's and the global onChanged listeners, a moment later.
   const anyChange = listeners();
+  const held = [];
   const area = (seed, areaName) => {
     const data = clone(seed) || {};
     const own = listeners();
-    const tell = (changes) => { if (Object.keys(changes).length) setTimeout(() => { own._all.forEach((f) => f(clone(changes))); anyChange._all.forEach((f) => f(clone(changes), areaName)); }, 0); };
+    const tell = (changes) => {
+      if (!Object.keys(changes).length) return;
+      const deliver = () => { own._all.forEach((f) => f(clone(changes))); anyChange._all.forEach((f) => f(clone(changes), areaName)); };
+      if (deferChanges && areaName === "local") held.push(deliver);
+      else setTimeout(deliver, 0);
+    };
     const pick = (keys) => {
       if (keys == null) return clone(data);
       if (typeof keys === "string") keys = [keys];
@@ -48,17 +72,22 @@ export async function loadPopup({ panel = false, activeTab = null, local = {}, o
       remove: async (ks) => { const ch = {}; [].concat(ks).forEach((k) => { if (k in data) { ch[k] = { oldValue: data[k] }; delete data[k]; } }); tell(ch); },
       clear: async () => {}, setAccessLevel: async () => {}, onChanged: own };
   };
-  const TAB = { id: 1, windowId: 1, url: FX.url, title: FX.title, active: true };
-  const tabHandlers = { ANALYZE_ONPAGE: () => ({ ...FX.onpage, ...onpage }), GET_RENDERED: () => FX.rendered, GET_MAIN_TEXT: () => FX.main };
+  const TAB = { id: 1, windowId: 1, url: FX.url, title: FX.title, active: true, status: "complete" };
+  const tabHandlers = { ANALYZE_ONPAGE: () => ({ ...FX.onpage, ...onpage }), GET_RENDERED: () => FX.rendered, GET_MAIN_TEXT: () => FX.main, ...moreTabHandlers };
+  const tabMessages = [];
   globalThis.chrome = window.chrome = {
     runtime: { id: "test", getURL: (p) => `${location.origin}/${p}`, getManifest: () => clone(MANIFEST), openOptionsPage() {},
-      sendMessage: (m) => later(() => ({ error: "test: " + m?.type })), onMessage: listeners(), onInstalled: listeners(), onStartup: listeners() },
+      sendMessage: (m) => later(() => (runtime[m?.type] || (() => ({ error: "test: " + m?.type })))(clone(m))), onMessage: listeners(), onInstalled: listeners(), onStartup: listeners() },
     tabs: { query: async () => [clone(TAB)], get: async () => clone(TAB),
-      sendMessage: (_i, m) => (unreadable ? Promise.reject(new Error("Could not establish connection. Receiving end does not exist.")) : later(() => (tabHandlers[m?.type] || (() => undefined))(m))), create: async () => ({ id: 2 }), update: async () => clone(TAB), onActivated: listeners(), onUpdated: listeners() },
+      sendMessage: (tabId, m) => {
+        tabMessages.push({ tabId, msg: clone(m) });
+        return unreadable ? Promise.reject(new Error("Could not establish connection. Receiving end does not exist.")) : later(() => (tabHandlers[m?.type] || (() => undefined))(clone(m)));
+      },
+      create: async () => ({ id: 2 }), update: async () => clone(TAB), onActivated: listeners(), onUpdated: listeners() },
     windows: { getCurrent: async () => ({ id: 1 }) },
-    scripting: { executeScript: () => (unreadable ? Promise.reject(new Error(unreadable)) : later(() => [{ result: undefined }])) },
-    storage: { local: area({ popupState: { onboardingDismissed: true, ...(activeTab ? { activeTab } : {}) }, ...local }, "local"), sync: area({ theme: "light" }, "sync"), onChanged: anyChange },
-    permissions: { contains: async () => false, request: async () => false, remove: async () => true, onAdded: listeners(), onRemoved: listeners() },
+    scripting: { executeScript: (d) => (scripting ? scripting(d) : unreadable ? Promise.reject(new Error(unreadable)) : later(() => [{ result: undefined }])) },
+    storage: { local: area({ popupState: { onboardingDismissed: true, ...(activeTab ? { activeTab } : {}) }, ...local }, "local"), sync: area({ theme: "light", ...sync }, "sync"), onChanged: anyChange },
+    permissions: { contains: async () => allSites, request: async () => allSites, remove: async () => true, onAdded: listeners(), onRemoved: listeners() },
     extension: { getViews: ({ type } = {}) => (type === "popup" && !panel ? [window] : []) },
     commands: { getAll: async () => [] },
     i18n: { getMessage: () => "", getUILanguage: () => "en" },
@@ -71,5 +100,6 @@ export async function loadPopup({ panel = false, activeTab = null, local = {}, o
   await import(pathToFileURL(path.join(ROOT, "popup.js")).href);
   // Wait until the On-page tab shows something (an audit, a notice or an error), at most 3 s.
   for (let t = 0; t < 300 && !document.querySelector("#panel-onpage > *:not(.loading)"); t++) await new Promise((r) => setTimeout(r, 10));
-  return { markedBeforePopupJs, storage: globalThis.chrome.storage };
+  const deliverChanges = async () => { held.splice(0).forEach((f) => f()); await new Promise((r) => setTimeout(r, 0)); };
+  return { markedBeforePopupJs, storage: globalThis.chrome.storage, chrome: globalThis.chrome, tab: TAB, tabMessages, deliverChanges };
 }

@@ -12,6 +12,7 @@ import { readableError } from "./lib/errors.js";
 import { localDate } from "./lib/popup-helpers.js";
 import { fetchWithTimeout } from "./lib/fetch-helper.js";
 import { FETCH_TIMEOUT_MS, PSI_TIMEOUT_MS } from "./lib/constants.js";
+import { whileBusy } from "./lib/busy.js";
 
 const $ = (id) => document.getElementById(id);
 await initTheme();
@@ -23,18 +24,6 @@ storeUrl().then((url) => {
   $("store-link").href = url;
   $("store-link-item").hidden = false;
 });
-
-/**
- * A test runs once at a time: while it runs, its button stays focusable but ignores clicks
- * (aria-disabled, styled as busy in base.css), so a second click doesn't start it again.
- */
-function whileBusy(btn, run) {
-  return async (...args) => {
-    if (btn.getAttribute("aria-disabled") === "true") return;
-    btn.setAttribute("aria-disabled", "true");
-    try { await run(...args); } finally { btn.removeAttribute("aria-disabled"); }
-  };
-}
 
 /** Show a short status message next to a section. */
 function say(id, text, kind = "good") {

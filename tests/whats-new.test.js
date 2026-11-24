@@ -33,7 +33,7 @@ describe("what changed since the version the user had", () => {
 describe("where users find it", () => {
   it("Settings links 'What's new' to the changelog", () => {
     expect(read("options.html")).toMatch(/Version <span id="version"><\/span> · <a id="changelog-link"[^>]*rel="noopener noreferrer">What's new<\/a>/);
-    expect(read("options.js")).toContain('$("changelog-link").href = CHANGELOG_URL;');
+    // options.js sets the link: tests/options-page.test.js.
     expect(CHANGELOG_URL).toBe("https://github.com/Izey-Van-der-haeghen/needle/blob/main/CHANGELOG.md");
   });
 
@@ -72,7 +72,8 @@ describe("a second update before the popup opens", () => {
     vi.resetModules();
     let onInstalled;
     const store = { whatsNew: { from: "1.0.0" } };
-    const area = () => ({ get: vi.fn(async (k) => (k === "whatsNew" ? { whatsNew: store.whatsNew } : {})), set: vi.fn(async (o) => Object.assign(store, o)), remove: vi.fn(async () => {}), onChanged: { addListener: vi.fn() } });
+    const set = vi.fn(async (o) => Object.assign(store, o));
+    const area = () => ({ get: vi.fn(async (k) => (k === "whatsNew" ? { whatsNew: store.whatsNew } : {})), set, remove: vi.fn(async () => {}), onChanged: { addListener: vi.fn() } });
     globalThis.chrome = {
       runtime: { id: "abc", getURL: (p) => p, getManifest: () => ({ version: "1.0.2" }), onInstalled: { addListener: (fn) => { onInstalled ??= fn; } },
         onStartup: { addListener: vi.fn() }, onMessage: { addListener: vi.fn() }, onConnect: { addListener: vi.fn() }, sendMessage: vi.fn(async () => {}) },
@@ -84,7 +85,10 @@ describe("a second update before the popup opens", () => {
     };
     await import("../background.js");
     onInstalled({ reason: "update", previousVersion: "1.0.1" });
-    await vi.waitFor(() => expect(store.whatsNew).toEqual({ from: "1.0.0" }));
+    // The store already holds 1.0.0: wait for the update's own write, then compare.
+    await vi.waitFor(() => expect(set.mock.calls.some(([o]) => "whatsNew" in o)).toBe(true));
+    expect(set.mock.calls.find(([o]) => "whatsNew" in o)[0]).toEqual({ whatsNew: { from: "1.0.0" } });
+    expect(store.whatsNew).toEqual({ from: "1.0.0" });
     delete globalThis.chrome;
   });
 });

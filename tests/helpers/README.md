@@ -75,6 +75,11 @@ Each polyfill fills a gap jsdom has that `content.js` needs. They are approximat
 
 - **Image loading.** jsdom never decodes images, so any `<img>` with a `src` has `complete === false` and `naturalWidth/Height === 0`, like an image still loading in Chrome. To simulate a loaded or a broken image (or a 2x screen), define those properties with the `setup` option, for example `Object.defineProperty(w.HTMLImageElement.prototype, "naturalWidth", { get() { return 320; } })` and `w.devicePixelRatio = 2`.
 - **`img.currentSrc`** is `""` unless `setup` defines it, because jsdom does not pick from `srcset`. `content.js` then uses `img.src`, while Chrome may report the candidate it picked.
+- **Scrolled pages.** Set `page.window.scrollY` and give viewport-relative rects: an element above the viewport has a negative y.
+- **Position fallback.** It only runs when the page has a height, so put a `data-test-rect` on `<body>`. Without one, links and images outside any landmark come back `"other"`, where Chrome places them by position (the edge page's tracking pixel is `"header"` in Chrome). Never pin `"other"` without setting that rect.
+- **CSS.** jsdom ignores `@media` rules, specificity and `!important`: the rule that comes last wins, and content hidden only inside a media query still counts as visible. Chrome resolves all of these.
+- **Background images.** jsdom computes `""` for a `background` shorthand with a position and size (`center/cover`), several layers, or a gradient plus `url()`, even in an inline style. Use a plain `background-image: url(/…)` in a rule or an inline style.
+- **Computed `url()` values.** `getComputedStyle` keeps `url()` as written, so `content.js` resolves it against `location.href`; Chrome resolves it against the `<base href>`. Under a `<base href>`, use absolute background URLs, or root-relative ones when the base has the page's origin.
 
 ## The popup harness
 
@@ -84,13 +89,27 @@ Each polyfill fills a gap jsdom has that `content.js` needs. They are approximat
 |---|---|---|
 | `panel` | `false` | behave as the side panel (`getViews` doesn't list the window) |
 | `activeTab` | `null` | a tab saved from an earlier visit (`"technical"`, `"ai"` …) |
-| `local` | `{}` | more `chrome.storage.local` data, e.g. `{ whatsNew: { from: "1.0.0" } }` |
+| `local` | `{}` | more `chrome.storage.local` data, e.g. `{ whatsNew: { from: "1.0.0" } }` or `{ dfsLogin, dfsPassword }` |
+| `sync` | `{}` | more `chrome.storage.sync` data (Settings) |
 | `onpage` | `{}` | fields to change in the demo page's `ANALYZE_ONPAGE` answer |
 | `unreadable` | `""` | a Chrome error text, to act as a tab Needle can't read |
+| `tabHandlers` | `{}` | more answers to `chrome.tabs.sendMessage`, by `msg.type`: `(msg) => answer` or a promise; a throw makes the message fail |
+| `runtime` | `{}` | answers from the service worker (`chrome.runtime.sendMessage`), by `msg.type`, e.g. `CHECK_LINKS`, `RUN_DFS`; return a promise the test resolves to keep a run going. Other types answer `{ error }` |
+| `scripting` | `null` | replaces `chrome.scripting.executeScript`; the server check reads the page through it, so a promise that waits keeps the check pending |
+| `allSites` | `false` | access to websites is granted (`permissions.contains` answers `true`) |
+| `deferChanges` | `false` | `chrome.storage.local.onChanged` waits for `deliverChanges()`, the way another view's change can arrive after this view saved |
 
-It returns `{ markedBeforePopupJs, storage }` once the On-page tab shows something. Wait for later content (the AI tab) with `vi.waitFor`.
-- **Scrolled pages.** Set `page.window.scrollY` and give viewport-relative rects: an element above the viewport has a negative y.
-- **Position fallback.** It only runs when the page has a height, so put a `data-test-rect` on `<body>`. Without one, links and images outside any landmark come back `"other"`, where Chrome places them by position (the edge page's tracking pixel is `"header"` in Chrome). Never pin `"other"` without setting that rect.
-- **CSS.** jsdom ignores `@media` rules, specificity and `!important`: the rule that comes last wins, and content hidden only inside a media query still counts as visible. Chrome resolves all of these.
-- **Background images.** jsdom computes `""` for a `background` shorthand with a position and size (`center/cover`), several layers, or a gradient plus `url()`, even in an inline style. Use a plain `background-image: url(/…)` in a rule or an inline style.
-- **Computed `url()` values.** `getComputedStyle` keeps `url()` as written, so `content.js` resolves it against `location.href`; Chrome resolves it against the `<base href>`. Under a `<base href>`, use absolute background URLs, or root-relative ones when the base has the page's origin.
+It resolves once the On-page tab shows something, to:
+
+- `markedBeforePopupJs`: whether `theme-boot.js` marked the side panel;
+- `storage`: the stubbed `chrome.storage`, to read what the popup saved, or to write as another view or Settings would (`storage.sync.set(…)` reaches an open popup);
+- `chrome`: the whole stub. Fire tab events through its listener sets, e.g. `chrome.tabs.onUpdated._all.forEach((f) => f(tab.id, { url }))`;
+- `tab`: the active tab. Change it (`Object.assign(tab, { id: 2, url })`) before an event: `tabs.query` and `tabs.get` answer with it;
+- `tabMessages`: every `chrome.tabs.sendMessage`, as `{ tabId, msg }`, in order;
+- `deliverChanges()`: delivers the held `onChanged` events (with `deferChanges`).
+
+Wait for later content (the AI tab, a saved state) with `vi.waitFor`, never a fixed wait. For timers that are part of the behaviour (the side panel waits 400 ms after a tab event), install `vi.useFakeTimers()` after `loadPopup` and step with `vi.advanceTimersByTimeAsync`.
+
+## The Settings harness
+
+`tests/helpers/options-harness.js` loads the real `options.html`, `theme-boot.js` and `options.js` the same way. `loadOptions({ local, sync, allowed })` resolves to `{ storage }` once `options.js` has filled the form; `allowed` (default `true`) is Chrome's answer to the host access Settings asks for. Nothing is fetched: stub `fetch` with `vi.stubGlobal`, and honour `signal` in the stub when a deadline matters.

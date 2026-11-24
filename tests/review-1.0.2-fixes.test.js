@@ -64,12 +64,9 @@ describe("code review of 1.0.2 (Ponytail)", () => {
     await expect(fetchInPage(1, [{ url: "https://site.example/" }])).rejects.toThrow(/^The tab shows an error page instead of the website/);
   });
 
-  it("Settings tests have a deadline, so a hanging request can't keep the button busy", async () => {
+  it("Settings makes no request without a deadline (the deadlines themselves: tests/options-page.test.js)", async () => {
     const { readFileSync } = await import("node:fs");
-    const src = readFileSync(new URL("../options.js", import.meta.url), "utf8");
-    expect(src).toMatch(/fetchWithTimeout\("https:\/\/api\.dataforseo\.com[\s\S]*?\}, FETCH_TIMEOUT_MS\)/);
-    expect(src).toMatch(/fetchWithTimeout\(`https:\/\/www\.googleapis\.com\/pagespeedonline[^`]*`, \{\}, PSI_TIMEOUT_MS\)/);
-    expect(src).not.toMatch(/await fetch\(/);
+    expect(readFileSync(new URL("../options.js", import.meta.url), "utf8")).not.toMatch(/await fetch\(/);
   });
 
   it("srcset URLs with commas (w_800,c_fill) stay whole in lazy images", async () => {
@@ -119,15 +116,7 @@ describe("design review of 1.0.2 (Impeccable)", () => {
 describe("polish review of 1.0.2 (Make interfaces feel better)", () => {
   const read = async (f) => (await import("node:fs")).readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
 
-  it("Got it puts focus on the active tab without scrolling", async () => {
-    expect(await read("popup.js")).toContain(`document.querySelector('[role="tab"][aria-selected="true"]')?.focus({ preventScroll: true });`);
-  });
-
-  it("link hints put the URL on its own line in the code font", async () => {
-    const src = await read("popup.js");
-    expect(src).toMatch(/Redirects\. Link straight to the final URL:<div class="item-url">/);
-    expect(src).toMatch(/Keep this link: it works for every language\.<div class="item-url">/);
-  });
+  // "Got it" focus: tests/popup-whats-new.test.js. Link hints with the URL on its own line: tests/popup-link-check.test.js.
 
   it("the popup has no static loading line for a note to push down, and Check again keeps its width", async () => {
     expect(await read("popup.html")).not.toMatch(/Reading the page…/);
@@ -270,8 +259,8 @@ describe("full check of 1.0.2: public texts and privacy", () => {
     const kept = withoutSiteChoices({ activeTab: "ai", marketByHost: { "site.example": {} }, serpMarketByHost: { "site.example": {} } });
     expect(kept).toEqual({ activeTab: "ai" });
     const { SITE_CHOICE_KEYS } = await import("../lib/settings.js");
-    expect(SITE_CHOICE_KEYS).toEqual(["marketByHost", "serpMarketByHost"]); // the popup's Clear history loops over these
-    expect(await read("options.js")).toMatch(/popupState: withoutSiteChoices\(popupState\)/);
+    expect(SITE_CHOICE_KEYS).toEqual(["marketByHost", "serpMarketByHost"]);
+    // The buttons themselves: tests/popup-history-clear.test.js and tests/options-page.test.js.
   });
 
   it("the store's What's new lines are the extension's, for the manifest version", async () => {
@@ -364,6 +353,9 @@ describe("full check of 1.0.2 (Ponytail): smaller logic gaps", () => {
     expect(isLanguageRedirect("https://site.example/page", "https://site.example/es-419/page")).toBe(true);
     expect(isLanguageRedirect("https://site.example/2019/campaign/index.html", "https://site.example/en/index.html")).toBe(false);
     expect(isLanguageRedirect("https://site.example/shop/index.html", "https://site.example/en/shop/index.html")).toBe(true);
+    // A section added after the language is another page, also when both end in index.html.
+    expect(isLanguageRedirect("https://site.example/index.html", "https://site.example/en/promo/index.html")).toBe(false);
+    expect(isLanguageRedirect("https://site.example/shop/default.aspx", "https://site.example/fr/archive/shop/default.aspx")).toBe(false);
   });
 
   it("the sitemap check compares URLs with the shared key", async () => {
