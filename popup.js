@@ -36,7 +36,7 @@ import { urlKey, withoutTracking } from './lib/urls.js';
 import { noConnection } from './lib/link-checker.js';
 import { whatsNewFor, CHANGELOG_URL } from './lib/whats-new.js';
 import { MAX_IMAGES as MAX_MEASURED_IMAGES } from './lib/image-sizer.js';
-import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, LEVEL_KIND, leftOutNote, HREFLANG_LEVEL_WORD } from './lib/labels.js';
+import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, SCHEMA_LEVEL, HREFLANG_LEVEL, h1Status, leftOutNote } from './lib/labels.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
@@ -2056,7 +2056,6 @@ function renderOnpage(d, age) {
   const descLen = charCount(d.description);
   const titlePx = pixelWidth(d.title || '', SNIPPET.titleFont);
   const descPx = pixelWidth(d.description || '', SNIPPET.descFont);
-  const h1Count = d.headings.filter((h) => h.level === 1 && !h.hidden).length;
   const host = bareHost(d.url);
 
   let prev = 0;
@@ -2140,7 +2139,7 @@ function renderOnpage(d, age) {
 
     <details class="card collapsible" id="headings-card">
       <summary><h2 class="card-title">Headings (${fmtNum(d.headings.length)})</h2>
-        ${h1Count === 1 ? tag('one H1', 'good') : h1Count === 0 ? (d.headings.some((h) => h.level === 1 && h.hidden) ? tag('H1 hidden', 'warn') : tag('no H1', 'bad')) : tag(`${h1Count} H1s`, 'warn')}</summary>
+        ${tag(...h1Status(d.headings))}</summary>
       <div class="card-body">
         <p class="muted">${[1, 2, 3, 4, 5, 6].map((l) => `H${l}: ${fmtNum(d.headings.filter((h) => h.level === l).length)}`).join(' · ')}</p>
         <div class="actions">
@@ -2189,7 +2188,7 @@ function renderOnpage(d, age) {
           const warns = s.issues.filter((x) => x.level === 'warn');
           return `<details class="sub"${errors.length ? ' open' : ''}>
             <summary>${escapeHtml(s.types.join(', ') || 'Unknown type')} #${i + 1} ${errors.length ? tag(`${errors.length} error${errors.length === 1 ? '' : 's'}`, 'bad') : warns.length ? tag(`${warns.length} warning${warns.length === 1 ? '' : 's'}`, 'warn') : tag('valid', 'good')}</summary>
-            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag({ error: 'required', warn: 'warning', note: 'note' }[iss.level] || 'recommended', LEVEL_KIND[iss.level])} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
+            ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(...(SCHEMA_LEVEL[iss.level] || SCHEMA_LEVEL.info))} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
             <pre class="code">${escapeHtml(JSON.stringify(s.raw, null, 2))}</pre>
           </details>`;
         }).join('')}
@@ -2335,7 +2334,7 @@ function renderHreflang(d) {
   if (d.hreflangOutsideHead) issues.unshift({ level: 'error', msg: `${d.hreflangOutsideHead} hreflang link${d.hreflangOutsideHead === 1 ? '' : 's'} outside <head>`, hint: 'Google only reads hreflang links in <head>.' });
   const passed = !issues.some((iss) => iss.level !== 'info');
   const issueHtml = `${passed ? `<p>${tag('All hreflang checks passed', 'good')}</p>` : ''}${issues.length
-    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(HREFLANG_LEVEL_WORD[iss.level], LEVEL_KIND[iss.level])} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}`;
+    ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(...HREFLANG_LEVEL[iss.level])} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}`;
   return `${issueHtml}<table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">URL</th></tr></thead><tbody>
     ${d.hreflang.map((h) => `<tr><td class="mono lang">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(h.href)}</td></tr>`).join('')}</tbody></table>
     ${d.hreflang.length > 1 ? `<div class="actions"><button type="button" class="secondary-btn" id="hreflang-check">Check the alternates</button></div><div id="hreflang-cluster" aria-live="polite"></div>` : ''}`;

@@ -122,7 +122,7 @@ describe("izey.dev round of 22 November (link check)", () => {
 
 describe("labels shared by the popup and the report (full check of 1.0.2)", () => {
   it("give plain facts the information label, problems their colour", async () => {
-    const { botStatus, signalStatus, llmsStatus, cwvStatus, LEVEL_KIND, SEV_KIND, leftOutNote } = await import("../lib/labels.js");
+    const { botStatus, signalStatus, llmsStatus, cwvStatus, SCHEMA_LEVEL, SEV_KIND, leftOutNote } = await import("../lib/labels.js");
     expect(botStatus({ allowed: false, kind: "training" }, true)).toEqual(["blocked", "info"]);
     expect(botStatus({ allowed: false, kind: "search" }, true)).toEqual(["blocked", "bad"]);
     expect(botStatus({ allowed: true }, false)).toEqual(["unknown", "neutral"]);
@@ -130,7 +130,7 @@ describe("labels shared by the popup and the report (full check of 1.0.2)", () =
     expect(signalStatus({ ok: false }, "missing")).toEqual(["missing", "warn"]);
     expect(llmsStatus({ ok: false })).toEqual(["not found", "info"]);
     expect(cwvStatus("AVERAGE")).toEqual(["needs work", "warn"]);
-    expect([LEVEL_KIND.note, SEV_KIND.low]).toEqual(["info", "neutral"]);
+    expect([SCHEMA_LEVEL.note[1], SEV_KIND.low]).toEqual(["info", "neutral"]);
     expect(leftOutNote(1)).toBe("1 finding that only matters in search results is left out while the page is noindex.");
   });
 
