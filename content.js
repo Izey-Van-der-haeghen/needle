@@ -1024,7 +1024,6 @@
 
   function detectSchemaSignals() {
     const bodyText = (document.body?.innerText || "").slice(0, 50000);
-    const lowerBody = bodyText.toLowerCase();
 
     const hasBreadcrumb = [...document.querySelectorAll(
       '#breadcrumb, #breadcrumbs, [id*="breadcrumb" i], ' +
@@ -1062,10 +1061,10 @@
                        ADDRESS_RE.test(bodyText.slice(0, 5000));
 
     // At least nine digits; not a date or a date range (14.10.2026 - 20.11.2026), not a big number (1.000.000.000).
-    const phoneLike = (bodyText.slice(0, 5000).match(/\+?\(?\d[\d\s().\/-]{7,}\d/g) || [])
+    const phoneLike = (bodyText.slice(0, 5000).match(/\+?\(?\d[\d\s()./-]{7,}\d/g) || [])
       .filter((m) => (m.match(/\d/g) || []).length >= 9 &&
-        !/\d{1,2}[.\/-]\d{1,2}[.\/-](?:19|20)\d{2}/.test(m) &&
-        !/^\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2}$/.test(m.trim()) &&
+        !/\d{1,2}[./-]\d{1,2}[./-](?:19|20)\d{2}/.test(m) &&
+        !/^\d{1,2}[./-]\d{1,2}[./-]\d{2}$/.test(m.trim()) &&
         !/^\d{1,3}(?:[.,]\d{3}){2,}$/.test(m.trim()));
     const hasPhone = !!document.querySelector('a[href^="tel:"]') || phoneLike.length > 0;
 

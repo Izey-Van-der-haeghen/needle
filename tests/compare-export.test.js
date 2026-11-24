@@ -196,7 +196,7 @@ describe("CSV safety and spreadsheet options", () => {
   it("can use semicolons and a BOM for Excel with European settings", () => {
     const csv = buildCompareCsv(evil, null, "", { forExcel: true, separator: ";" });
     expect(csv.startsWith("﻿")).toBe(true);
-    expect(csv.split("\r\n")[0]).toMatch(/^﻿Metric;/);
+    expect(csv.split("\r\n")[0]).toMatch(/^\uFEFFMetric;/);
   });
 
   it("marks the Markdown export as made with Needle", () => {

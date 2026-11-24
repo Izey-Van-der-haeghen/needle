@@ -1731,7 +1731,8 @@ let imageFilter = { kind: 'all' };
 
 const CONTEXT_LETTER = { header: 'H', nav: 'N', breadcrumb: 'B', main: 'M', sidebar: 'S', footer: 'F', other: 'O' };
 const CONTEXT_NAME = { header: 'header', nav: 'menu', breadcrumb: 'breadcrumb', main: 'main content', sidebar: 'sidebar', footer: 'footer', other: 'other' };
-const ctxMark = (c) => `<span class="ctx-mark ctx-${c}" aria-hidden="true">${CONTEXT_LETTER[c] || '?'}</span>`;
+// The context comes from content.js's own list (header, nav, main …); escaped all the same, like every value in HTML.
+const ctxMark = (c) => `<span class="ctx-mark ctx-${escapeHtml(c)}" aria-hidden="true">${CONTEXT_LETTER[c] || '?'}</span>`;
 
 function getFilteredLinks() {
   if (!onpageData?.links?.details) return [];

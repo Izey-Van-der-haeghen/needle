@@ -1,6 +1,6 @@
 import { LOCATIONS, LANGUAGES } from "./lib/serp.js";
 import { initTheme, setTheme } from "./lib/theme.js";
-import { getSecrets, setSecrets, getPrefs, SECRET_KEYS, PREF_KEYS, withoutSiteChoices, readSettingsFile } from "./lib/settings.js";
+import { getSecrets, setSecrets, getPrefs, PREF_KEYS, withoutSiteChoices, readSettingsFile } from "./lib/settings.js";
 import { hasOrigins, requestOrigins, removeOrigins, ALL_SITES, DATAFORSEO } from "./lib/permissions.js";
 import { TTL, isExpired, clearCache } from "./lib/cache.js";
 import { withStoreLock } from "./lib/store-lock.js";

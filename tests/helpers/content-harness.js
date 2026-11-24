@@ -233,12 +233,15 @@ function innerText(el) {
     }
   };
   walk(el, view.getComputedStyle(el));
+  // \u0001 and \u0002 mark line and paragraph breaks while the text is built (no page text holds them).
+  /* eslint-disable no-control-regex */
   return out
     .replace(/ *([\n\t\u0001\u0002]) */g, "$1")
     .replace(/ {2,}/g, " ")
     .replace(/^ | $/g, "")
     .replace(/^[\u0001\u0002]+|[\u0001\u0002]+$/g, "")
     .replace(/[\u0001\u0002]+/g, (run) => (run.includes("\u0002") ? "\n\n" : "\n"));
+  /* eslint-enable no-control-regex */
 }
 
 function installPolyfills(window, { width, height, resourceEntries, media }) {

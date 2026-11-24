@@ -21,7 +21,7 @@ describe("checkHostVariants", () => {
   });
 
   it("checks only http and https for a subdomain other than www", async () => {
-    const f = vi.fn(async (url) => ({ status: 200, url: "https://shop.e.com/" }));
+    const f = vi.fn(async () => ({ status: 200, url: "https://shop.e.com/" }));
     await checkHostVariants("https://shop.e.com/x", f);
     expect(f.mock.calls.map((c) => c[0])).toEqual(["http://shop.e.com/", "https://shop.e.com/"]);
   });

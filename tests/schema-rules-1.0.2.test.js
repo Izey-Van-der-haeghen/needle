@@ -2,7 +2,7 @@
 // shapes that are valid but were read as errors. Sources: Search Central documentation updates,
 // the search gallery, and the Job posting, Site names, Product snippet, Article, Video, Breadcrumb,
 // Organization and Q&A pages.
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { JSDOM } from "jsdom";
 import { analyze, html } from "./helpers/content-harness.js";
 import { validateSchema, suggestMissingSchemas, collectAllSchemaTypes, flattenJsonLd, isOrgType } from "../lib/schema-validator.js";

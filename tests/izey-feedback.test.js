@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { analyzeAIAccess, analyzeEEAT, aiReadinessScore } from "../lib/geo.js";
+import { analyzeAIAccess, analyzeEEAT } from "../lib/geo.js";
 import { collectFindings } from "../lib/findings.js";
 import { leadImageCheck } from "../lib/image-rules.js";
 
