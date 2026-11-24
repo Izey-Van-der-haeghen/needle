@@ -101,3 +101,25 @@ describe("percent-encoding (RFC 9309 2.2.2)", () => {
     expect(isAllowedByRobots("User-agent: *\nDisallow: /café", "/caf%C3%A9").rule).toBe("Disallow: /café");
   });
 });
+
+// Google's parser (github.com/google/robotstxt, robots.cc) ends a group only at an Allow or Disallow
+// line: blank lines, Crawl-delay and Sitemap don't. A bot named in a group without rules is allowed
+// everything; it does not fall back to `*` (the npm robots-parser does, and differs from Google here).
+describe("isAllowedByRobots: groups as Google's parser forms them", () => {
+  const at = (txt) => isAllowedByRobots(txt, "/page", "GPTBot").allowed;
+  it("joins a bot to the next group across a blank line or a Crawl-delay", () => {
+    expect(at("User-agent: GPTBot\n\nUser-agent: *\nDisallow: /\n")).toBe(false);
+    expect(at("User-agent: GPTBot\nCrawl-delay: 5\n\nUser-agent: *\nDisallow: /\n")).toBe(false);
+  });
+  it("ends the bot's group at an empty Allow or Disallow, which allows everything", () => {
+    expect(at("User-agent: GPTBot\nAllow:\n\nUser-agent: *\nDisallow: /\n")).toBe(true);
+    expect(at("User-agent: GPTBot\nDisallow:\n\nUser-agent: *\nDisallow: /\n")).toBe(true);
+  });
+  it("allows a bot whose own group has no rules, instead of using `*`", () => {
+    expect(at("User-agent: *\nDisallow: /\n\nUser-agent: GPTBot\n")).toBe(true);
+    expect(at("User-agent: *\nDisallow: /\n\nUser-agent: GPTBot\nSitemap: https://e.com/s.xml\n")).toBe(true);
+  });
+  it("uses `*` when no group names the bot", () => {
+    expect(at("User-agent: *\nDisallow: /\n")).toBe(false);
+  });
+});
