@@ -57,14 +57,7 @@ describe("the side panel is marked before the first paint", () => {
   });
 });
 
-describe("Settings tests run once at a time", () => {
-  it("wrap both test buttons in the busy guard", () => {
-    const src = read("options.js");
-    expect(src).toMatch(/function whileBusy\(btn, run\)[\s\S]*aria-disabled[\s\S]*finally \{ btn\.removeAttribute\("aria-disabled"\)/);
-    expect(src).toContain('$("test-dfs").addEventListener("click", whileBusy($("test-dfs"),');
-    expect(src).toContain('$("test-psi").addEventListener("click", whileBusy($("test-psi"),');
-  });
-});
+// "Settings tests run once at a time": tests/busy.test.js and tests/options-page.test.js.
 
 describe("one way to compare URLs", () => {
   it("ignores the #fragment and a trailing slash, and resolves relative URLs", () => {

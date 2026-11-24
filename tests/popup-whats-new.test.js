@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The real popup after an update from 1.0.0: "Needle was updated", once, instead of the welcome note.
-import { it, expect } from "vitest";
+import { it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,18 @@ it("shows what changed, links the changelog, and goes away with Got it", async (
   expect(note.querySelectorAll("li").length).toBeGreaterThan(0);
   expect(note.querySelector('a[href$="/CHANGELOG.md"]').getAttribute("rel")).toBe("noopener noreferrer");
   expect(document.querySelector(".onboarding")).toBeNull();
-  note.querySelector("[data-whats-new-dismiss]").click();
+
+  // Got it by keyboard: the button goes with the note, and focus moves to the active tab without scrolling.
+  const gotIt = note.querySelector("[data-whats-new-dismiss]");
+  gotIt.focus();
+  const focus = vi.spyOn(HTMLElement.prototype, "focus");
+  gotIt.click();
   expect(document.querySelector(".whats-new")).toBeNull();
-  expect((await storage.local.get("whatsNew")).whatsNew).toBeUndefined();
+  const active = document.querySelector('[role="tab"][aria-selected="true"]');
+  expect(active.id).toBe("tab-onpage");
+  expect(document.activeElement).toBe(active);
+  expect(focus.mock.contexts.at(-1)).toBe(active);
+  expect(focus.mock.calls.at(-1)).toEqual([{ preventScroll: true }]);
+  focus.mockRestore();
+  await vi.waitFor(async () => expect((await storage.local.get("whatsNew")).whatsNew).toBeUndefined());
 });

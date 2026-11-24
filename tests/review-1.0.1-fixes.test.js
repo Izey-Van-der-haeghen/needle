@@ -133,12 +133,7 @@ describe("design review of 1.0.1 (Impeccable)", () => {
     expect(rows[0]).toMatchObject({ href: "https://site.example/nl/herstellingen/", problems: [] });
   });
 
-  it("Refresh and 'Try again' move keyboard focus to their tab panel before it is redrawn", async () => {
-    const { readFileSync } = await import("node:fs");
-    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
-    const handler = src.slice(src.indexOf("closest('[data-refresh]')"), src.indexOf("loadOnpageAndTechnical(true)", src.indexOf("closest('[data-refresh]')")));
-    expect(handler).toMatch(/closest\('\[role="tabpanel"\]'\)\?\.focus\(\)/);
-  });
+  // Refresh keeps keyboard focus in its tab panel: tests/popup-link-check.test.js.
 });
 
 describe("stress test of 1.0.1 (Break UI)", () => {
@@ -193,13 +188,7 @@ describe("stress test of 1.0.1 (Break UI)", () => {
     expect(rows[0].problems).toEqual(["could not connect"]);
   });
 
-  it("'Check the alternates' is busy while it runs, so a second Enter doesn't start it again", async () => {
-    const { readFileSync } = await import("node:fs");
-    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
-    const fn = src.slice(src.indexOf("async function runHreflangCluster"), src.indexOf("function renderHreflang"));
-    expect(fn).toMatch(/getAttribute\('aria-disabled'\) === 'true'\) return/);
-    expect(fn).toMatch(/setBusy\(btn, true\)[\s\S]*finally \{\s*setBusy\(btn, false\)/);
-  });
+  // "Check the alternates" is busy while it runs: tests/popup-hreflang-check.test.js.
 });
 
 describe("polish review of 1.0.1 (Make interfaces feel better)", () => {
@@ -210,11 +199,7 @@ describe("polish review of 1.0.1 (Make interfaces feel better)", () => {
     expect(readableError(new Error("Google rejected this key."))).toBe("Google rejected this key.");
   });
 
-  it("the pending score is short on screen and complete for screen readers", async () => {
-    const { readFileSync } = await import("node:fs");
-    const src = readFileSync(new URL("../popup.js", import.meta.url), "utf8");
-    expect(src).toContain('Score <span aria-hidden="true">…</span><span class="visually-hidden">after the server check</span>');
-  });
+  // The pending score, short on screen and complete for screen readers: tests/popup-score-pending.test.js.
 
   it("the llms.txt pointer shows the file names in the code font", async () => {
     const { notHtmlNotice } = await import("../lib/popup-helpers.js");

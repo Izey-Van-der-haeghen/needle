@@ -40,6 +40,7 @@ import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, LEVEL_KI
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
+import { setIn, withPaths } from './lib/state-paths.js';
 import { confirmClick } from './lib/confirm-button.js';
 
 // ---------------------------------------------------------------------------
@@ -265,25 +266,6 @@ async function loadPopupState() {
 // popupState. Each view writes only the paths it changed onto the stored copy, and takes over the
 // other views' changes, so one view never puts back an old copy of the rest.
 let dirtyPaths = [];
-const getIn = (obj, parts) => parts.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), obj);
-function setIn(obj, parts, value) {
-  let o = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    if (!o[parts[i]] || typeof o[parts[i]] !== 'object') o[parts[i]] = {};
-    o = o[parts[i]];
-  }
-  if (value === undefined) delete o[parts[parts.length - 1]];
-  else o[parts[parts.length - 1]] = value;
-}
-/** base with the values of `paths` taken from `from`. */
-function withPaths(base, from, paths) {
-  const out = JSON.parse(JSON.stringify(base || {}));
-  for (const p of paths) {
-    const v = getIn(from, p);
-    setIn(out, p, v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
-  }
-  return out;
-}
 
 async function flushState() {
   clearTimeout(saveStateTimer);
