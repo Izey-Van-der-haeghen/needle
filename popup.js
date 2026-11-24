@@ -16,7 +16,7 @@ import { analyzeTechnical } from './lib/technical.js';
 import { pageFetcher, fetchInPage } from './lib/page-fetch.js';
 import { fetchCompetitor } from './lib/compare.js';
 import { parseCompetitorHtml } from './lib/parse-competitor.js';
-import { getSecrets, getPrefs, getImageRules } from './lib/settings.js';
+import { getSecrets, getPrefs, getImageRules, SITE_CHOICE_KEYS } from './lib/settings.js';
 import { imageSizeIssues, discoverCheck, applyImageRules, isContentImage, DEFAULT_IMAGE_RULES, LEAD_IMAGE_MIN_WIDTH, lazyNote, measureNote } from './lib/image-rules.js';
 import { hasOrigins, requestOrigins, ALL_SITES, DATAFORSEO, NEEDS_PERMISSION } from './lib/permissions.js';
 import { DFS_COST } from './lib/offpage.js';
@@ -1908,7 +1908,7 @@ function getFilteredImages() {
 }
 
 function imageFilename(src) {
-  if (/^data:/i.test(src)) return inlineImageLabel(src);
+  if (src !== inlineImageLabel(src)) return inlineImageLabel(src);
   try {
     const u = new URL(src);
     return decodeURIComponent(u.pathname.split('/').pop() || u.hostname || src);
@@ -1921,6 +1921,7 @@ function renderImagesCard() {
   const card = $('images-card');
   if (!card) return;
   const imgs = getBodyImages();
+  const lazyNoteText = lazyNote(imgs);
   const counts = {
     issues: imgs.filter((i) => imageIssues(i).length).length,
     noAlt: imgs.filter(imgMissingAlt).length,
@@ -1955,7 +1956,7 @@ function renderImagesCard() {
       ${imageRules.width ? `<p class="muted">Your size rule: ${imageRules.mode === 'exact' ? `exactly ${imageRules.width}×${imageRules.height}` : `the shape of ${imageRules.width}×${imageRules.height}`} (Settings).</p>` : ''}
       ${unknownSizes ? `<p class="muted" id="image-size-note">${plural(unknownSizes, 'file size')} unknown. <button type="button" class="link-btn" id="measure-images">${unknownSizes === 1 ? 'Measure it' : 'Measure them'}</button></p>` : ''}
       <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
-      ${lazyNote(imgs) ? `<p class="muted">${escapeHtml(lazyNote(imgs).replace(/, then check again\.$/, '.'))} <button type="button" class="link-btn" data-refresh="onpage">Check again</button></p>` : ''}
+      ${lazyNoteText ? `<p class="muted">${escapeHtml(lazyNoteText)} <button type="button" class="link-btn" data-refresh="onpage">Check again</button></p>` : ''}
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
     : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');
@@ -2661,8 +2662,7 @@ $('close-history').addEventListener('click', closeHistory);
 confirmClick($('clear-history'), async () => {
   await withStoreLock('history', () => withStoreLock('snapshots', () => chrome.storage.local.set({ history: [], snapshots: {} })));
   // The country and language picked per website name those sites too.
-  setStatePath('marketByHost', undefined);
-  setStatePath('serpMarketByHost', undefined);
+  SITE_CHOICE_KEYS.forEach((k) => setStatePath(k, undefined));
   flushState();
   $('history-list').innerHTML = '<p class="muted">History and snapshots cleared.</p>';
   announce('History and snapshots cleared');

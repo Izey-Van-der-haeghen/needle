@@ -269,7 +269,8 @@ describe("full check of 1.0.2: public texts and privacy", () => {
     const { withoutSiteChoices } = await import("../lib/settings.js");
     const kept = withoutSiteChoices({ activeTab: "ai", marketByHost: { "site.example": {} }, serpMarketByHost: { "site.example": {} } });
     expect(kept).toEqual({ activeTab: "ai" });
-    expect(await read("popup.js")).toMatch(/setStatePath\('marketByHost', undefined\);\s*setStatePath\('serpMarketByHost', undefined\);/);
+    const { SITE_CHOICE_KEYS } = await import("../lib/settings.js");
+    expect(SITE_CHOICE_KEYS).toEqual(["marketByHost", "serpMarketByHost"]); // the popup's Clear history loops over these
     expect(await read("options.js")).toMatch(/popupState: withoutSiteChoices\(popupState\)/);
   });
 
