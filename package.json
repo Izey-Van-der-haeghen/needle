@@ -18,6 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "package": "node tools/package.mjs",
+    "lint:extension": "node tools/lint-extension.mjs",
     "icons": "python3 tools/make-icons.py"
   },
   "devDependencies": {

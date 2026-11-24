@@ -19,5 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Lint the extension (addons-linter, read for Chrome)
+        run: npm run lint:extension
       - name: Build the store package
         run: npm run package

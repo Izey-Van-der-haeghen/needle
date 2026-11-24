@@ -110,6 +110,7 @@ Plain JavaScript ES modules, no build step and no runtime dependencies.
 |---|---|
 | `npm test` | Runs the test suite ([Vitest](https://vitest.dev)); `content.js` runs in jsdom through `tests/helpers/content-harness.js`. |
 | `npm run package` | Builds `dist/needle-<version>.zip` for the Chrome Web Store from an allow-list of files, and refuses to build when a placeholder or a forbidden word is left in them. |
+| `npm run lint:extension` | Lints the store package with Mozilla's [addons-linter](https://github.com/mozilla/addons-linter), read for Chrome: Firefox-only notes are dropped, and a new unescaped HTML assignment fails until it is checked. `node tools/lint-extension.mjs --prove` first shows it catches planted problems. |
 | `node dev/preview/serve.js` | Serves the real popup and settings page at http://localhost:5178, to open in a normal browser tab, with a stubbed `chrome` API and a fictional demo page. See [dev/preview/README.md](dev/preview/README.md). |
 | `npm run icons` | Redraws the icons (needs Python with Pillow). |
 

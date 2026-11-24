@@ -9,6 +9,7 @@
 - **AI tab:** Applebot follows Googlebot's rules when robots.txt doesn't name Applebot, as Apple documents.
 - **Clearer and more accurate texts:** the welcome note says the side panel reads the tabs you switch to; "Look up again" says it is billed again; title and description limits are named as Needle's measures, not Google's; the speed-test key, the robots.txt server-error and Bing nocache texts match the vendors' own pages; one name each for "Hide on page", the checklist score and Mobile.
 - **Privacy policy:** links the Limited Use requirements directly and lists everything a change snapshot keeps.
+- **For developers:** tests hold the manifest to the five promised permissions, optional access to websites and no remote code; `npm run lint:extension` runs Mozilla's addons-linter, read for Chrome, here and in GitHub Actions.
 
 ## 1.0.2 (22 November 2026)
 

@@ -29,10 +29,10 @@ npm test
 - Load the folder with **Load unpacked** in `chrome://extensions` to try your change in Chrome, or run `node dev/preview/serve.js` to work on the popup in a normal tab.
 - Every fix comes with a test. Logic goes in `lib/`, where it can be tested without a browser; `content.js` has its own jsdom harness in `tests/helpers/`.
 - Interface text, code comments and docs are in English.
-- `npm run package` must still build.
+- `npm run package` must still build, and `npm run lint:extension` must pass.
 
 ## Pull requests
 
 - Keep a pull request to one change, and describe what it fixes and how you checked it.
-- Make sure `npm test` passes.
+- Make sure `npm test` and `npm run lint:extension` pass.
 - By contributing you agree that your work is published under the [MIT licence](LICENSE).
