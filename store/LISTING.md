@@ -50,7 +50,7 @@ SPEED AND KEYWORDS (optional)
 
 FOR WRITERS
 • Readability with the formula for the page's language (English, Dutch, French, German)
-• Most used words and phrases, and where a keyword appears: title, description, headings, URL, first paragraph, alt text
+• Most used words and phrases, and where a keyword appears: title, description, headings, URL, first 100 words, alt text
 
 AI AND INTERNATIONAL
 • With your DataForSEO account: whether Google shows an AI Overview for a search, which pages it cites, and whether your page is one of them
@@ -67,7 +67,7 @@ HAND IT OFF
 • Download an HTML audit report, export comparisons as CSV or Markdown, copy links, images and results as a table
 
 PRIVATE BY DEFAULT
-Needle has no server, no analytics and no ads. It installs with no access to websites and reads a page only when you open it there (or, in the side panel, the tab you switch to). Results stay in your browser. It contacts Google, Bing or DataForSEO only when you start a check that says so, and asks for access to other websites only when a feature needs it.
+Needle has no server, no analytics and no ads. It installs with no access to websites and reads a page only when you open it there (or, while it is open in the side panel, each tab you switch to and each page you open in it). Results stay in your browser. It contacts Google, Bing or DataForSEO only when you start a check that says so, and asks for access to other websites only when a feature needs it.
 
 Free and open source (MIT). No account needed for the on-page, technical and AI checks. Source code: github.com/Izey-Van-der-haeghen/needle
 

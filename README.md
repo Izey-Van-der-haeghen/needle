@@ -27,7 +27,7 @@
 
 - **One list of what to fix first.** Every check, from robots.txt to alt text, ends in one list, most important first, each with why it matters and how to fix it. Show them all on the page in one click.
 - **Built for AI search too.** It covers classic SEO and optimising for AI search, whatever you call it: GEO, AEO, LLMO or AI SEO. See which AI bots may read the page and how easy it is to quote.
-- **Private by default.** No server, no analytics, no account for the on-page, technical and AI checks. Needle installs with no access to websites and reads a page only when you open it there, or, in the side panel, the tab you switch to.
+- **Private by default.** No server, no analytics, no account for the on-page, technical and AI checks. Needle installs with no access to websites and reads a page only when you open it there, or, while it is open in the side panel, each tab you switch to and each page you open in it.
 
 ## What it checks
 
@@ -74,7 +74,7 @@ Settings shows where to find each key.
 
 ## Privacy
 
-- Needle reads the page in the tab you open it on, when you open it. In the side panel, with access to websites allowed, it also audits the tab you switch to while the panel is open. It never reads tabs in the background, form fields or passwords.
+- Needle reads the page in the tab you open it on, when you open it. In the side panel, with access to websites allowed, it also audits each tab you switch to and each page you open in it while the panel is open. It never reads tabs in the background, form fields or passwords.
 - Results, history and your API keys stay in Chrome on your device. Keys are never synced.
 - A page address leaves your browser only when you start a check that sends it: to Google (PageSpeed, Chrome UX Report), Microsoft (Bing Webmaster Tools) or DataForSEO, each with your own key or login. Links to other tools open them with the page address, only when you click.
 - The full policy: [izey.dev/needle/privacy](https://izey.dev/needle/privacy/).
@@ -126,7 +126,7 @@ lib/                 Analysis and helpers: robots, technical, findings, AI searc
 tests/               Vitest suites and fixture pages
 dev/preview/         Preview harness, demo site and store image scripts
 store/               Chrome Web Store listing text and images
-tools/               Packaging and icon scripts
+tools/               Packaging, lint and icon scripts
 ```
 
 ## Contributing

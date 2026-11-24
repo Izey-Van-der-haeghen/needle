@@ -100,7 +100,7 @@ describe("design review of 1.0.2 (Impeccable)", () => {
     expect(charTag(83, 30, 60, 70, true)).toMatch(/class="tag info">83 characters</);
     expect(pixelTag(764, 580, 600)).toMatch(/class="tag warn".*764 px, cut off/);
     const t = collectFindings({ onpage: { ...page, robots: "", title: "t".repeat(83) }, tech, titlePx: 764 }).find((x) => x.id === "title-long");
-    expect(t.title).toBe("Title is cut off in Google results (764 px)");
+    expect(t.title).toBe("Title may be cut off in Google results (764 px)");
   });
 
   it("only a leading language segment makes a language redirect; common words don't", async () => {
@@ -274,7 +274,7 @@ describe("full check of 1.0.2: public texts and privacy", () => {
 
   it("the privacy policy covers the side panel, transfers to the chosen service, and links to other tools", async () => {
     const p = await read("privacy.html");
-    expect(p).toMatch(/or, if you keep Needle open in the side panel and allow access to websites, when you switch to that tab/);
+    expect(p).toMatch(/or, if you keep Needle open in the side panel and allow access to websites, each tab you switch to and each page you open in it/);
     expect(p).toMatch(/It passes data on only to the service you start a check with/);
     expect(p).not.toMatch(/does not sell or transfer data/);
     expect(p).toMatch(/with the page address in the link, only when you click them/);

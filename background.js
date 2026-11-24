@@ -120,8 +120,8 @@ function fromExtensionPage(sender) {
 const handlers = {
   async RUN_PSI(msg) {
     const { psiKey } = await getSecrets();
-    // Google gives keyless requests no quota, so don't send the URL anywhere without a key.
-    if (!psiKey) throw new UserError("PageSpeed Insights needs a free API key. Add one in Settings.");
+    // Needle runs the speed test only with the user's own key: no URL leaves without one.
+    if (!psiKey) throw new UserError("Needle runs the speed test only with your own free Google API key. Add one in Settings.");
     // Not tied to one view: two views may share this request, and the result is cached.
     return cachedCall(cacheKey("psi", pageId(msg.url)), () => runPageSpeed(pageId(msg.url), psiKey), { force: !!msg.force });
   },

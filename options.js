@@ -51,7 +51,7 @@ function fill(sel, items) {
 
 async function refreshAccess() {
   const on = await hasOrigins(ALL_SITES);
-  $("access-status").textContent = on ? "Site access is on." : "Site access is off.";
+  $("access-status").textContent = on ? "Access to websites is on." : "Access to websites is off.";
   $("grant-all").hidden = on;
   $("revoke-all").hidden = !on;
 }
@@ -185,7 +185,7 @@ $("save-images").addEventListener("click", async () => {
   if (bad) { say("images-status", "Use whole numbers from 1 up.", "bad"); return; }
   if (!!n("imgWidth") !== !!n("imgHeight")) { say("images-status", "Fill in both width and height, or neither.", "bad"); return; }
   await chrome.storage.sync.set({ imgMaxKB: n("imgMaxKB"), imgWidth: n("imgWidth"), imgHeight: n("imgHeight"), imgMode: $("imgMode").value });
-  say("images-status", "Saved. Reopen Needle on a page to apply.");
+  say("images-status", "Saved. An open side panel uses them at once; a popup when it opens.");
 });
 
 async function loadPrefs() {
@@ -248,7 +248,7 @@ confirmClick($("clear-history"), async () => {
     const { popupState } = await chrome.storage.local.get("popupState");
     if (popupState) await chrome.storage.local.set({ popupState: withoutSiteChoices(popupState) });
   });
-  say("maint-status", "History and change snapshots cleared.");
+  say("maint-status", "History and snapshots cleared.");
   refreshCacheStats();
 });
 

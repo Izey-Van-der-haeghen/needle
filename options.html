@@ -30,21 +30,21 @@
     <section aria-labelledby="h-privacy">
       <h2 id="h-privacy">What Needle reads and sends</h2>
       <ul class="plain-list">
-        <li>Needle reads a page only when you open it on that page, or, in the side panel with site access on, when you switch to that tab. It has no server and collects no analytics.</li>
+        <li>Needle reads a page only when you open it on that page, or, while it is open in the side panel with access to websites on, each tab you switch to and each page you open in it. It has no server and collects no analytics.</li>
         <li>Results, history and your API keys stay in this browser, on this device.</li>
-        <li>The speed test and the Core Web Vitals trend send the page URL to Google. Keyword and SERP lookups send the URL or keyword to DataForSEO, and Bing data requests send it to Bing Webmaster Tools, each with your own login or key. All of these run only when you click them.</li>
-        <li>With site access on, link checks, competitor pages, hreflang alternates, the http/https/www versions and image sizes are requested straight from those sites.</li>
+        <li>The speed test and the Core Web Vitals trend send the page URL to Google. Keyword lookups and Google results send the URL or keyword to DataForSEO, and Bing data requests send it to Bing Webmaster Tools, each with your own login or key. All of these run only when you click them.</li>
+        <li>With access to websites on, link checks, competitor pages, hreflang alternates, the http/https/www versions and image sizes are requested straight from those sites.</li>
       </ul>
       <p><a href="privacy.html" target="_blank" id="privacy-link">Full privacy policy</a></p>
     </section>
 
     <section aria-labelledby="h-access">
-      <h2 id="h-access">Site access</h2>
+      <h2 id="h-access">Access to websites</h2>
       <p class="muted">Off by default. Needed only to check whether links work, to load competitor pages and hreflang alternates, to check the http/https/www versions, to measure images on other servers, and for the side panel to follow your tabs.</p>
       <p id="access-status" role="status"></p>
       <div class="actions">
         <button type="button" class="primary-btn" id="grant-all">Allow access to websites</button>
-        <button type="button" class="secondary-btn" id="revoke-all">Turn site access off</button>
+        <button type="button" class="secondary-btn" id="revoke-all">Turn access to websites off</button>
       </div>
     </section>
 
@@ -125,7 +125,7 @@
 
     <section aria-labelledby="h-market">
       <h2 id="h-market">Default market</h2>
-      <p class="muted">Used for keyword lookups and Google searches when the page's domain doesn't give the country (.com, .org, .io…).</p>
+      <p class="muted">Used for keyword lookups and Google results when the page's domain doesn't give the country (.com, .org, .io…).</p>
       <div class="field-row">
         <label class="field"><span>Country</span><select id="defaultLocation"></select></label>
         <label class="field"><span>Language</span><select id="defaultLanguage"></select></label>
@@ -169,7 +169,7 @@
           <option value=";">Semicolon (Excel with European settings)</option>
         </select>
       </label>
-      <label class="check"><input type="checkbox" id="openInSidePanel"> Open Needle in the side panel instead of a popup. The panel stays open and follows your tabs (with site access on; otherwise click the Needle button on each tab).</label>
+      <label class="check"><input type="checkbox" id="openInSidePanel"> Open Needle in the side panel instead of a popup. The panel stays open and follows your tabs (with access to websites on; otherwise click the Needle button on each tab).</label>
       <label class="check"><input type="checkbox" id="popupShortcuts"> Single-key shortcuts in the popup (1 to 6 switch tabs; / jumps to the keyword field in Compare and SERP)</label>
       <p class="muted">Shortcut to open Needle: <kbd id="open-shortcut">not set</kbd>. <button type="button" class="link-btn" id="change-shortcut">Change it</button></p>
       <p id="display-status" role="status"></p>

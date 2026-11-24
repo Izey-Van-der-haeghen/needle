@@ -36,7 +36,7 @@ import { urlKey, withoutTracking } from './lib/urls.js';
 import { noConnection } from './lib/link-checker.js';
 import { whatsNewFor, CHANGELOG_URL } from './lib/whats-new.js';
 import { MAX_IMAGES as MAX_MEASURED_IMAGES } from './lib/image-sizer.js';
-import { SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, SCHEMA_LEVEL, HREFLANG_LEVEL, h1Status, leftOutNote } from './lib/labels.js';
+import { CONTEXT_NAME, SEV_KIND, BOT_KIND_LABEL, botStatus, signalStatus, llmsStatus, SCHEMA_LEVEL, HREFLANG_LEVEL, h1Status, leftOutNote } from './lib/labels.js';
 import { fetchWithTimeout, readTextCapped } from './lib/fetch-helper.js';
 import { isLocalUrl, isSafeHttpUrl } from './lib/url-safety.js';
 import { withStoreLock } from './lib/store-lock.js';
@@ -226,6 +226,7 @@ const bareHost = (u) => hostOf(u).replace(/^www\./, '');
 
 /** Button that asks Chrome for access to other sites (must run from a click). */
 function permissionNotice(why) {
+  announce('Needle needs your permission for this');
   return `<div class="notice">
     <strong>Needle needs your permission for this</strong>
     <div>${escapeHtml(why)} Chrome will ask once; you can take it back in Settings any time.</div>
@@ -234,9 +235,10 @@ function permissionNotice(why) {
 }
 
 function dfsPermissionNotice() {
+  announce('Allow Needle to contact DataForSEO');
   return `<div class="notice">
     <strong>Allow Needle to contact DataForSEO</strong>
-    <div>Keyword and SERP lookups go to api.dataforseo.com with your own login.</div>
+    <div>Keyword lookups and Google results come from api.dataforseo.com, with your own login.</div>
     <div class="actions"><button type="button" class="primary-btn" data-grant="dataforseo">Allow DataForSEO</button></div>
   </div>`;
 }
@@ -637,7 +639,7 @@ async function showOnboardingIfNeeded() {
   banner.className = 'notice onboarding';
   banner.innerHTML = `
     <strong>Welcome to Needle</strong>
-    <details class="sub"><summary>What Needle reads, and when</summary><div>Needle reads a page only when you open it there, or, in the side panel with access to websites on, when you switch to that tab. Nothing leaves your browser unless you start a check that says it does, like the speed test or a keyword lookup.</div></details>
+    <details class="sub"><summary>What Needle reads, and when</summary><div>Needle reads a page only when you open it there, or, while it is open in the side panel with access to websites on, each tab you switch to and each page you open in it. Nothing leaves your browser unless you start a check that says it does, like the speed test or a keyword lookup.</div></details>
     <div class="actions">
       <button type="button" class="primary-btn" data-onb-dismiss>Got it</button>
       <button type="button" class="link-btn" data-action="open-options">Settings and API keys</button>
@@ -953,7 +955,7 @@ async function showChanges(score, gen = auditGen) {
   if (gen !== auditGen || !slot || !res.changes.length) return;
   const fmt = (v) => (v === '' || v == null ? '(empty)' : String(v));
   rerender(slot, `<details class="card collapsible" open>
-    <summary><h2 class="card-title">Changed since ${escapeHtml(timeAgo(res.since))}</h2> ${tag(`${res.changes.length} change${res.changes.length === 1 ? '' : 's'}`, 'info')}</summary>
+    <summary><h2 class="card-title">Changed since your audit ${escapeHtml(timeAgo(res.since))}</h2> ${tag(`${res.changes.length} change${res.changes.length === 1 ? '' : 's'}`, 'info')}</summary>
     <div class="card-body"><table class="data-table"><thead><tr><th scope="col">What</th><th scope="col">Before</th><th scope="col">Now</th></tr></thead><tbody>
       ${res.changes.map((c) => `<tr><th scope="row">${escapeHtml(c.label)}</th><td>${escapeHtml(fmt(c.before))}</td><td>${escapeHtml(fmt(c.after))}</td></tr>`).join('')}
     </tbody></table><p class="muted">Compared with your previous audit of this URL in this browser.</p></div>
@@ -974,7 +976,7 @@ function renderVerdict() {
       <div class="verdict-head">
         <span class="verdict-sym" aria-hidden="true">${sym}</span>
         <span class="verdict-title">${escapeHtml(verdict.verdict)}</span>
-        <span class="health" title="On-page checklist score, not a ranking prediction">${techPending ? '<span class="muted">Score <span aria-hidden="true">…</span><span class="visually-hidden">after the server check</span></span>' : `Score ${health.score}<span class="muted">/100</span>`}</span>
+        <span class="health" title="A checklist score for this page, not a ranking prediction">${techPending ? '<span class="muted">Score <span aria-hidden="true">…</span><span class="visually-hidden">after the server check</span></span>' : `Score ${health.score}<span class="muted">/100</span>`}</span>
       </div>
       ${hasIssues ? `<ul class="verdict-reasons">${verdict.issues.map((iss) => `<li>${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}
       ${failing.length ? `<details class="score-details"${scoreOpen ? ' open' : ''}><summary id="score-summary">What the score is missing (${failing.length})</summary>
@@ -1104,8 +1106,8 @@ async function runPsi(force = false) {
   const tg = tabGen;
   const { psiKey } = await getSecrets();
   if (!psiKey) {
-    announce('Add a free PageSpeed Insights API key first');
-    rerender($('psi-result'), `<div class="notice"><strong>Add a free PageSpeed Insights API key</strong>
+    announce('Add your free Google API key first');
+    rerender($('psi-result'), `<div class="notice"><strong>Add your free Google API key</strong>
       <div>Needle runs the speed test with your own free Google API key: create one in Google Cloud, then paste it in Settings.</div>
       <div class="actions"><button type="button" class="secondary-btn" data-action="open-options" data-section="h-psi">Open Settings</button>
         <a class="link-btn" href="https://pagespeed.web.dev/analysis?url=${encodeURIComponent(pageUrl)}" target="_blank" rel="noopener noreferrer">Test on the PageSpeed Insights website ${ICON.external}</a></div></div>`);
@@ -1397,6 +1399,7 @@ async function loadSerp(force = false) {
   }
   const { dfsLogin, dfsPassword } = await getSecrets();
   if (!dfsLogin || !dfsPassword) {
+    announce('Add your DataForSEO login first');
     rerender(result, `<div class="notice"><strong>Add your DataForSEO login first</strong>
       <div>Google results come from DataForSEO, a pay-per-use provider, through your own account.</div>
       <div class="actions"><button type="button" class="secondary-btn" data-action="open-options" data-section="h-dfs">Open Settings</button></div></div>`);
@@ -1585,7 +1588,7 @@ async function loadCompare(force = false) {
         serpData = (await sendWithRetry({ type: 'FETCH_SERP', params: { keyword, locationCode: market.code, languageCode: market.lang, device: 'desktop' }, force })).data;
         sources.forEach((s) => { s.serp = serpPositionFor(s.data.url, serpData); s.serpPosition = s.serp?.exact ? s.serp.position : null; });
       } catch (e) {
-        serpError = e.message === NEEDS_PERMISSION ? 'Allow DataForSEO in Settings to add Google positions.' : e.message;
+        serpError = e.message;
       }
     }
 
@@ -1657,6 +1660,8 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
       ${intent ? `<p>Search intent: ${tag(intent.label, 'info')}</p>` : ''}
       ${ai ? `<p class="muted">${ai.present ? 'Google shows an AI Overview for this search.' : 'No AI Overview for this search.'}</p>` : ''}
       <table class="compare-table"><thead><tr><th scope="col"><span class="visually-hidden">Metric</span></th>${headers}</tr></thead><tbody>${posRow}${aiRow}</tbody></table></div>`;
+  } else if (keyword && serpError === NEEDS_PERMISSION) {
+    serpBlock = dfsPermissionNotice().replace('data-grant="dataforseo"', 'data-grant="dataforseo" data-retry="run-compare"');
   } else if (keyword && serpError) {
     serpBlock = errorBox(`No Google positions for "${keyword}"`, serpError);
   }
@@ -1730,7 +1735,6 @@ let linkFilter = { kind: 'all', ctx: 'all', checkStatus: 'all' };
 let imageFilter = { kind: 'all' };
 
 const CONTEXT_LETTER = { header: 'H', nav: 'N', breadcrumb: 'B', main: 'M', sidebar: 'S', footer: 'F', other: 'O' };
-const CONTEXT_NAME = { header: 'header', nav: 'menu', breadcrumb: 'breadcrumb', main: 'main content', sidebar: 'sidebar', footer: 'footer', other: 'other' };
 // The context comes from content.js's own list (header, nav, main …); escaped all the same, like every value in HTML.
 const ctxMark = (c) => `<span class="ctx-mark ctx-${escapeHtml(c)}" aria-hidden="true">${CONTEXT_LETTER[c] || '?'}</span>`;
 
@@ -1751,7 +1755,7 @@ function linkCheckHint(l) {
   const cs = l.checkedStatus;
   if (!cs) return '';
   // The URL gets its own line in the code font, like the link's own URL above it (long URLs wrap there).
-  if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects. Link straight to the final URL:<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
+  if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects. Link straight to the final URL:<div class="item-url">${escapeHtml(displayUrl(cs.finalUrl))}</div></div>`;
   if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Looks like it opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
@@ -1979,7 +1983,7 @@ function renderImagesCard() {
       <p class="muted" id="image-size-status">${escapeHtml(imageMeasureNote)}</p>
       ${lazyNoteText ? `<p class="muted">${escapeHtml(lazyNoteText)} <button type="button" class="link-btn" id="recheck-images">Check again</button></p>` : ''}
       <ul class="item-list" id="image-list">${renderImageItems()}</ul>`
-    : `<p class="muted">No content images found. Logos, icons, backgrounds and images under 200 px are left out.</p>`);
+    : `<p class="muted">No content images found. Images in the header, menu, sidebar and footer, SVGs, backgrounds and images under 200 px are left out.</p>`);
   const sum = card.querySelector('.card-sum');
   if (sum) sum.innerHTML = counts.issues ? tag(`${counts.issues} with issues`, 'warn') : imgs.length ? tag('no issues', 'good') : '';
 }
@@ -2200,7 +2204,7 @@ function renderOnpage(d, age) {
         ${validated.length === 0 && !microdataTypes.length ? tag('none found', 'warn') : schemaErrors ? tag(`${schemaErrors} error${schemaErrors === 1 ? '' : 's'}`, 'bad') : tag('valid', 'good')}
         ${suggestions.length ? tag(`${suggestions.length} suggestion${suggestions.length === 1 ? '' : 's'}`, 'info') : ''}</summary>
       <div class="card-body">
-        ${allTypes.length ? `<p>${allTypes.map((t) => `<span class="chip">${escapeHtml(t)}${microdataTypes.includes(t) && !jsonLdTypes.includes(t) ? ' <span class="muted">microdata</span>' : ''}</span>`).join(' ')}</p>` : '<p class="muted">No JSON-LD, microdata or RDFa on this page.</p>'}
+        ${allTypes.length ? `<p>${allTypes.map((t) => `<span class="chip">${escapeHtml(t)}${microdataTypes.includes(t) && !jsonLdTypes.includes(t) ? ' <span class="muted">microdata or RDFa</span>' : ''}</span>`).join(' ')}</p>` : '<p class="muted">No JSON-LD, microdata or RDFa on this page.</p>'}
         ${suggestions.length ? `<h3>Worth adding</h3><ul class="plain-list">${suggestions.map((s) => `<li><strong>${escapeHtml(s.type)}</strong> <span class="muted">${escapeHtml(s.priority)} priority</span><div class="hint">${escapeHtml(s.reason)}</div></li>`).join('')}</ul>` : ''}
         ${faqDupes.length ? `<div class="notice"><strong>${faqDupes.length} repeated FAQ question${faqDupes.length === 1 ? '' : 's'}</strong>
           <ul class="plain-list">${faqDupes.map((q) => `<li>"${escapeHtml(q.question)}" appears ${q.count} times</li>`).join('')}</ul>
@@ -2345,10 +2349,11 @@ async function runHreflangCluster() {
   renderFindings();
   const bad = rows.filter((r) => r.problems.length).length;
   const partly = total > rows.length ? ` <span class="muted">Checked the first ${rows.length} of ${total} alternates.</span>` : '';
-  announce(bad ? `${bad} of ${rows.length} alternates with problems` : `Alternates checked: ${rows.length}`);
-  rerender(box, `<p>${bad ? tag(`${bad} of ${rows.length} alternates with problems`, 'warn') : tag(rows.length === total ? `All ${rows.length} alternates link back` : `All ${rows.length} checked alternates link back`, 'good')}${partly}</p>
+  const headline = bad ? `${bad} of ${rows.length} alternates with problems` : rows.length === total ? `All ${rows.length} alternates link back` : `All ${rows.length} checked alternates link back`;
+  announce(headline);
+  rerender(box, `<p>${tag(headline, bad ? 'warn' : 'good')}${partly}</p>
     <table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">Alternate</th><th scope="col">Result</th></tr></thead><tbody>
-    ${rows.map((r) => `<tr><td class="mono lang">${escapeHtml(r.lang)}</td><td class="mono">${escapeHtml(r.href)}</td><td>${r.problems.length ? r.problems.map((p) => tag(p, 'warn')).join(' ') : tag('ok', 'good')}</td></tr>`).join('')}
+    ${rows.map((r) => `<tr><td class="mono lang">${escapeHtml(r.lang)}</td><td class="mono">${escapeHtml(displayUrl(r.href))}</td><td>${r.problems.length ? r.problems.map((p) => tag(p, 'warn')).join(' ') : tag('ok', 'good')}</td></tr>`).join('')}
     </tbody></table>
     <p class="muted">Google ignores hreflang pairs that don't link back to each other.${bad ? ' Added to Fix this first.' : ''}</p>`);
 }
@@ -2360,7 +2365,7 @@ function renderHreflang(d) {
   const issueHtml = `${passed ? `<p>${tag('All hreflang checks passed', 'good')}</p>` : ''}${issues.length
     ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(...HREFLANG_LEVEL[iss.level])} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}`;
   return `${issueHtml}<table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">URL</th></tr></thead><tbody>
-    ${d.hreflang.map((h) => `<tr><td class="mono lang">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(h.href)}</td></tr>`).join('')}</tbody></table>
+    ${d.hreflang.map((h) => `<tr><td class="mono lang">${escapeHtml(h.lang)}</td><td class="mono">${escapeHtml(displayUrl(h.href))}</td></tr>`).join('')}</tbody></table>
     ${d.hreflang.length > 1 ? `<div class="actions"><button type="button" class="secondary-btn" id="hreflang-check">Check the alternates</button></div><div id="hreflang-cluster"></div>` : ''}`;
 }
 
@@ -2549,6 +2554,7 @@ async function sitemapCheck(box) {
   try {
     const r = await findInSitemaps(withoutTracking(pageUrl), starts, pageFetcher(currentTab.id));
     if (gen !== auditGen) return;
+    announce(r.unreadable ? 'Could not read the sitemap' : r.found ? 'This page is listed in the sitemap' : 'This page is not listed in the sitemap');
     rerender(box, r.unreadable
       ? `<p>${tag('could not read the sitemap', 'neutral')}</p><div class="hint">The sitemap did not answer, is a compressed .gz file, or is on another site: this check can't read those. Open it in a tab to check it.</div>`
       : r.found
@@ -2578,10 +2584,14 @@ async function variantsCheck(box) {
   const gen = auditGen;
   const r = await checkHostVariants(pageUrl);
   if (gen !== auditGen) return;
-  announce(r.consistent ? `Versions checked: all end on ${r.target}` : 'Versions checked: they don\'t all end on one address');
-  rerender(box, `<p>${r.consistent ? tag(`All versions end on ${r.target}`, 'good') : r.target ? tag(`${plural(r.variants.filter((v) => v.error || !v.status).length, 'version')} could not be checked; the others end on ${r.target}`, 'warn') : tag('Versions end on different URLs', 'bad')}</p>
+  // One headline, shown and announced, so the screen and the screen reader say the same.
+  const [headline, kind] = r.consistent ? [`All versions end on ${r.target}`, 'good']
+    : r.target ? [`${plural(r.variants.filter((v) => v.error || !v.status).length, 'version')} could not be checked; the others end on ${r.target}`, 'warn']
+    : ['Versions end on different URLs', 'bad'];
+  announce(headline);
+  rerender(box, `<p>${tag(headline, kind)}</p>
     <table class="data-table"><thead><tr><th scope="col">You type</th><th scope="col">You end on</th></tr></thead><tbody>
-    ${r.variants.map((v) => `<tr><td class="mono">${escapeHtml(v.url)}</td><td class="mono">${v.error ? tag(v.error, 'bad') : `${escapeHtml(v.finalUrl)} <span class="muted">${v.status}</span>`}</td></tr>`).join('')}
+    ${r.variants.map((v) => `<tr><td class="mono">${escapeHtml(displayUrl(v.url))}</td><td class="mono">${v.error ? tag(v.error, 'bad') : `${escapeHtml(displayUrl(v.finalUrl))} <span class="muted">${v.status}</span>`}</td></tr>`).join('')}
     </tbody></table>
     ${r.consistent ? '' : '<div class="hint">Redirect every version (http and https, with and without www) to one address with a permanent (301) redirect.</div>'}`);
 }
