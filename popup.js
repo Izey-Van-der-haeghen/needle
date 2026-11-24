@@ -451,8 +451,8 @@ async function init() {
   populateSelect($('serp-language'), LANGUAGES);
   populateSelect($('offpage-location'), LOCATIONS);
   populateSelect($('offpage-language'), LANGUAGES);
-  $('dfs-cost').textContent = `≈ ${usd(DFS_LOOKUP_COST)} per lookup`;
-  document.querySelectorAll('[data-serp-cost]').forEach((el) => { el.textContent = `≈ ${usd(DFS_COST.serp)}`; });
+  $('dfs-cost').textContent = `about ${usd(DFS_LOOKUP_COST)} per lookup`;
+  document.querySelectorAll('[data-serp-cost]').forEach((el) => { el.textContent = `about ${usd(DFS_COST.serp)}`; });
 
   restoreInputs();
   attachStatePersistence();
