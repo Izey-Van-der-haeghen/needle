@@ -323,29 +323,34 @@
     return classifyByPosition(el) || "other";
   }
 
+  const MAIN_SELECTORS = ["[role='main']", "#main", "#content", "#main-content", "#primary",
+    ".main-content", ".post-content", ".entry-content", ".article-body", ".page-content"];
+
   /**
-   * The page's likely main-content container: <main>, the longest <article>,
-   * or a common id/class, whichever holds the most text.
-   * @returns {Element|null}
+   * The page's main content: <main> (or [role=main]) when it holds at least half the words of the
+   * largest candidate, so an outer wrapper doesn't win; else the largest of <main>, the page's
+   * <article>s together, and the common ids and classes.
+   * @returns {{selector: string, text: string, count: number, els: Element[]}|null}
    */
-  function detectMainBoundary() {
-    const cands = [];
-    const mainEl = document.querySelector("main");
-    if (mainEl) cands.push({ el: mainEl, text: mainEl.innerText || "" });
-    const articles = Array.from(document.querySelectorAll("article")).map(a => ({ el: a, text: a.innerText || "" }));
-    if (articles.length) {
-      articles.sort((a, b) => b.text.length - a.text.length);
-      cands.push(articles[0]);
-    }
-    ["[role='main']", "#main", "#content", "#main-content", "#primary",
-      ".main-content", ".post-content", ".entry-content", ".article-body", ".page-content"
-    ].forEach(sel => {
-      const e = document.querySelector(sel);
-      if (e) cands.push({ el: e, text: e.innerText || "" });
-    });
-    cands.sort((a, b) => b.text.length - a.text.length);
-    return cands[0]?.el || null;
+  function mainContent() {
+    const candidates = [];
+    const add = (selector, els) => {
+      const text = els.map(e => readableText(e).trim()).filter(Boolean).join(" ");
+      if (text) candidates.push({ selector, text, count: countWords(text), els });
+    };
+    const main = document.querySelector("main");
+    if (main) add("main", [main]);
+    const articles = Array.from(document.querySelectorAll("article"));
+    if (articles.length) add(articles.length === 1 ? "article" : `article × ${articles.length}`, articles);
+    MAIN_SELECTORS.forEach(sel => { const e = document.querySelector(sel); if (e) add(sel, [e]); });
+    candidates.sort((a, b) => b.count - a.count);
+    const largest = candidates[0];
+    const semantic = candidates.find(c => c.selector === "main" || c.selector === "[role='main']");
+    return (semantic && largest && semantic.count >= largest.count / 2 ? semantic : largest) || null;
   }
+
+  /** The main-content block an element sits in, if any. */
+  const mainBoxOf = (main, el) => main?.els.find(m => m.contains(el)) || null;
 
   /**
    * Inside the main boundary everything is "main" unless it sits in a nested
@@ -639,8 +644,8 @@
       hidden: isHidden(h)
     }));
 
-    const mainBoundaryEl = detectMainBoundary();
-    const categorize = (el) => categorizeWithMain(el, mainBoundaryEl);
+    const main = mainContent();
+    const categorize = (el) => categorizeWithMain(el, mainBoxOf(main, el));
 
     pageLinks.length = 0;
     const linkDetails = collectLinks().map((a, i) => {
@@ -927,27 +932,7 @@
     const htmlLen = document.documentElement.outerHTML.length;
     const textRatio = htmlLen ? Math.round((bodyText.length / htmlLen) * 100) : 0;
 
-    // Main-content word count: prefer <main> or [role=main] when it holds at least
-    // half the words of the largest candidate, so outer wrappers don't win.
-    const candidates = [];
-    const addCandidate = (selector, el) => {
-      const t = readableText(el).trim();
-      if (t) candidates.push({ selector, text: t, count: countWords(t) });
-    };
-    addCandidate("main", document.querySelector("main"));
-    const articles = document.querySelectorAll("article");
-    if (articles.length === 1) addCandidate("article", articles[0]);
-    else if (articles.length > 1) {
-      const combined = Array.from(articles).map(a => readableText(a).trim()).filter(Boolean).join(" ");
-      if (combined) candidates.push({ selector: `article × ${articles.length}`, text: combined, count: countWords(combined) });
-    }
-    ["[role='main']", "#main", "#content", "#main-content", "#primary",
-      ".main-content", ".post-content", ".entry-content", ".article-body", ".page-content"
-    ].forEach(sel => addCandidate(sel, document.querySelector(sel)));
-    candidates.sort((a, b) => b.count - a.count);
-    const largest = candidates[0];
-    const semantic = candidates.find(c => c.selector === "main" || c.selector === "[role='main']");
-    const best = semantic && largest && semantic.count >= largest.count / 2 ? semantic : largest;
+    const best = main;
 
     return {
       url: location.href,
@@ -1009,7 +994,7 @@
       modifiedMeta: document.querySelector('meta[property="article:modified_time"]')?.getAttribute("content")
         || document.querySelector('time[datetime][itemprop="dateModified"]')?.getAttribute("datetime") || "",
       externalLinkCount: externalInMain,
-      listCount: [...(mainBoundaryEl || document.body || document.documentElement).querySelectorAll("ul, ol")]
+      listCount: (main ? main.els : [document.body || document.documentElement]).flatMap(m => [...m.querySelectorAll("ul, ol")])
         .filter(l => !l.closest("nav, [role=navigation], header, footer, aside")).length,
       tableCount: document.querySelectorAll("table").length,
       // Text marked data-nosnippet is kept out of Google snippets and AI Overviews. Google reads it
@@ -1141,14 +1126,14 @@
     unhighlightLinks();
     lastLinkFilter = filter;
     ensureLinkStylesheet();
-    const mainBoundaryEl = detectMainBoundary();
+    const main = mainContent();
     // All reads first, then all writes, so the page lays out once.
     const matches = [];
     for (const a of collectLinks()) {
       const k = linkKind(a);
       if (filter.internal === "internal" && !k.internal) continue;
       if (filter.internal === "external" && !k.external) continue;
-      const ctx = categorizeWithMain(a, mainBoundaryEl);
+      const ctx = categorizeWithMain(a, mainBoxOf(main, a));
       if (filter.contexts && filter.contexts.length && !filter.contexts.includes(ctx)) continue;
       if (filter.nofollowOnly && !(a.getAttribute("rel") || "").toLowerCase().split(/\s+/).includes("nofollow")) continue;
       if (filter.brokenOnly && k.raw.trim()) continue;
@@ -1200,8 +1185,8 @@
   /** The main content's visible text, for readability and word frequency. Not cached. */
   function getMainText() {
     return withoutMarks(() => {
-      const el = detectMainBoundary() || document.body;
-      return { text: readableText(el).slice(0, 200000), lang: document.documentElement.getAttribute("lang") || "" };
+      const main = mainContent();
+      return { text: (main ? main.text : readableText(document.body)).slice(0, 200000), lang: document.documentElement.getAttribute("lang") || "" };
     });
   }
 

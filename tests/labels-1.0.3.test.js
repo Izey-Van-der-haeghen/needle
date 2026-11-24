@@ -24,3 +24,24 @@ describe("labels", () => {
     expect(html).toContain(`<span class="tag info">note</span> No x-default declared`);
   });
 });
+
+describe("one rule for the main content", () => {
+  const words = (n, w) => Array.from({ length: n }, () => w).join(" ");
+  it("the word count, readability and the word list read the same block", async () => {
+    const { loadContentScript, html } = await import("./helpers/content-harness.js");
+    const { countWords } = await import("../lib/words.js");
+    const pages = [
+      // a blog list: three articles together
+      html(`<header><p>${words(20, "menu")}</p></header><article>${words(200, "fiets")}</article><article>${words(150, "herstel")}</article><article>${words(120, "gent")}</article>`),
+      // <main> inside a #content wrapper with a sidebar
+      html(`<div id="content"><main><p>${words(300, "fiets")}</p></main><aside>${words(250, "zijbalk")}</aside></div>`)
+    ];
+    for (const page of pages) {
+      const { send, window } = await loadContentScript(page);
+      const d = await send({ type: "ANALYZE_ONPAGE" });
+      const t = await send({ type: "GET_MAIN_TEXT" });
+      expect(countWords(t.text)).toBe(d.mainContentWordCount);
+      window.close();
+    }
+  });
+});
