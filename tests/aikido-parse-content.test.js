@@ -34,7 +34,8 @@ describe("the price check in content.js (finding 17)", () => {
       "1.99 usd", "1,99usd", "1.9 usd", "€", "$ x", "v1.2.3 $", "12.34 euro", "a1€", "1\n€", "1  €", ""];
     for (const s of fixed) expect(hasPricing.test(s), JSON.stringify(s)).toBe(BEFORE.test(s));
     let seed = 17;
-    const rnd = (k) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % k; };
+    // mulberry32: an LCG in floating point loses its low bits, so rnd(2), rnd(4) and rnd(8) were nearly always 0.
+    const rnd = (k) => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) % k; };
     const pieces = ["1", "2", ".", ",", " ", "€", "$", "£", "eur", "usd", "a", "\n", "0", "x"];
     for (let i = 0; i < 20000; i++) {
       let s = "";

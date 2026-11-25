@@ -3,9 +3,13 @@
 // the page (640 KB of "<!--" took 18 s). Each crafted input here is as large as Needle reads (3 MiB
 // for a page, 5 MiB for a competitor) and runs in a worker: the old code took minutes on them, and a
 // worker that doesn't answer in time fails the test instead of hanging it.
+// The review of that fix: an element or comment left open now runs to the end, so an end tag the
+// browser accepts but the scan missed ("</script >", "<svg/>", "<!-->") lost the rest of a normal
+// page. End tags and comments are now found as the browser finds them, checked against jsdom.
 import { describe, it, expect } from "vitest";
 import { Worker } from "node:worker_threads";
 import { readFileSync } from "node:fs";
+import { JSDOM } from "jsdom";
 import { serverIndexingTags, extractWordCount, rawSnapshot } from "../lib/technical.js";
 
 const WORKER = `
@@ -65,7 +69,12 @@ describe("the strips over the server HTML take linear time (finding 10)", () => 
       ["<title ", [fill("<title "), URL_]],
       ["<textarea>", [fill("<textarea>"), URL_]],
       ["<!--<script>", [fill("<!--<script>"), URL_]],
-      ["5 MiB of <!-- (a competitor page)", [fill("<!--", 5 * MiB), URL_]]
+      ["5 MiB of <!-- (a competitor page)", [fill("<!--", 5 * MiB), URL_]],
+      // Closed comments with the other closer only at the very end: each "-->" or "--!>" search
+      // is remembered, or every comment would search to the end.
+      ["<!----> then one --!>", [fill("<!---->") + "--!>", URL_]],
+      ["<!-- --!> then one -->", [fill("<!-- --!>") + "-->", URL_]],
+      ["<script></script  (end tags without >)", [fill("<script></script "), URL_]]
     ]);
   }, 20000);
 
@@ -76,7 +85,10 @@ describe("the strips over the server HTML take linear time (finding 10)", () => 
       ["<", ["<body>" + fill("<")]],
       ["<svg", ["<body>" + fill("<svg")]],
       ["<!--", ["<body>" + fill("<!--")]],
-      ["<script ", ["<body>" + fill("<script ")]]
+      ["<script ", ["<body>" + fill("<script ")]],
+      // An <svg> without an end tag loses only its tag, and no later <svg> looks for one again.
+      ["<svg> without </svg>", ["<body>" + fill("<svg>")]],
+      ["<!----> then one --!>", ["<body>" + fill("<!---->") + "--!>"]]
     ]);
   }, 20000);
 
@@ -116,6 +128,56 @@ describe("the strips read the HTML as the browser does", () => {
     expect(extractWordCount("<body><svg-icon></svg-icon><p>one two</p><svg><text>x</text></svg></body>")).toBe(2);
   });
 
+  // The robots metas jsdom finds (parse5, the HTML standard's parser) in the same HTML.
+  const browserRobots = (html) => {
+    const dom = new JSDOM(html);
+    const found = [...dom.window.document.querySelectorAll('meta[name="robots"]')].map((m) => m.content).join(", ");
+    dom.window.close();
+    return found;
+  };
+  const META = '<meta name="robots" content="noindex">';
+
+  it("ends comments and elements where the browser does, so a meta after them still counts", () => {
+    for (const before of ["<!-->", "<!--->", "<!---->", "<!-- x --!>", "<!----!>", "<script>x</script/>", "<script>x</script foo>",
+      "<script>x</script\n>", "<script>x</script\u000c>", "<script>x</script\r>", "<title>x</title\tlang=x>", "<style>x</style/ >",
+      "<textarea>x</textarea\n\n>", "<template>x</template foo>", "<noscript>x</noscript >"]) {
+      const html = `<!doctype html><html><head>${before}${META}</head><body><p>one</p></body></html>`;
+      expect(robots(html), JSON.stringify(before)).toBe("noindex");
+      expect(browserRobots(html), JSON.stringify(before)).toBe("noindex");
+    }
+  });
+
+  it("and doesn't end them where the browser doesn't", () => {
+    for (const before of ["<!--!>", "<!---!>", "<!-- x -- >", "<!-- x --!", "<script>x</script\u000b>", "<script>x</scripts>", "<title>x</title"]) {
+      const html = `<!doctype html><html><head>${before}${META}</head><body><p>one</p></body></html>`;
+      expect(robots(html), JSON.stringify(before)).toBe("");
+      expect(browserRobots(html), JSON.stringify(before)).toBe("");
+    }
+  });
+
+  it("counts the server HTML as the rendered page is counted, whatever form the end tags take", () => {
+    // The review's case: text after "</script >" or a self-closing <svg/> was lost, so the server
+    // HTML counted 0 words against 300 rendered, and "Much of the text needs JavaScript" was wrong.
+    const words = `<p>${Array.from({ length: 300 }, (_, i) => `w${i}`).join(" ")}</p>`;
+    for (const middle of ["<script>var a = 1;</script >", "<script>var a = 1;</script\n>", "<style>p { color: red }</style >",
+      "<script>x</script/>", "<script>x</script foo>", '<svg width="16" height="16"/>', "<svg/>", '<svg class="i" />',
+      "<svg><path d='M0 0'/></svg >", "<!-->", "<!--->", "<!-- c --!>"]) {
+      // A closed icon at the end: "<svg/>" must not reach its "</svg>".
+      const raw = `<!doctype html><html><head><title>t</title></head><body><p>intro text</p>${middle}${words}<svg><path d='M1 1'/></svg></body></html>`;
+      const dom = new JSDOM(raw);
+      const rendered = htmlWordCount(dom.window.document.documentElement.outerHTML);
+      dom.window.close();
+      expect(rendered, JSON.stringify(middle)).toBe(302);
+      expect(extractWordCount(raw), JSON.stringify(middle)).toBe(302);
+      expect(htmlWordCount(raw), JSON.stringify(middle)).toBe(302);
+    }
+    // An <svg> left open: the browser ends it at the next <p> (or another of many HTML tags). Here,
+    // as before, it runs to the next "</svg>", or loses only its tag when none follows, so the text
+    // in it before the <p> (the title "icon") is counted, one word too many.
+    const open = `<body><p>intro text</p><svg><title>icon</title>${words}</body>`;
+    expect([extractWordCount(open), htmlWordCount(open)]).toEqual([303, 303]);
+  });
+
   it("still finds the robots metas, the canonical and the counts of an ordinary page", () => {
     const page = '<!doctype html><html><head><title>T</title><!-- old --><meta name="robots" content="noindex">' +
       '<link rel="canonical" href="/c"><script>if (a < b) x = "</head>";</script></head>' +
@@ -137,7 +199,12 @@ describe("content.js counts the rendered HTML as lib/technical.js counts the ser
       "<head><title>a b</title></head><title>c</title>no body here",
       "<head><title>a b</title>no end tags",
       "<body><p>a <b c</p> <i>d</i> <e",
-      "<body><xmp>" + "<!--".repeat(50) + "</xmp><p>one</p>"
+      "<body><xmp>" + "<!--".repeat(50) + "</xmp><p>one</p>",
+      "<body><script>a b</script ><p>one two</p><script>c</script/><p>three</p><style>d</style\n><p>four</p>",
+      '<body><svg width="16" height="16"/><p>one two</p><svg/><p>three</p><svg><p>four</p>',
+      '<body><svg class="i"/><p>one two</p><svg><path/></svg><p>three</p>',
+      "<body><!--><p>one</p><!---><p>two</p><!-- x --!><p>three</p><!--!><p>gone</p>",
+      "<body><SVG><text>t</text></SVG ><p>one</p><svg><p>two</p><svg/><p>three"
     ]) expect(htmlWordCount(html), html.slice(0, 60)).toBe(extractWordCount(html));
   });
 
@@ -146,7 +213,10 @@ describe("content.js counts the rendered HTML as lib/technical.js counts the ser
     await expectEachUnder(1000, { source: COPY_SOURCE, name: "htmlWordCount" }, [
       ["<!--", [page("<!--")]],
       ["<script ", [page("<script ")]],
-      ["<", [page("<")]]
+      ["<", [page("<")]],
+      ["<svg>", [page("<svg>")]],
+      ["<!----> then one --!>", [page("<!---->") + "--!>"]],
+      ["<!-- --!> then one -->", [page("<!-- --!>") + "-->"]]
     ]);
   }, 20000);
 });

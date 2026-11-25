@@ -1213,24 +1213,45 @@
   // withoutHidden and withoutElements). Linear in the length of the HTML: outerHTML has no size
   // limit, and the text of <xmp> or <iframe> can hold thousands of unclosed "<!--" or "<script".
   function htmlWordCount(html) {
-    // Comments and these elements, left to right; one that isn't closed runs to the end.
+    // Comments and these elements, left to right, each ending where the browser ends it: a comment
+    // at "-->" or "--!>" ("<!-->" is empty), an element at "</name" and a space, "/" or ">", then
+    // the next ">"; "<svg …/>" ends itself. Any other one the browser doesn't see ending runs to
+    // the end, except an <svg>.
     function withoutHidden(s) {
-      const open = /<!--|<(script|style|template|noscript|svg)(?=[\s/>])/gi;
+      const open = /<!--|<(script|style|template|noscript|svg)(?=[\t\n\f\r />])/gi;
+      const ends = new Map(["script", "style", "template", "noscript", "svg"].map((n) => [n, new RegExp("</" + n + "(?=[\\t\\n\\f\\r />])", "gi")]));
       let out = "";
       let from = 0;
+      // The next "-->" and "--!>" found so far (-1: none), so no stretch is searched twice.
+      let dash = 0;
+      let bang = 0;
       for (let m; (m = open.exec(s));) {
         out += s.slice(from, m.index) + " ";
-        let end = s.length;
-        if (m[1]) {
-          const close = new RegExp("</" + m[1] + ">", "gi");
-          close.lastIndex = open.lastIndex;
-          if (close.exec(s)) end = close.lastIndex;
+        let end = -1;
+        const name = m[1] ? m[1].toLowerCase() : "";
+        if (!name) {
+          if (dash >= 0 && dash < m.index + 2) dash = s.indexOf("-->", m.index + 2);
+          if (bang >= 0 && bang < m.index + 4) bang = s.indexOf("--!>", m.index + 4);
+          end = Math.min(dash < 0 ? Infinity : dash + 3, bang < 0 ? Infinity : bang + 4);
+          if (end === Infinity) end = -1;
         } else {
-          const close = s.indexOf("-->", open.lastIndex);
-          if (close >= 0) end = close + 3;
+          const gt = name === "svg" ? s.indexOf(">", open.lastIndex) : -1;
+          const close = ends.get(name);
+          if (gt >= 0 && (s[gt - 1] === "/" || !close)) end = gt + 1;
+          else if (close) {
+            close.lastIndex = open.lastIndex;
+            if (close.exec(s)) {
+              const tagEnd = s.indexOf(">", close.lastIndex);
+              if (tagEnd >= 0) end = tagEnd + 1;
+            } else if (gt >= 0) {
+              // An <svg> that is never closed ends at the next of many HTML tags: only its tag goes.
+              ends.delete(name);
+              end = gt + 1;
+            }
+          }
         }
+        if (end < 0) return out;
         from = open.lastIndex = end;
-        if (end === s.length) break;
       }
       return out + s.slice(from);
     }

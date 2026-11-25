@@ -3,11 +3,14 @@
 // rules) and the URL (up to 2 MiB), and one audit asks for Googlebot and 18 AI bots, each parsing
 // and matching the file again: minutes of frozen popup. Now each pattern and search is done once
 // for all bots, a part with a character the path lacks is no search at all, and matching stops after
-// ROBOTS_MATCH_MS with partial: true. The verdicts don't change: a reference copy of the old
-// matcher must agree on every case that fits the time.
-import { describe, it, expect } from "vitest";
+// ROBOTS_MATCH_MS. A bot whose verdict isn't certain by then gets none ({allowed: null, unchecked:
+// true}), never a guess, and every verdict given is the old matcher's: a reference copy of it must
+// agree on every case that fits the time.
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { Worker } from "node:worker_threads";
 import { isAllowedByRobots, parseRobots, ROBOTS_MATCH_MS } from "../lib/robots.js";
+
+const UNCHECKED = { allowed: null, rule: null, unchecked: true };
 
 const WORKER = `
 const { parentPort, workerData: w } = require("node:worker_threads");
@@ -18,8 +21,10 @@ const { parentPort, workerData: w } = require("node:worker_threads");
   for (const [label, text, path] of w.runs) {
     const t0 = performance.now();
     const google = isAllowedByRobots(text, path, "googlebot");
+    // Each AI bot's verdict as robots.js gives it (lib/geo.js keeps only allowed and rule).
+    const bots = Object.fromEntries((await import(w.geo)).AI_BOTS.map((b) => [b.ua, isAllowedByRobots(text, path, b.ua, b.fallback)]));
     const ai = analyzeAIAccess({ text }, path);
-    out.push({ label, ms: performance.now() - t0, google, blocked: ai.blockedCount });
+    out.push({ label, ms: performance.now() - t0, google, bots, blocked: ai.blockedCount });
   }
   parentPort.postMessage(out);
 })();`;
@@ -64,8 +69,77 @@ describe("robots.txt matching is bounded for every bot together (finding 13)", (
     expect([same.google, same.blocked]).toEqual([{ allowed: true, rule: null }, 0]);
     expect([allow.google, allow.blocked]).toEqual([{ allowed: true, rule: null }, 0]);
     expect([two.google, two.blocked]).toEqual([{ allowed: false, rule: "Disallow: /*abc" }, 18]);
-    expect(huge.google.partial).toBe(true);
+    // "/*abcd" blocks every bot here (the junction of the a's and ALPHA), but the old matcher needed
+    // hours to get there: the time runs out first, and that is no verdict.
+    const exact = { allowed: false, rule: "Disallow: /*abcd" };
+    for (const v of [huge.google, ...Object.values(huge.bots)]) expect([exact, UNCHECKED]).toContainEqual(v);
+    expect(huge.google).toEqual(UNCHECKED);
   }, 20000);
+});
+
+describe("a verdict the time cut short is no verdict, never a guess (review of finding 13)", () => {
+  it("gives no verdict, not 'allowed', to the bots whose stronger rules weren't checked", async () => {
+    // The reviewer's file: one group per bot, 500 KiB of different "/*a<n>q" rules, and a URL of
+    // 200,000 a's. The old matcher took 33 s; it blocked Googlebot with "/*aaaq" and Google-Extended
+    // with "/*aaaaq", and allowed the rest. Before this fix every AI bot came back "allowed", Google-
+    // Extended too, because Googlebot had used up the time.
+    const groups = ["googlebot", "GPTBot", "ChatGPT-User", "OAI-SearchBot", "ClaudeBot", "Claude-User", "Claude-SearchBot", "PerplexityBot",
+      "Perplexity-User", "Google-Extended", "Applebot", "Applebot-Extended", "CCBot", "Bytespider", "meta-externalagent", "Amazonbot",
+      "DuckAssistBot", "cohere-ai", "Bingbot", "anthropic-ai"];
+    const per = Math.floor(MAX / groups.length);
+    let text = "";
+    let k = 0;
+    for (const g of groups) {
+      let t = `User-agent: ${g}\n`;
+      while (t.length < per - 30) t += `Disallow: /*a${(k++).toString(36)}q\n`;
+      text += t;
+    }
+    const path = `/?${"a".repeat(200000)}q0123456789abcdefghijklmnopqrstuvwxyz`;
+    const out = await auditInWorker([["one group per bot", text, path]]);
+    expect(out, "the worker didn't answer within 10 s").not.toBeNull();
+    const [{ ms, google, bots }] = out;
+    expect(ms).toBeLessThan(ROBOTS_MATCH_MS * 2.5);
+    expect([{ allowed: false, rule: "Disallow: /*aaaq" }, UNCHECKED]).toContainEqual(google);
+    expect([{ allowed: false, rule: "Disallow: /*aaaaq" }, UNCHECKED]).toContainEqual(bots["Google-Extended"]);
+    for (const [ua, v] of Object.entries(bots)) if (ua !== "Google-Extended") expect([{ allowed: true, rule: null }, UNCHECKED], ua).toContainEqual(v);
+    expect(Object.values(bots)).toContainEqual(UNCHECKED);
+  }, 20000);
+
+  it("leaves each AI bot time of its own when Googlebot, asked first, used it all", async () => {
+    // Googlebot's group needs far more than ROBOTS_MATCH_MS (the URL holds every character of its
+    // rules, so each one takes a search); GPTBot's one rule takes one search.
+    let text = "User-agent: Googlebot\n";
+    for (let i = 0; text.length < MAX - 100; i++) text += `Disallow: /*a${i.toString(36)}q\n`;
+    text += "User-agent: GPTBot\nDisallow: /*secret\n";
+    const out = await auditInWorker([["hostile Googlebot group", text, `/?${"a".repeat(200000)}q0123456789abcdefghijklmnopqrstuvwxyz/secret`]]);
+    expect(out, "the worker didn't answer within 10 s").not.toBeNull();
+    const [{ google, bots }] = out;
+    expect(google).toEqual(UNCHECKED);
+    expect(bots.GPTBot).toEqual({ allowed: false, rule: "Disallow: /*secret" });
+    expect(bots.ClaudeBot).toEqual({ allowed: true, rule: null });
+  }, 20000);
+
+  describe("with a clock that moves 4 ms at every look", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("lets each bot carry on where the one before ran out, until the verdict is certain", () => {
+      let clock = 0;
+      vi.spyOn(performance, "now").mockImplementation(() => (clock += 4));
+      // 400 rules that each take a search and don't match, then the one that decides (shorter, so tried last).
+      const rules = Array.from({ length: 400 }, (_, i) => `Disallow: /*zz${i.toString(2).padStart(9, "0").replace(/0/g, "a").replace(/1/g, "b")}`);
+      const text = `User-agent: *\n${rules.join("\n")}\nDisallow: /*xyz\n`;
+      const path = `/${"ab".repeat(50)}xyz`;
+      const exact = { allowed: false, rule: "Disallow: /*xyz" };
+      expect(reference(text, path, "googlebot")).toEqual(exact);
+      // About 250 searches fit in ROBOTS_MATCH_MS; the 150 after them don't.
+      expect(isAllowedByRobots(text, path, "googlebot")).toEqual(UNCHECKED);
+      // Each next bot gets ROBOTS_BOT_MS (two searches here) and goes on from the last answer found,
+      // so a timed-out search must not be remembered as one. The 151 searches left take 76 bots.
+      const later = Array.from({ length: 100 }, () => isAllowedByRobots(text, path, "GPTBot"));
+      for (const v of later) expect([exact, UNCHECKED]).toContainEqual(v);
+      expect(later.at(-1)).toEqual(exact);
+    });
+  });
 });
 
 // ---- The matcher as it was before (lib/robots.js at 7c5a965), as the reference for the verdicts ----
@@ -121,13 +195,16 @@ function reference(robotsText, path, ua = "*", fallbackUa = null) {
 describe("the bounded matcher gives the same verdicts as before", () => {
   it("agrees with the old matcher on thousands of random files, paths and bots", () => {
     let seed = 20261125;
-    const rnd = (k) => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed % k; };
+    // mulberry32: an LCG in floating point loses its low bits, so rnd(2), rnd(4) and rnd(8) were nearly always 0.
+    const rnd = (k) => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) % k; };
     const pick = (a) => a[rnd(a.length)];
     const atoms = ["/", "a", "b", "ab", "*", "$", "?", "=", "x", "%7E", "~", "é", "%c3%a9", "index.html", "index.htm", ".pdf", "/dir/", "%2F", "-"];
     const pattern = () => { let s = rnd(4) ? "/" : ""; for (let k = rnd(6); k > 0; k--) s += pick(atoms); return s; };
     const pathOf = () => { let s = "/"; for (let k = rnd(7); k > 0; k--) s += pick(["a", "b", "ab", "dir/", "index.html", "x", "?", "=", ".pdf", "%7E", "~", "%C3%A9", "é", "/"]); return s; };
     const agents = ["*", "Googlebot", "GPTBot", "ClaudeBot", "googlebot/2.1", "Applebot", "Bingbot"];
     let checked = 0;
+    let blocked = 0;
+    let allowedByRule = 0;
     for (let f = 0; f < 3000; f++) {
       let text = "";
       for (let g = 1 + rnd(4); g > 0; g--) {
@@ -138,12 +215,18 @@ describe("the bounded matcher gives the same verdicts as before", () => {
       for (let p = 0; p < 3; p++) {
         const path = pathOf();
         for (const [ua, fallback] of [["googlebot"], ["GPTBot"], ["Applebot", "googlebot"], ["*"], ["ClaudeBot"]]) {
-          expect(isAllowedByRobots(text, path, ua, fallback), JSON.stringify({ text, path, ua })).toEqual(reference(text, path, ua, fallback));
+          const want = reference(text, path, ua, fallback);
+          expect(isAllowedByRobots(text, path, ua, fallback), JSON.stringify({ text, path, ua })).toEqual(want);
           checked++;
+          if (!want.allowed) blocked++;
+          else if (want.rule) allowedByRule++;
         }
       }
     }
     expect(checked).toBe(45000);
+    // The cases hold both kinds of verdict, not only empty groups (4,069 and 10,701 of them).
+    expect(blocked).toBeGreaterThan(3000);
+    expect(allowedByRule).toBeGreaterThan(8000);
   });
 
   it("keeps the strongest rule, Allow on a tie and the first one read, across groups merged for one bot", () => {
