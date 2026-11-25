@@ -13,6 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # No GitHub token left in .git/config for the later steps' third-party code
+          # (npm ci's install scripts, npx addons-linter): nothing here pushes or fetches.
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
