@@ -6,7 +6,7 @@ import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetc
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
-import { escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate, inlineImageLabel, displayUrl, pathSlug } from './lib/popup-helpers.js';
+import { plural, escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate, inlineImageLabel, displayUrl, pathSlug } from './lib/popup-helpers.js';
 import { computeHealthScore, computeIndexability, detectMarketFromUrl, snippetDirectives, limitsSnippets, robotsBlocksIndexing, copilotLimit } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { readableError } from './lib/errors.js';
@@ -56,7 +56,6 @@ const ICON = {
 
 const DFS_LOOKUP_COST = DFS_COST.rankedKeywords + DFS_COST.domainOverview;
 /** "1 link", "1,280 links". */
-const plural = (n, word) => `${fmtNum(n)} ${word}${n === 1 ? '' : 's'}`;
 /** Dollar amount with at most 3 decimals and no trailing zeros, e.g. $0.025. */
 const usd = (n) => `$${Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`;
 
