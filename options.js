@@ -9,7 +9,7 @@ import { BING_ORIGINS } from "./lib/bing.js";
 import { storeUrl } from "./lib/links.js";
 import { CHANGELOG_URL } from "./lib/whats-new.js";
 import { readableError } from "./lib/errors.js";
-import { localDate } from "./lib/popup-helpers.js";
+import { localDate, plural } from "./lib/popup-helpers.js";
 import { fetchWithTimeout } from "./lib/fetch-helper.js";
 import { FETCH_TIMEOUT_MS, PSI_TIMEOUT_MS } from "./lib/constants.js";
 import { whileBusy } from "./lib/busy.js";
@@ -46,6 +46,40 @@ function fill(sel, items) {
 }
 
 // ---------------------------------------------------------------------------
+// Save buttons: secondary, and coral only while their section has unsaved changes
+// ---------------------------------------------------------------------------
+
+/** Each Save button with the fields it saves. */
+const SAVE_FIELDS = {
+  "save-dfs": ["dfsLogin", "dfsPassword"],
+  "save-psi": ["psiKey"],
+  "save-bing": ["bingKey"],
+  "save-images": ["imgMaxKB", "imgWidth", "imgHeight", "imgMode"]
+};
+/** What each field held when it was last loaded or saved. Save trims, so this does too. */
+const savedValues = {};
+const fieldValue = (id) => $(id).value.trim();
+
+function showUnsaved(btnId) {
+  const changed = SAVE_FIELDS[btnId].some((id) => fieldValue(id) !== savedValues[id]);
+  $(btnId).classList.toggle("primary-btn", changed);
+  $(btnId).classList.toggle("secondary-btn", !changed);
+}
+
+/** The section's fields hold what is stored: `values` when given (what Save stored), else what they show. */
+function markSaved(btnId, values = {}) {
+  for (const id of SAVE_FIELDS[btnId]) savedValues[id] = values[id] ?? fieldValue(id);
+  showUnsaved(btnId);
+}
+
+for (const [btnId, ids] of Object.entries(SAVE_FIELDS)) {
+  for (const id of ids) {
+    $(id).addEventListener("input", () => showUnsaved(btnId));
+    $(id).addEventListener("change", () => showUnsaved(btnId));
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Site access
 // ---------------------------------------------------------------------------
 
@@ -79,6 +113,7 @@ async function loadSecrets() {
   $("dfsPassword").value = s.dfsPassword || "";
   $("psiKey").value = s.psiKey || "";
   $("bingKey").value = s.bingKey || "";
+  ["save-dfs", "save-psi", "save-bing"].forEach(markSaved);
 }
 
 $("save-dfs").addEventListener("click", async () => {
@@ -88,6 +123,7 @@ $("save-dfs").addEventListener("click", async () => {
   // Ask for access to api.dataforseo.com now, while we have a click to ask from.
   const allowed = await requestOrigins(DATAFORSEO);
   await setSecrets({ dfsLogin: login, dfsPassword: password });
+  markSaved("save-dfs", { dfsLogin: login, dfsPassword: password });
   say("dfs-status", allowed ? "Saved." : "Saved. Chrome did not allow access to DataForSEO yet; lookups will ask again.", allowed ? "good" : "bad");
 });
 
@@ -96,6 +132,7 @@ confirmClick($("clear-dfs"), async () => {
   await removeOrigins(DATAFORSEO);
   $("dfsLogin").value = "";
   $("dfsPassword").value = "";
+  markSaved("save-dfs");
   say("dfs-status", "Login removed from this device.");
 });
 
@@ -126,6 +163,7 @@ $("save-bing").addEventListener("click", async () => {
   if (!key) { say("bing-status", "Paste a key first.", "bad"); return; }
   const allowed = await requestOrigins(BING_ORIGINS);
   await setSecrets({ bingKey: key });
+  markSaved("save-bing", { bingKey: key });
   say("bing-status", allowed ? "Saved." : "Saved. Chrome did not allow access to Bing yet; Needle will ask again.", allowed ? "good" : "bad");
 });
 
@@ -133,17 +171,21 @@ confirmClick($("clear-bing"), async () => {
   await setSecrets({ bingKey: "" });
   await removeOrigins(BING_ORIGINS);
   $("bingKey").value = "";
+  markSaved("save-bing");
   say("bing-status", "Key removed from this device.");
 });
 
 $("save-psi").addEventListener("click", async () => {
-  await setSecrets({ psiKey: $("psiKey").value.trim() });
+  const psiKey = $("psiKey").value.trim();
+  await setSecrets({ psiKey });
+  markSaved("save-psi", { psiKey });
   say("psi-status", "Saved.");
 });
 
 confirmClick($("clear-psi"), async () => {
   await setSecrets({ psiKey: "" });
   $("psiKey").value = "";
+  markSaved("save-psi");
   say("psi-status", "Key removed from this device.");
 });
 
@@ -177,6 +219,7 @@ async function loadImageRules() {
   $("imgWidth").value = r.imgWidth || "";
   $("imgHeight").value = r.imgHeight || "";
   $("imgMode").value = r.imgMode === "exact" ? "exact" : "ratio";
+  markSaved("save-images");
 }
 
 $("save-images").addEventListener("click", async () => {
@@ -184,7 +227,9 @@ $("save-images").addEventListener("click", async () => {
   const bad = ["imgMaxKB", "imgWidth", "imgHeight"].find((id) => n(id) && !isWholeNumber(n(id)));
   if (bad) { say("images-status", "Use whole numbers from 1 up.", "bad"); return; }
   if (!!n("imgWidth") !== !!n("imgHeight")) { say("images-status", "Fill in both width and height, or neither.", "bad"); return; }
-  await chrome.storage.sync.set({ imgMaxKB: n("imgMaxKB"), imgWidth: n("imgWidth"), imgHeight: n("imgHeight"), imgMode: $("imgMode").value });
+  const rules = { imgMaxKB: n("imgMaxKB"), imgWidth: n("imgWidth"), imgHeight: n("imgHeight"), imgMode: $("imgMode").value };
+  await chrome.storage.sync.set(rules);
+  markSaved("save-images", rules);
   say("images-status", "Saved. An open side panel uses them at once; a popup when it opens.");
 });
 
@@ -280,6 +325,8 @@ $("import-settings").addEventListener("change", async (e) => {
     const payload = data && typeof data === "object" ? data.settings || data : {};
     const { prefs, secrets, skipped } = readSettingsFile(payload, { locations: LOCATIONS, languages: LANGUAGES });
     const n = Object.keys(prefs).length + Object.keys(secrets).length;
+    // Settings Needle knows, all with values it refuses: say so, and that nothing changed.
+    if (!n && skipped) { say("sync-status", `Nothing loaded: ${plural(skipped, "setting")} in this file ${skipped === 1 ? "has a value" : "have values"} Needle can't use.`, "bad"); return; }
     if (!n) { say("sync-status", "No Needle settings found in this file.", "bad"); return; }
     if (Object.keys(prefs).length) await chrome.storage.sync.set(prefs);
     if (Object.keys(secrets).length) await setSecrets(secrets);
