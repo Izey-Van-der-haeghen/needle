@@ -125,8 +125,8 @@ describe("isAllowedByRobots: groups as Google's parser forms them", () => {
 });
 
 // Google's parser reads "Allow: /dir/index.html" as allowing "/dir/" too (robots.cc, HandleAllow).
-// Its own test calls this Google-specific, so Needle applies it for Googlebot only.
-describe("isAllowedByRobots: index.html allows its directory, for Googlebot", () => {
+// Its own test calls this Google-specific, so Needle applies it for Google's crawlers only.
+describe("isAllowedByRobots: index.html allows its directory, for Google's crawlers", () => {
   // Google's test GoogleOnly_IndexHTMLisDirectory (robots_test.cc), with its four URLs.
   const google = "User-Agent: *\nAllow: /allowed-slash/index.html\nDisallow: /\n";
   it("passes Google's four cases", () => {
@@ -142,8 +142,19 @@ describe("isAllowedByRobots: index.html allows its directory, for Googlebot", ()
     expect(isAllowedByRobots(blog, "/blog/post", "Googlebot")).toEqual({ allowed: false, rule: "Disallow: /blog/" });
   });
 
-  it("applies to a bot that follows Googlebot's rules", () => {
-    expect(isAllowedByRobots(blog, "/blog/", "Applebot", "googlebot").allowed).toBe(true);
+  it("applies to Google's other tokens", () => {
+    const extended = "User-agent: Google-Extended\nDisallow: /blog/\nAllow: /blog/index.html\n";
+    expect(isAllowedByRobots(extended, "/blog/", "Google-Extended")).toEqual({ allowed: true, rule: "Allow: /blog/index.html" });
+    expect(isAllowedByRobots(blog, "/blog/", "Googlebot-Image")).toEqual({ allowed: true, rule: "Allow: /blog/index.html" });
+  });
+
+  it("applies to Applebot only while it reads Googlebot's group", () => {
+    const viaGooglebot = "User-agent: Googlebot\nDisallow: /blog/\nAllow: /blog/index.html\n";
+    expect(isAllowedByRobots(viaGooglebot, "/blog/", "Applebot", "googlebot")).toEqual({ allowed: true, rule: "Allow: /blog/index.html" });
+    // Its own group, or the * group: Applebot reads it with Apple's parser, not Google's.
+    const own = "User-agent: Applebot\nDisallow: /blog/\nAllow: /blog/index.html\n\nUser-agent: Googlebot\nAllow: /\n";
+    expect(isAllowedByRobots(own, "/blog/", "Applebot", "googlebot")).toEqual({ allowed: false, rule: "Disallow: /blog/" });
+    expect(isAllowedByRobots(blog, "/blog/", "Applebot", "googlebot")).toEqual({ allowed: false, rule: "Disallow: /blog/" });
   });
 
   it("leaves other bots as they were", () => {

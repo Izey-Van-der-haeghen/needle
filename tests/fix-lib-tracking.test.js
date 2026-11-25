@@ -1,8 +1,11 @@
 // Full check of 25 November 2026, P2-5: an empty "?" is not another URL.
 import { describe, it, expect } from "vitest";
-import { withoutTracking } from "../lib/urls.js";
+import { withoutTracking, urlKey, exactUrlKey } from "../lib/urls.js";
 import { collectFindings } from "../lib/findings.js";
 import { computeIndexability } from "../lib/popup-compute.js";
+import { validateHreflang } from "../lib/hreflang.js";
+import { alternatesOf } from "../lib/hreflang-cluster.js";
+import { findInSitemaps } from "../lib/sitemap-check.js";
 
 describe("withoutTracking and an empty query", () => {
   it("drops a bare ? and ?&", () => {
@@ -41,5 +44,48 @@ describe("the canonical check on a tab URL that ends in ?", () => {
   it("still does when the query has a parameter", () => {
     expect(elsewhere("https://e.com/repairs/?page=2", "https://e.com/repairs/")).toBe(true);
     expect(computeIndexability(page("https://e.com/repairs/?page=2", "https://e.com/repairs/"), tech).verdict).toBe("Canonical points elsewhere");
+  });
+});
+
+// Review of the P2-5 fix: withoutTracking drops empty parameters, so the keys that compare its
+// result with hreflang and sitemap addresses must drop them too, or a page no longer finds itself.
+describe("a page with empty parameters still finds its own address", () => {
+  const pages = ["https://e.com/p?a=1&", "https://e.com/p?&", "https://e.com/p?a=1&&b=2", "https://e.com/p?", "https://e.com/p?a=1"];
+
+  it("urlKey and exactUrlKey drop empty parameters as withoutTracking does", () => {
+    for (const url of pages) {
+      expect(urlKey(withoutTracking(url)), url).toBe(urlKey(url));
+      expect(exactUrlKey(withoutTracking(url)), url).toBe(exactUrlKey(url));
+    }
+    expect(urlKey("https://e.com/p?a=1&")).toBe("https://e.com/p?a=1");
+    expect(urlKey("https://e.com/p?&")).toBe("https://e.com/p");
+    // A parameter without a value is not empty.
+    expect(urlKey("https://e.com/p?a")).not.toBe(urlKey("https://e.com/p"));
+    expect(urlKey("https://e.com/p?a=1&b=2")).not.toBe(urlKey("https://e.com/p?a=1"));
+  });
+
+  it("finds the self-referencing hreflang", () => {
+    for (const url of pages) {
+      const tags = [{ lang: "en", href: url }, { lang: "x-default", href: url }];
+      const msgs = validateHreflang(tags, withoutTracking(url)).map((i) => i.msg);
+      expect(msgs, url).not.toContain("Missing self-referencing hreflang");
+    }
+    // Control: a page that really lacks one.
+    expect(validateHreflang([{ lang: "en", href: "https://e.com/other" }], withoutTracking("https://e.com/p?a=1&")).map((i) => i.msg)).toContain("Missing self-referencing hreflang");
+  });
+
+  it("doesn't list the page itself as an alternate", () => {
+    for (const url of pages) {
+      const tags = [{ lang: "en", href: url }, { lang: "fr", href: "https://e.com/fr/p?a=1&" }];
+      expect(alternatesOf(withoutTracking(url), tags).map((a) => a.lang), url).toEqual(["fr"]);
+    }
+  });
+
+  it("finds the page in a sitemap that lists it as written", async () => {
+    for (const url of pages) {
+      const xml = `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${url.replace(/&/g, "&amp;")}</loc></url></urlset>`;
+      const fetcher = async (reqs) => reqs.map(() => ({ ok: true, status: 200, text: xml, headers: {} }));
+      expect(await findInSitemaps(withoutTracking(url), ["https://e.com/sitemap.xml"], fetcher), url).toMatchObject({ found: true });
+    }
   });
 });
