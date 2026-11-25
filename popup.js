@@ -55,15 +55,20 @@ const ICON = {
 };
 
 const DFS_LOOKUP_COST = DFS_COST.rankedKeywords + DFS_COST.domainOverview;
+/** "1 link", "1,280 links". */
 /** Dollar amount with at most 3 decimals and no trailing zeros, e.g. $0.025. */
 const usd = (n) => `$${Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`;
 /** The page's own text, escaped, in <bdi>: right-to-left text keeps its punctuation next to Needle's words. */
 const pageText = (text) => (text ? `<bdi>${escapeHtml(text)}</bdi>` : '');
-/** One example of a finding. A heading's text comes from the page: it goes in <bdi>, after "H4 " for a skipped level. */
-function exampleHtml(findingId, example) {
-  if (findingId === 'h1-multiple') return pageText(example);
-  const skip = findingId === 'heading-skips' && /^(H[1-6]) ([\s\S]*)$/.exec(example);
-  return skip ? `${skip[1]} ${pageText(skip[2])}` : escapeHtml(example);
+/**
+ * One example of a finding. For a heading ("H4 Text"), the heading's text is page text: it goes in <bdi>.
+ * The same rule as the report's exampleHtml in lib/export.js.
+ */
+function exampleHtml(example, target) {
+  const e = String(example);
+  const text = target?.kind === 'heading' ? String(target.text ?? '') : '';
+  if (!text || !e.endsWith(text)) return escapeHtml(e);
+  return `${escapeHtml(e.slice(0, e.length - text.length))}${pageText(text)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -885,7 +890,7 @@ function renderFindings() {
           <div class="finding-head">${tag(SEVERITY_LABEL[x.severity], SEV_KIND[x.severity])} <span class="finding-title" id="ft-${escapeHtml(x.id)}">${escapeHtml(x.title)}</span> ${locate}</div>
           <details class="sub" data-fid="${escapeHtml(x.id)}"${openWhy.has(x.id) ? ' open' : ''}><summary id="why-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}">Why and how · ${escapeHtml(x.area)}</summary>
             <p>${escapeHtml(x.why)}</p><p><strong>Fix:</strong> ${escapeHtml(x.fix)}</p>
-            ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e) => `<li>${exampleHtml(x.id, e)}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${fmtNum(x.examples.length - 8)} more</p>` : ''}` : ''}
+            ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e, i) => `<li>${exampleHtml(e, x.targets?.[i])}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${fmtNum(x.examples.length - 8)} more</p>` : ''}` : ''}
           </details>
         </li>`;
       }).join('')}</ol>
@@ -1490,7 +1495,11 @@ $('add-competitor').addEventListener('click', () => {
   document.querySelector(`.competitor-url[data-idx="${visibleComps - 1}"]`)?.focus();
 });
 
+// Bumped by every Compare run and by Clear: a restore that started earlier then leaves the result alone.
+let compareGen = 0;
+
 $('clear-compare').addEventListener('click', () => {
+  compareGen++;
   $('compare-self').value = '';
   $('compare-keyword').value = '';
   document.querySelectorAll('.competitor-url').forEach((inp) => { inp.value = ''; });
@@ -1534,6 +1543,7 @@ function serpNoticeTitle(serpError, keyword) {
 let compareRunning = false;
 async function loadCompare(force = false) {
   if (compareRunning) return;
+  compareGen++;
   const result = $('compare-result');
   const selfUrl = $('compare-self').value.trim();
   const keyword = $('compare-keyword').value.trim();
@@ -1607,15 +1617,18 @@ async function loadCompare(force = false) {
 }
 
 async function autoRestoreCompareResult() {
-  const competitorUrls = [...document.querySelectorAll('.competitor-url')].map((i) => i.value.trim()).filter(Boolean);
-  const selfUrl = $('compare-self').value.trim();
-  if (!competitorUrls.length || (!selfUrl && !/^https?:/.test(pageUrl))) return;
+  const readInputs = () => JSON.stringify([$('compare-self').value.trim(), ...[...document.querySelectorAll('.competitor-url')].map((i) => i.value.trim()).filter(Boolean)]);
+  const inputs = readInputs();
+  const [selfUrl, ...competitorUrls] = JSON.parse(inputs);
+  if (compareRunning || !competitorUrls.length || (!selfUrl && !/^https?:/.test(pageUrl))) return;
   const gen = auditGen;
+  const cgen = compareGen;
   const hits = await Promise.all(competitorUrls.map((u) => getCache(cacheKey('compare', u))));
   if (hits.some((h) => !h)) return;
   // With "Your page" empty, "You" is the current tab, read as loadCompare reads it.
   const me = selfUrl ? await getCache(cacheKey('compare', selfUrl)) : { data: await snapshotCurrentTab(), age: 0 };
-  if (gen !== auditGen || !me?.data) return;
+  // Reading the tab takes a while. A Compare run, Clear or an edited address meanwhile wins.
+  if (gen !== auditGen || cgen !== compareGen || readInputs() !== inputs || !me?.data) return;
   const sources = [me, ...hits].map((h, i) => ({ label: i === 0 ? 'You' : `Competitor ${i}`, data: h.data, isMe: i === 0 }));
   rerender($('compare-result'), cachedBanner(Math.max(...[me, ...hits].map((h) => h.age || 0)), 'compare') + renderCompareMulti(sources, null, '', null));
   attachCompareExportHandlers(sources, null, '');
@@ -2016,12 +2029,13 @@ function renderImageItems() {
     const issues = imageIssues(img);
     const safe = isSafeHttpUrl(img.src) && !img.brokenLoad;
     const dims = img.naturalWidth ? `${img.naturalWidth}×${img.naturalHeight}` : 'size unknown';
+    // .item-meta is a flex row: "alt:" and the alt text stay one item, so a long alt wraps after "alt:".
     return `<li class="item image-item">
       ${safe ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy">` : '<span class="thumb thumb-empty" aria-hidden="true">✗</span>'}
       <div class="item-body">
         <div class="item-title" title="${escapeHtml(img.src)}">${escapeHtml(imageFilename(img.src))}</div>
         <div class="item-meta">${[escapeHtml(dims), img.brokenLoad ? '' : /^data:/i.test(img.src) ? 'inline' : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'].filter(Boolean).join(' · ')}</div>
-        <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `alt: ${pageText(img.alt)}` : '<span class="muted">empty alt (decorative)</span>'}</div>
+        <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `<span>alt: ${pageText(img.alt)}</span>` : '<span class="muted">empty alt (decorative)</span>'}</div>
         ${issues.length ? `<div class="item-meta">${issues.map(([t, k]) => tag(t, k)).join(' ')}</div>` : ''}
       </div>
       <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'image', index: img.domIndex, src: img.src }))}" aria-label="Show this image on the page" title="Show this image on the page">${ICON.locate}</button>

@@ -48,6 +48,15 @@ it("puts the alt text after \"alt:\" in <bdi>", () => {
   expect(alt.querySelector("bdi")?.textContent).toBe(ALT);
 });
 
+it("keeps \"alt:\" and the alt text one item of the flex row, so a long alt wraps after \"alt:\"", () => {
+  // .item-meta is a flex row: each child element and each loose run of text is a flex item of its own.
+  expect(readFileSync(path.join(ROOT, "popup.css"), "utf8")).toMatch(/\.item-meta\s*\{[^}]*display:\s*flex/);
+  const alt = metas(itemFor("shop.jpg")).find((m) => m.textContent.startsWith("alt: "));
+  const items = [...alt.childNodes].filter((n) => n.nodeType === 1 || n.textContent.trim());
+  expect(items).toHaveLength(1);
+  expect(items[0].textContent).toBe(`alt: ${ALT}`);
+});
+
 it("puts the social cards' titles and the description in <bdi>", () => {
   const cards = [...document.querySelectorAll(".social-card")];
   expect(cards.map((c) => c.querySelector("strong > bdi")?.textContent)).toEqual([OG_TITLE, X_TITLE]);
