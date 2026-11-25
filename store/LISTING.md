@@ -79,6 +79,7 @@ WHAT'S NEW IN 1.0.3
 • Compare offers "Allow DataForSEO" or "Open Settings" when Google positions need them, and keeps its result after reopening
 • One main button per tab, and Settings turns Save coral only while something is unsaved
 • robots.txt: "Allow: /dir/index.html" also allows /dir/, as Google's own parser does
+• Safer with hostile pages: page text can't add HTML, huge or deeply nested files no longer slow Needle down, and nothing on your local network is requested
 Every change, version by version: github.com/Izey-Van-der-haeghen/needle/blob/main/CHANGELOG.md
 
 > Replace this section with each new version (the store has no separate field for release notes). The lines are the same as `WHATS_NEW` in `lib/whats-new.js`, which the extension shows after an update.
