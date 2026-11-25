@@ -1046,7 +1046,7 @@ async function loadGEO(gen = auditGen) {
 
   rerender(slot, `
     <div class="card">
-      <h2>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h2>
+      <h2>AI search readiness ${!robotsKnown ? tag(`${score.score}/100, robots.txt not read`, 'neutral') : aiAccess.bots.some((b) => b.unchecked) ? tag(`${score.score}/100, ${plural(aiAccess.bots.filter((b) => b.unchecked).length, 'bot')} not checked`, 'neutral') : tag(`${score.score}/100`, score.level)}</h2>
       <p class="muted">Can AI search engines reach and quote this page? ${escapeHtml(AI_SCORE_NOTE)}</p>
       ${aiAccess.cloudflareManaged ? '<div class="hint">Cloudflare manages this robots.txt. Its AI Crawl Control may also block AI bots at the network level (HTTP 403), even ones allowed below. Check AI Crawl Control in the Cloudflare dashboard.</div>' : ''}
       <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${plural(blockedSearch.length, 'AI answer bot')} blocked`, 'bad') : uncheckedSearch.length ? tag(`${plural(uncheckedSearch.length, 'AI answer bot')} not checked`, 'neutral') : tag('AI answer bots allowed', 'good')}</h3>

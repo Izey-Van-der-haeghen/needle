@@ -66,7 +66,10 @@ describe("content.js copies behave like their lib/ originals", () => {
       [{ "@type": "G" }, "https://schema.org"],
       [{ "@context": "https://schema.org", "@type": "H" }, "https://outer.example"],
       [[{ "@graph": [] }, {}, null, { "@type": "I" }]],
-      [{ "@context": { "@vocab": "https://schema.org/" }, "@graph": [{ "@type": "J" }] }]
+      [{ "@context": { "@vocab": "https://schema.org/" }, "@graph": [{ "@type": "J" }] }],
+      // Nested past 64 levels (a hostile page): both copies stop there instead of recursing on.
+      [JSON.parse("[".repeat(70) + '{"@type":"Deep"}' + "]".repeat(70))],
+      [JSON.parse("[".repeat(60) + '{"@type":"Shallow"}' + "]".repeat(60))]
     ]);
   });
 

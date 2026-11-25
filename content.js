@@ -875,10 +875,12 @@
     // The nodes of one JSON-LD block: a top-level array, "@graph" as an array or as one node, or an
     // array of such documents; a node keeps the @context around it. null and {} give no node.
     // Copy of flattenJsonLd in lib/schema-validator.js (this script can't import): change both together.
-    const flattenJsonLd = (parsed, context) => {
-      if (Array.isArray(parsed)) return parsed.flatMap((p) => flattenJsonLd(p, context));
+    const flattenJsonLd = (parsed, context, depth = 0) => {
+      // Nested arrays and @graph past 64 levels are a hostile page, not structured data.
+      if (depth > 64) return [];
+      if (Array.isArray(parsed)) return parsed.flatMap((p) => flattenJsonLd(p, context, depth + 1));
       if (!parsed || typeof parsed !== "object" || !Object.keys(parsed).length) return [];
-      if (parsed["@graph"] !== undefined) return flattenJsonLd([].concat(parsed["@graph"]), parsed["@context"] ?? context);
+      if (parsed["@graph"] !== undefined) return flattenJsonLd([].concat(parsed["@graph"]), parsed["@context"] ?? context, depth + 1);
       return [context && !parsed["@context"] ? { "@context": context, ...parsed } : parsed];
     };
     // A block nested deeper than this is reported as unreadable instead of passed on. Thousands of
