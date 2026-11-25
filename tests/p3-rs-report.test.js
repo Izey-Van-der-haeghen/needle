@@ -99,9 +99,9 @@ describe("the report's counts", () => {
     expect(text(one.querySelector("#schema h2"))).toBe("Structured data (1 block)");
   });
 
-  it("write 1,500 images with a thousands separator, in the count and under the list", () => {
-    const many = report({ images: Array.from({ length: 1500 }, (_, i) => image(i)) });
-    expect(text(many.querySelector("#images p"))).toMatch(/^1,500 images · ! 1,500 without alt ✓ 0 over the size limit /);
+  it("write 1,500 images with a thousands separator, in the counts and under the list", () => {
+    const many = report({ images: Array.from({ length: 1500 }, (_, i) => image(i, { oversized: true })) });
+    expect(text(many.querySelector("#images p"))).toMatch(/^1,500 images · ! 1,500 without alt ! 1,500 over the size limit /);
     expect(text(many.querySelector("#images p.muted:last-child"))).toBe("First 100 of 1,500 images.");
     expect(many.querySelectorAll("#images .img-row")).toHaveLength(100);
   });
@@ -110,6 +110,18 @@ describe("the report's counts", () => {
     const many = report({ headings: [{ level: 1, text: "H" }, ...Array.from({ length: 1200 }, () => ({ level: 2, text: "Kop" }))] });
     expect(text(many.querySelector("#headings p.muted"))).toBe("H1: 1 · H2: 1,200 · H3: 0 · H4: 0 · H5: 0 · H6: 0");
     expect(text(many.querySelector("#headings h2"))).toBe("Headings (1,201)");
+  });
+
+  it("count hreflang tags with a thousands separator", () => {
+    const tags = Array.from({ length: 1200 }, (_, i) => ({ lang: "nl-BE", href: `https://e.be/nl/${i}/` }));
+    expect(text(report({ hreflang: tags }).querySelector("#hreflang h2"))).toBe("Hreflang (1,200)");
+  });
+
+  it("count the sitemaps robots.txt lists with a thousands separator", () => {
+    const sitemaps = Array.from({ length: 1200 }, (_, i) => `https://e.be/sitemap-${i}.xml`);
+    const many = report({}, { technical: { ...technical, robotsTxt: { ...technical.robotsTxt, sitemaps } } });
+    const row = [...many.querySelectorAll("#technical th")].find((th) => text(th) === "Sitemaps listed");
+    expect(text(row.nextElementSibling)).toBe("1,200");
   });
 });
 
@@ -144,8 +156,12 @@ describe("right-to-left page text in the report", () => {
     expect(h1s.map((li) => li.innerHTML)).toEqual(["<bdi>عنوان</bdi>", "<bdi>عنوان آخر</bdi>"]);
   });
 
-  it("other examples stay as they were: no <bdi> around an address", () => {
-    const items = [...doc.querySelectorAll("#fix-first ul.code li")].filter((li) => /^https?:/.test(li.textContent));
-    for (const li of items) expect(li.querySelector("bdi")).toBeNull();
+  it("other examples stay as they were: no <bdi> around an address or a message", () => {
+    // An image without alt gives an address as its example; the JSON-LD block a message.
+    const withImage = report({ images: [image(0, { alt: AR_ALT, altMissing: false }), image(1)] });
+    const items = [...withImage.querySelectorAll("#fix-first ul.code li")];
+    const others = items.filter((li) => !/^(?:H\d )?[\u0600-\u06FF]/.test(li.textContent));
+    expect(others.map((li) => li.textContent)).toEqual(expect.arrayContaining(["https://e.be/img/1.jpg", "Missing @context"]));
+    for (const li of others) expect(li.innerHTML, li.textContent).toBe(li.textContent);
   });
 });
