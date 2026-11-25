@@ -307,3 +307,5 @@ html.side-panel .social-grid, html.side-panel .psi-grid, html.side-panel .term-g
 }
 /* "Check again" is shorter than "Check if links work": keep the width, so the next button doesn't jump. */
 #check-broken { min-width: 11em; }
+/* A long address in a result line wraps instead of pushing the panel sideways. */
+.wrap-anywhere { overflow-wrap: anywhere; }

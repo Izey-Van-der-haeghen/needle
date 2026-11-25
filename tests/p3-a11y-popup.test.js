@@ -141,7 +141,7 @@ it("names Copy as table, Show on page and Check by their visible text, then what
   expect(new Set(buttons.map(nameOf)).size).toBe(buttons.length);
 });
 
-it("describes each locate button by its row's text", () => {
+it("names and describes each locate button by its row's text", () => {
   const links = [...document.querySelectorAll("#link-list .locate")];
   expect(links.length).toBeGreaterThan(1);
   for (const b of links) {
@@ -157,11 +157,14 @@ it("describes each locate button by its row's text", () => {
   const images = [...document.querySelectorAll("#image-list .locate")];
   expect(images.length).toBeGreaterThan(1);
   for (const b of images) expect(descriptionOf(b)).toBe(text(b.closest(".item").querySelector(".item-body")));
-  // The same name, told apart by the description.
-  for (const list of [links, headings, images]) {
-    expect(new Set(list.map(nameOf)).size).toBe(1);
-    expect(new Set(list.map(descriptionOf)).size).toBe(list.length);
+  // Each name says what it shows, so a screen reader's list of buttons (names only) tells them apart.
+  for (const b of links) expect(nameOf(b)).toBe(`Show this link on the page: ${text(b.closest(".item").querySelector(".item-title"))}`);
+  for (const b of headings) {
+    const row = b.closest(".h-row");
+    expect(nameOf(b)).toBe(`Show this heading on the page: ${text(row.querySelector(".h-level"))} ${text(row.querySelector(".h-text"))}`);
   }
+  for (const b of images) expect(nameOf(b)).toBe(`Show this image on the page: ${text(b.closest(".item").querySelector(".item-title"))}`);
+  for (const list of [links, headings, images]) expect(new Set(list.map(descriptionOf)).size).toBe(list.length);
 });
 
 it("marks the links again when a link filter changes while they are shown", async () => {

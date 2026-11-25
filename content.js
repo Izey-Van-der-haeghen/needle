@@ -341,7 +341,9 @@
     };
     const main = document.querySelector("main");
     if (main) add("main", [main]);
-    const articles = Array.from(document.querySelectorAll("article"));
+    // Outermost articles only: comments or cards nested in a post are inside it already, and counting
+    // them again doubled their words, lists and readability weight.
+    const articles = Array.from(document.querySelectorAll("article")).filter(a => !a.parentElement?.closest("article"));
     if (articles.length) add(articles.length === 1 ? "article" : `article × ${articles.length}`, articles);
     MAIN_SELECTORS.forEach(sel => { const e = document.querySelector(sel); if (e) add(sel, [e]); });
     candidates.sort((a, b) => b.count - a.count);

@@ -72,14 +72,14 @@ Needle has no server, no analytics and no ads. It installs with no access to web
 Free and open source (MIT). No account needed for the on-page, technical and AI checks. Source code: github.com/Izey-Van-der-haeghen/needle
 
 WHAT'S NEW IN 1.0.3
-• Screen readers hear every result in the words on the screen, and each button has its own name
+• Screen readers hear every result, and each button names what it acts on
 • Long words, long addresses and right-to-left text no longer push the side panel or the report sideways, also at 200% zoom
 • Addresses show their letters (Région, bücher.example); characters that could disguise an address stay encoded
 • The http/https/www check says when versions didn't answer, instead of calling them different
 • Compare offers "Allow DataForSEO" or "Open Settings" when Google positions need them, and keeps its result after reopening
 • One main button per tab, and Settings turns Save coral only while something is unsaved
 • robots.txt: "Allow: /dir/index.html" also allows /dir/, as Google's own parser does
-• Safer with hostile pages: page text can't add HTML, huge or deeply nested files no longer slow Needle down, and nothing on your local network is requested
+• Safer with hostile pages: page text can't add HTML, huge or deeply nested files no longer slow Needle down, and links and images that point into your local network are skipped
 Every change, version by version: github.com/Izey-Van-der-haeghen/needle/blob/main/CHANGELOG.md
 
 > Replace this section with each new version (the store has no separate field for release notes). The lines are the same as `WHATS_NEW` in `lib/whats-new.js`, which the extension shows after an update.
@@ -105,7 +105,7 @@ Needle audits the web page in the current tab for search engine optimisation (SE
 
 **Data usage** (tick these)
 - Website content: yes. Page text, headings, links, images and metadata of the audited page are processed locally; the page address is sent to Google (PageSpeed Insights, Chrome UX Report), Microsoft Bing Webmaster Tools or DataForSEO only when the user starts one of those checks.
-- Web history: yes. A local list of the last 50 audited pages (address, title, score, time), stored on the device only. The address of the audited page goes to Google, Microsoft Bing or DataForSEO only when the user starts one of those checks.
+- Web history: yes. A local list of the last 50 audited pages (address, title, indexing verdict, score, time), stored on the device only. The address of the audited page goes to Google, Microsoft Bing or DataForSEO only when the user starts one of those checks.
 - Authentication information: yes. The user's own DataForSEO login, Google API key and Bing Webmaster Tools API key, stored on the device and sent only to those services.
 - All other categories: no.
 

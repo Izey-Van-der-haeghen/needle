@@ -24,8 +24,9 @@ if (existsSync(localList)) {
 
 const manifest = JSON.parse(readFileSync(join(ROOT, "manifest.json"), "utf8"));
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
-if (manifest.version !== pkg.version) {
-  console.error(`manifest.json (${manifest.version}) and package.json (${pkg.version}) disagree on the version.`);
+const lock = JSON.parse(readFileSync(join(ROOT, "package-lock.json"), "utf8"));
+if (manifest.version !== pkg.version || lock.version !== pkg.version || lock.packages?.[""]?.version !== pkg.version) {
+  console.error(`manifest.json (${manifest.version}), package.json (${pkg.version}) and package-lock.json (${lock.version} / ${lock.packages?.[""]?.version}) disagree on the version.`);
   process.exit(1);
 }
 

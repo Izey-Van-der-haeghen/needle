@@ -31,7 +31,7 @@ import { snapshotOf, recordSnapshot } from './lib/changes.js';
 import { termFrequency, keywordPlacement } from './lib/terms.js';
 import { readability } from './lib/readability.js';
 import { findInSitemaps } from './lib/sitemap-check.js';
-import { checkHostVariants } from './lib/variants.js';
+import { checkHostVariants, variantsLoadingText } from './lib/variants.js';
 import { checkHreflangCluster, alternatesOf, CLUSTER_MAX } from './lib/hreflang-cluster.js';
 import { urlKey, withoutTracking } from './lib/urls.js';
 import { noConnection } from './lib/link-checker.js';
@@ -56,6 +56,8 @@ const ICON = {
 };
 
 const DFS_LOOKUP_COST = DFS_COST.rankedKeywords + DFS_COST.domainOverview;
+/** At most 80 characters of a text, for a button's name ("Show this link on the page: Bikes"). */
+const nameBit = (t) => { const a = Array.from(String(t ?? '').replace(/\s+/g, ' ').trim()); return a.length > 80 ? `${a.slice(0, 79).join('')}…` : a.join(''); };
 /** Dollar amount with at most 3 decimals and no trailing zeros, e.g. $0.025. */
 const usd = (n) => `$${Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`;
 
@@ -891,11 +893,11 @@ function renderFindings() {
       ${f.length ? `<ol class="finding-list">${shown.map((x, i) => {
         const targets = x.targets || [];
         const locate = targets.length === 1
-          ? `<button type="button" class="locate" id="loc-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-highlight="${escapeHtml(JSON.stringify(targets[0]))}" aria-label="Show on the page" title="Show on the page">${ICON.locate}</button>`
+          ? `<button type="button" class="locate" id="loc-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-highlight="${escapeHtml(JSON.stringify(targets[0]))}" aria-label="${escapeHtml(`Show on the page: ${nameBit(x.title)}`)}" title="Show on the page">${ICON.locate}</button>`
           : targets.length > 1 ? `<button type="button" class="link-btn" id="show-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-finding-show="${i}">Show ${targets.length} on page</button>` : '';
         return `<li class="finding">
           <div class="finding-head">${tag(SEVERITY_LABEL[x.severity], SEV_KIND[x.severity])} <span class="finding-title" id="ft-${escapeHtml(x.id)}">${escapeHtml(x.title)}</span> ${locate}</div>
-          <details class="sub" data-fid="${escapeHtml(x.id)}"${openWhy.has(x.id) ? ' open' : ''}><summary id="why-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}">Why and how · ${escapeHtml(x.area)}</summary>
+          <details class="sub" data-fid="${escapeHtml(x.id)}"${openWhy.has(x.id) ? ' open' : ''}><summary id="why-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}">Why and how · ${escapeHtml(x.area)}<span class="visually-hidden">: ${escapeHtml(nameBit(x.title))}</span></summary>
             <p>${escapeHtml(x.why)}</p><p><strong>Fix:</strong> ${escapeHtml(x.fix)}</p>
             ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e, i) => `<li>${exampleHtml(e, x.targets?.[i])}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${fmtNum(x.examples.length - 8)} more</p>` : ''}` : ''}
           </details>
@@ -1277,6 +1279,7 @@ async function runBing() {
   } catch (e) {
     if (tg !== tabGen) return;
     if (e.message === NEEDS_PERMISSION) {
+      announce('Allow Needle to contact Bing Webmaster Tools');
       rerender($('bing-result'), `<div class="notice"><strong>Allow Needle to contact Bing Webmaster Tools</strong><div>Requests go to ssl.bing.com with your own key.</div>
         <div class="actions"><button type="button" class="secondary-btn" data-grant-bing>Allow Bing</button></div></div>`);
     } else {
@@ -1828,11 +1831,10 @@ function renderLinkList() {
       const [label, kind] = CHECK_LABEL[l.checkedStatus.kind] || [l.checkedStatus.kind, 'neutral'];
       flags.push(tag(l.checkedStatus.status ? `${label} (${l.checkedStatus.status})` : label, kind));
     }
-    // Every locate button is named "Show this link on the page": its description, the link's text and
-    // address, tells them apart.
+    // Each locate button names its link, so a screen reader's list of buttons tells them apart.
     const row = `link-${escapeHtml(String(l.index))}`;
     return `<li class="item">
-      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'link', index: l.index, href: l.href }))}" aria-label="Show this link on the page" title="Show this link on the page" aria-describedby="${row}-text ${row}-url">${ICON.locate}</button>
+      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'link', index: l.index, href: l.href }))}" aria-label="${escapeHtml(`Show this link on the page: ${nameBit(l.text || displayUrl(l.href))}`)}" title="Show this link on the page" aria-describedby="${row}-text ${row}-url">${ICON.locate}</button>
       <div class="item-body">
         <div class="item-meta">${ctxMark(l.context)}<span class="muted">${escapeHtml(CONTEXT_NAME[l.context] || l.context)}</span> ${flags.join(' ')}</div>
         <div class="item-title" id="${row}-text">${escapeHtml(l.text) || '<em class="muted">no link text</em>'}</div>
@@ -2105,7 +2107,7 @@ function renderImageItems() {
         <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `<span>alt: ${pageText(img.alt)}</span>` : '<span class="muted">empty alt (decorative)</span>'}</div>
         ${issues.length ? `<div class="item-meta">${issues.map(([t, k]) => tag(t, k)).join(' ')}</div>` : ''}
       </div>
-      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'image', index: img.domIndex, src: img.src }))}" aria-label="Show this image on the page" title="Show this image on the page" aria-describedby="image-${escapeHtml(String(img.domIndex))}-row">${ICON.locate}</button>
+      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'image', index: img.domIndex, src: img.src }))}" aria-label="${escapeHtml(`Show this image on the page: ${nameBit(imageFilename(img.src))}`)}" title="Show this image on the page" aria-describedby="image-${escapeHtml(String(img.domIndex))}-row">${ICON.locate}</button>
     </li>`;
   }).join('') + more;
 }
@@ -2195,7 +2197,7 @@ function renderOnpage(d, age) {
     const from = prev;
     prev = h.level;
     return `<li class="h-row" style="--indent:${(h.level - 1) * 14}px">
-      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'heading', index: i, level: h.level, text: h.text }))}" aria-label="Show this heading on the page" title="Show this heading on the page" aria-describedby="heading-${i}-level heading-${i}-text">${ICON.locate}</button>
+      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'heading', index: i, level: h.level, text: h.text }))}" aria-label="${escapeHtml(`Show this heading on the page: H${h.level} ${nameBit(h.text)}`)}" title="Show this heading on the page" aria-describedby="heading-${i}-level heading-${i}-text">${ICON.locate}</button>
       <span class="h-level" id="heading-${i}-level">H${h.level}</span>
       <span class="h-text" id="heading-${i}-text">${escapeHtml(h.text) || '<em class="muted">empty heading</em>'}</span>
       ${skipped ? tag(`skips from H${from}`, 'warn') : ''}
@@ -2668,7 +2670,7 @@ async function sitemapCheck(box) {
     rerender(box, r.unreadable
       ? `<p>${tag('could not read the sitemap', 'neutral')}</p><div class="hint">The sitemap did not answer, is a compressed .gz file, or is on another site: this check can't read those. Open it in a tab to check it.</div>`
       : r.found
-      ? `<p>${tag('listed', 'good')} in <span class="mono">${escapeHtml(r.sitemap)}</span></p>`
+      ? `<p>${tag('listed', 'good')} in <span class="mono wrap-anywhere">${escapeHtml(displayUrl(r.sitemap))}</span></p>`
       : `<p>${tag('not listed', 'warn')} <span class="muted">${r.complete ? `checked ${plural(r.filesRead, 'sitemap file')}` : r.unread ? `${fmtNum(r.unread)} of ${plural(r.filesRead, 'sitemap file')} could not be read` : `checked the first ${r.filesRead} files only`}</span></p>
          <div class="hint">Pages you want in Google belong in the sitemap. Sitemaps on another site can't be read from here.</div>`);
   } catch (e) {
@@ -2690,7 +2692,7 @@ async function variantsCheck(box) {
     rerender(box, permissionNotice('http and https count as different sites, so Needle needs access to request both.').replace('data-grant="all-sites"', 'data-grant="all-sites" data-retry="variants-check"'));
     return;
   }
-  rerender(box, loading('Requesting the four versions of the home page…'));
+  rerender(box, loading(variantsLoadingText(pageUrl)));
   const gen = auditGen;
   const r = await checkHostVariants(pageUrl);
   if (gen !== auditGen) return;
