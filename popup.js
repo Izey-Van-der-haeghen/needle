@@ -611,7 +611,7 @@ function showWhatsNewIfNeeded() {
   // it filled the popup). Older versions are in the changelog.
   const newest = w.sections[0];
   banner.innerHTML = `
-    <h2 class="notice-title">Needle was updated to ${escapeHtml(w.version)}</h2>
+    <h2>Needle was updated to ${escapeHtml(w.version)}</h2>
     ${newest ? `<details class="sub"><summary>What's new</summary>
       <ul class="plain-list">${newest.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
       ${w.sections.length > 1 ? `<p class="muted">More changed since ${escapeHtml(w.from)}: see the full changelog.</p>` : ''}
@@ -639,8 +639,8 @@ async function showOnboardingIfNeeded() {
   const banner = document.createElement('div');
   banner.className = 'notice onboarding';
   banner.innerHTML = `
-    <h2 class="notice-title">Welcome to Needle</h2>
-    <details class="sub"><summary>What Needle reads, and when</summary><div>Needle reads the page you open it on. In the side panel, with access to websites on, it also reads each tab you switch to and each page you open. Nothing leaves your browser unless you start a check that says so, like the speed test or a keyword lookup.</div></details>
+    <h2>Welcome to Needle</h2>
+    <details class="sub"><summary>What Needle reads, and when</summary><div>Needle reads the page you open it on. In the side panel, with access to websites on, it also reads each tab you switch to and each page you open in it. Nothing leaves your browser unless you start a check that says so, like the speed test or a keyword lookup.</div></details>
     <div class="actions">
       <button type="button" class="primary-btn" data-onb-dismiss>Got it</button>
       <button type="button" class="link-btn" data-action="open-options">Settings and API keys</button>
@@ -953,18 +953,22 @@ async function showChanges(score, gen = auditGen) {
   </details>`);
 }
 
-// Score checks that read the server's answer: the status and headers, a canonical in the Link header,
-// the final URL. Labels as computeHealthScore gives them.
-const SERVER_SCORE_CHECKS = ['Indexability', 'Canonical', 'Technical basics'];
+// The best answer the server check can give: a 200 for this address, with a canonical to itself.
+// Its real answer can't make a score check better than that.
+const bestServerAnswer = (url) => ({ status: 200, finalUrl: url, headers: { link: `<${url}>; rel="canonical"` } });
 
 function renderVerdict() {
   const slot = $('verdict-slot');
   if (!slot || !onpageData) return;
   const verdict = computeIndexability(onpageData, techPending ? { pending: true } : technicalData);
   const health = computeHealthScore(onpageData, technicalData, snippetPx());
-  // While the server check runs, the checks that read its answer are not missing yet: they wait.
-  const waiting = techPending ? SERVER_SCORE_CHECKS : [];
-  const failing = health.checks.filter((c) => c.score < 1 && !waiting.includes(c.label));
+  // While the server check runs, each check is also scored with the best answer. A check that fails
+  // even then is missing already (no viewport fails Technical basics). One that passes then, but not
+  // without an answer, waits for the server check.
+  const best = techPending ? computeHealthScore(onpageData, bestServerAnswer(onpageData.url), snippetPx()) : health;
+  const bestScore = new Map(best.checks.map((c) => [c.label, c.score]));
+  const waiting = health.checks.filter((c) => c.score < 1 && bestScore.get(c.label) === 1).map((c) => c.label);
+  const failing = best.checks.filter((c) => c.score < 1);
   const hasIssues = verdict.issues.length && verdict.issues[0].msg !== 'All checks passed';
   const sym = verdict.level === 'good' ? '✓' : verdict.level === 'warn' ? '!' : verdict.level === 'pending' ? '…' : '✗';
   const scoreOpen = !!slot.querySelector('.score-details')?.open;
@@ -976,7 +980,7 @@ function renderVerdict() {
         <span class="health" title="A checklist score for this page, not a ranking prediction">${techPending ? '<span class="muted">Score <span aria-hidden="true">…</span><span class="visually-hidden">after the server check</span></span>' : `Score ${health.score}<span class="muted">/100</span>`}</span>
       </div>
       ${hasIssues ? `<ul class="verdict-reasons">${verdict.issues.map((iss) => `<li>${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}
-      ${failing.length || waiting.length ? `<details class="score-details"${scoreOpen ? ' open' : ''}><summary id="score-summary">What the score is missing${failing.length ? ` (${failing.length})` : ''}</summary>
+      ${failing.length || waiting.length ? `<details class="score-details"${scoreOpen ? ' open' : ''}><summary id="score-summary">${failing.length ? `What the score is missing (${failing.length})` : 'What the score is waiting for'}</summary>
         <p class="muted">A checklist score for this page, not a ranking prediction.</p>
         <ul class="plain-list">${failing.map((c) => `<li>${escapeHtml(c.label)}: ${Math.round(c.score * 100)}%</li>`).join('')}${waiting.length ? `<li class="muted">${escapeHtml(new Intl.ListFormat('en-GB').format(waiting))}: waiting for the server check</li>` : ''}</ul>
       </details>` : ''}
@@ -2857,7 +2861,7 @@ document.addEventListener('keydown', (e) => {
     safeSendTabMessage(currentTab.id, { type: 'UNHIGHLIGHT_ISSUES' }).catch(() => {});
     ['toggle-links', 'toggle-headings'].forEach((id) => {
       const b = $(id);
-      if (b) { b.setAttribute('aria-pressed', 'false'); b.textContent = 'Show on page'; }
+      setPageToggle(b, false);
     });
     issuesShown = false;
     setIssuesButton();

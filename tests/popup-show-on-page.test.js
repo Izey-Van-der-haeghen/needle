@@ -53,5 +53,8 @@ it("Esc takes the marks off the page and clears the marked count", async () => {
     .toEqual(["UNHIGHLIGHT_HEADINGS", "UNHIGHLIGHT_ISSUES", "UNHIGHLIGHT_LINKS"]));
   expect($("highlight-count").textContent).toBe("");
   expect($("toggle-links").textContent).toBe("Show on page");
+  expect($("toggle-headings").textContent).toBe("Show on page");
   expect($("toggle-issues").textContent).toBe("Show all on page");
+  // Esc resets the label only: a screen reader must not hear "toggle button, not pressed" again.
+  for (const id of ["toggle-links", "toggle-headings", "toggle-issues"]) expect($(id).hasAttribute("aria-pressed"), id).toBe(false);
 });
