@@ -19,6 +19,8 @@ body { min-height: var(--popup-h, 600px); max-height: var(--popup-h, 600px); dis
 /* The side panel is narrow: the address the panel follows gets a line of its own under the brand. */
 html.side-panel .topbar { flex-wrap: wrap; }
 html.side-panel .topbar .url { order: 9; flex: 1 0 100%; }
+/* The brand pushes the icons to the right, so Download appears without moving History, theme and Settings. */
+html.side-panel .topbar .brand { margin-inline-end: auto; }
 
 /* ----- Tabs ----- */
 /* Six tabs wrap to a second line in a narrow side panel instead of scrolling sideways. */
@@ -99,7 +101,8 @@ details.sub > summary { color: var(--ink-2); font-size: 13px; overflow-wrap: any
 .meta-label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-weight: 700; font-size: 13px; margin-bottom: 2px; }
 .meta-value { overflow-wrap: anywhere; }
 
-.serp-preview { border: 1px solid var(--rule); padding: 10px 12px; margin: 10px 0 6px; background: #FFFFFF; color: #202124; font-family: Arial, sans-serif; }
+/* One long word (a compound, a file name) wraps in the box, so the 320 px side panel doesn't scroll sideways. */
+.serp-preview { border: 1px solid var(--rule); padding: 10px 12px; margin: 10px 0 6px; background: #FFFFFF; color: #202124; font-family: Arial, sans-serif; overflow-wrap: anywhere; }
 .g-crumbs { font-size: 12px; color: #4D5156; }
 .g-title { font-size: 20px; line-height: 1.3; color: #1A0DAB; margin: 2px 0; }
 .g-desc { font-size: 14px; line-height: 1.58; color: #4D5156; }

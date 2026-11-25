@@ -232,7 +232,7 @@ function permissionNotice(why) {
   return `<div class="notice">
     <strong>Needle needs your permission for this</strong>
     <div>${escapeHtml(why)} Chrome will ask once; you can take it back in Settings any time.</div>
-    <div class="actions"><button type="button" class="primary-btn" data-grant="all-sites">Allow access to websites</button></div>
+    <div class="actions"><button type="button" class="secondary-btn" data-grant="all-sites">Allow access to websites</button></div>
   </div>`;
 }
 
@@ -241,7 +241,7 @@ function dfsPermissionNotice({ announce: say = true } = {}) {
   return `<div class="notice">
     <strong>Allow Needle to contact DataForSEO</strong>
     <div>Keyword lookups and Google results come from api.dataforseo.com, with your own login.</div>
-    <div class="actions"><button type="button" class="primary-btn" data-grant="dataforseo">Allow DataForSEO</button></div>
+    <div class="actions"><button type="button" class="secondary-btn" data-grant="dataforseo">Allow DataForSEO</button></div>
   </div>`;
 }
 
@@ -517,7 +517,7 @@ async function startForTab(tab) {
   $('run-psi').textContent = 'Run speed test';
   $('export-audit-header').hidden = true;
   $('current-url').textContent = pageUrl ? displayUrl(pageUrl) : '—';
-  $('current-url').title = pageUrl;
+  $('current-url').title = displayUrl(pageUrl);
 
   const webPage = !!tab && /^https?:/.test(pageUrl);
   $('run-psi').disabled = !webPage;
@@ -1248,7 +1248,7 @@ async function runBing() {
     if (tg !== tabGen) return;
     if (e.message === NEEDS_PERMISSION) {
       rerender($('bing-result'), `<div class="notice"><strong>Allow Needle to contact Bing Webmaster Tools</strong><div>Requests go to ssl.bing.com with your own key.</div>
-        <div class="actions"><button type="button" class="primary-btn" data-grant-bing>Allow Bing</button></div></div>`);
+        <div class="actions"><button type="button" class="secondary-btn" data-grant-bing>Allow Bing</button></div></div>`);
     } else {
       rerender($('bing-result'), errorBox('No Bing data', e.message));
     }
@@ -1758,7 +1758,7 @@ function linkCheckHint(l) {
   if (!cs) return '';
   // The URL gets its own line in the code font, like the link's own URL above it (long URLs wrap there).
   if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects. Link straight to the final URL:<div class="item-url">${escapeHtml(displayUrl(cs.finalUrl))}</div></div>`;
-  if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Looks like it opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(cs.finalUrl)}</div></div>`;
+  if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Looks like it opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(displayUrl(cs.finalUrl))}</div></div>`;
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
   if (cs.kind === 'timeout') return `<div class="hint">${cs.hostTimedOut ? 'Not requested: this website already gave no answer on another link.' : 'No answer within 8 seconds, twice.'} Try again later.</div>`;
