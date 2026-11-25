@@ -288,6 +288,8 @@ confirmClick($("clear-cache"), async () => {
 });
 confirmClick($("clear-history"), async () => {
   await withStoreLock("history", () => withStoreLock("snapshots", () => chrome.storage.local.set({ history: [], snapshots: {} })));
+  // A link right-clicked for Compare that never reached a view names a page too.
+  await chrome.storage.local.remove("pendingCompare");
   // The country and language picked per website name those sites too.
   await withStoreLock("popupState", async () => {
     const { popupState } = await chrome.storage.local.get("popupState");
