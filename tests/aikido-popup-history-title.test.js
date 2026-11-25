@@ -11,9 +11,11 @@ const OLD = { url: "https://www.other.example/", title: "z".repeat(500_000), ver
 
 it("keeps 200 characters of each title in the history, never half a character", async () => {
   const { storage } = await loadPopup({ onpage: { title: TITLE }, local: { history: [OLD] } });
-  await vi.waitFor(async () => expect((await storage.local.get("history")).history).toHaveLength(2), { timeout: 3000 });
+  await vi.waitFor(async () => expect((await storage.local.get("history")).history).toHaveLength(2), { timeout: 20000 });
   const { history } = await storage.local.get("history");
   expect(history[0].title).toBe(`${"a".repeat(199)}\u{1F6B2}`);
   expect(history[1]).toEqual({ ...OLD, title: "z".repeat(200) });
   expect(JSON.stringify(history).length).toBeLessThan(2048);
-});
+  // A megabyte title goes through every view and the harness's storage copies: 0.6 s here, over 6 s on
+  // a shared CI runner (25 November 2026). The time limit is for that runner, not for Needle.
+}, 30000);
