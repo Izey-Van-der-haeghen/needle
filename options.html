@@ -69,7 +69,7 @@
       </details>
       <p class="muted">Stored only on this device, never synced to your Google account.</p>
       <div class="actions">
-        <button type="button" class="primary-btn" id="save-dfs">Save</button>
+        <button type="button" class="secondary-btn" id="save-dfs">Save login</button>
         <button type="button" class="secondary-btn" id="test-dfs">Test connection</button>
         <button type="button" class="link-btn" id="clear-dfs">Remove login</button>
       </div>
@@ -83,19 +83,22 @@
         <summary>Where to find your Google API key</summary>
         <ol>
           <li>Open Google's <a href="https://developers.google.com/speed/docs/insights/v5/get-started#APIKey" target="_blank" rel="noopener noreferrer">PageSpeed Insights guide</a> and click <strong>Get a Key</strong>. Sign in with a Google account and pick or create a project.</li>
-          <li>Copy the key, paste it below and click Save.</li>
+          <li>Copy the key, paste it below and click Save key.</li>
           <li>For the Core Web Vitals trend, open the <a href="https://console.cloud.google.com/apis/library/chromeuxreport.googleapis.com" target="_blank" rel="noopener noreferrer">Chrome UX Report API</a> in the same project and click <strong>Enable</strong>.</li>
           <li>Safer: in Google Cloud under APIs &amp; Services → Credentials, open the key and limit it to these two APIs.</li>
         </ol>
       </details>
-      <label class="field"><span>API key</span>
+      <label class="field"><span>Google API key</span>
         <!-- [html-validate-disable-next autocomplete-password: an API key is not a password; a password manager must not save or generate it] -->
         <input type="password" id="psiKey" autocomplete="off" spellcheck="false">
       </label>
       <div class="actions">
-        <button type="button" class="primary-btn" id="save-psi">Save</button>
+        <!-- "Save key" and "Remove key" are on screen twice: their names add "for Google" (a span outside the
+             button, so the two-step "Confirm" of Remove key keeps it). Each name starts with the words on screen. -->
+        <button type="button" class="secondary-btn" id="save-psi" aria-labelledby="save-psi psi-for">Save key</button>
         <button type="button" class="secondary-btn" id="test-psi">Test key</button>
-        <button type="button" class="link-btn" id="clear-psi">Remove key</button>
+        <button type="button" class="link-btn" id="clear-psi" aria-labelledby="clear-psi psi-for">Remove key</button>
+        <span id="psi-for" hidden>for Google</span>
       </div>
       <p id="psi-status" role="status"></p>
     </section>
@@ -103,7 +106,7 @@
     <section aria-labelledby="h-bing">
       <h2 id="h-bing">Bing Webmaster Tools <span class="muted">(optional, free)</span></h2>
       <p class="muted">Clicks, impressions, queries and crawl info for your own verified sites in Bing.</p>
-      <label class="field"><span>API key</span>
+      <label class="field"><span>Bing API key</span>
         <!-- [html-validate-disable-next autocomplete-password: an API key is not a password; a password manager must not save or generate it] -->
         <input type="password" id="bingKey" autocomplete="off" spellcheck="false">
       </label>
@@ -112,13 +115,14 @@
         <ol>
           <li>Sign in to <a href="https://www.bing.com/webmasters" target="_blank" rel="noopener noreferrer">Bing Webmaster Tools</a> and add and verify your site. You can import sites from Google Search Console.</li>
           <li>Open <strong>Settings</strong> (top right), then <strong>API Access</strong>. Accept the terms the first time.</li>
-          <li>Click <strong>API Key</strong>, then <strong>Generate API Key</strong>. Copy it, paste it below and click Save. One key works for all your verified sites.</li>
+          <li>Click <strong>API Key</strong>, then <strong>Generate API Key</strong>. Copy it, paste it below and click Save key. One key works for all your verified sites.</li>
         </ol>
       </details>
       <p class="muted">Stored only on this device.</p>
       <div class="actions">
-        <button type="button" class="primary-btn" id="save-bing">Save</button>
-        <button type="button" class="link-btn" id="clear-bing">Remove key</button>
+        <button type="button" class="secondary-btn" id="save-bing" aria-labelledby="save-bing bing-for">Save key</button>
+        <button type="button" class="link-btn" id="clear-bing" aria-labelledby="clear-bing bing-for">Remove key</button>
+        <span id="bing-for" hidden>for Bing</span>
       </div>
       <p id="bing-status" role="status"></p>
     </section>
@@ -150,7 +154,7 @@
           </select>
         </label>
       </div>
-      <div class="actions"><button type="button" class="primary-btn" id="save-images">Save image checks</button></div>
+      <div class="actions"><button type="button" class="secondary-btn" id="save-images">Save image checks</button></div>
       <p id="images-status" role="status"></p>
     </section>
 
