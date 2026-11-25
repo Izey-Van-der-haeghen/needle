@@ -15,6 +15,11 @@ export const MARK = "data-needle-xss";
 const PAYLOAD = `"'><img src=x onerror=1 ${MARK}>`;
 /** The same attempt without spaces, for values that are cut at the first space (a robots.txt line). */
 const PAYLOAD_NO_SPACE = `"'><b/${MARK}>`;
+/**
+ * A Sitemap: value the URL parser keeps as written. An address whose scheme is not http(s) has an opaque
+ * path, where < > " and ' are not percent-encoded: new URL('x:"<b>').pathname is '"<b>'.
+ */
+const RAW_SITEMAP = `x:${PAYLOAD_NO_SPACE}`;
 
 /** Every string gets the payload: in front of text, in the query of an address. Keys stay as they are. */
 function hostile(v) {
@@ -36,7 +41,7 @@ function hostilePages() {
     let text = p.text;
     const sitemap = url.replace("robots.txt", "sitemap.xml");
     // The first sitemap named is the one the sitemap check reads first, and finds the page in.
-    if (url.endsWith("robots.txt")) text = `Sitemap: ${sitemap}?q=${PAYLOAD_NO_SPACE}\nUser-agent: ${PAYLOAD}\nDisallow: /${PAYLOAD}\n\n${text}\nSitemap: ${sitemap}?q=${PAYLOAD}\n`;
+    if (url.endsWith("robots.txt")) text = `Sitemap: ${sitemap}?q=${PAYLOAD_NO_SPACE}\nUser-agent: ${PAYLOAD}\nDisallow: /${PAYLOAD}\n\n${text}\nSitemap: ${sitemap}?q=${PAYLOAD}\nSitemap: ${RAW_SITEMAP}\n`;
     else if (url.endsWith("sitemap.xml")) text = text.replace(/<loc>([^<]*)<\/loc>/g, (_, loc) => `<loc>${loc}?q=${escapeXml(PAYLOAD)}</loc>`)
       .replace("</urlset>", `  <url><loc>${FX.url}</loc></url>\n</urlset>`);
     else text = text.replace(/<title>([^<]*)<\/title>/i, (_, t) => `<title>${escapeXml(PAYLOAD)}${t}</title>`)
@@ -94,11 +99,16 @@ function hostileHistory() {
   ];
 }
 
+/** What the hostile server answers now: set by hostileOptions(), changed by refreshWithOnlyRawSitemap(). */
+let served = {};
+
 /** Options for loadPopup: the hostile page in the tab and on the server, hostile history, access to websites. */
 export function hostileOptions() {
-  const pages = hostilePages();
+  served = hostilePages();
   const pageFetchAll = (requests) => (requests || []).map((r) => {
-    const p = pages[r.url.replace(/\?.*$/, "")] || pages[r.url];
+    // Chrome's fetch() refuses a scheme other than http(s): no answer, as lib/page-fetch.js reports it.
+    if (!/^https?:/.test(r.url)) return { ok: false, status: 0, url: r.url, error: "Could not connect" };
+    const p = served[r.url.replace(/\?.*$/, "")] || served[r.url];
     if (!p) return { ok: false, status: 404, url: r.url, redirected: false, headers: { "content-type": "text/html" }, text: "", truncated: false, ms: 20 };
     return { ok: p.status < 400, status: p.status, url: r.url, redirected: false, headers: p.headers, text: p.text, truncated: false, ms: 40 };
   });
@@ -149,6 +159,24 @@ export async function visitEverything() {
   document.getElementById("run-compare").click();
   await drawn("compare-result", ".compare-table");
 }
+
+/**
+ * The site changes its robots.txt to name one sitemap only: RAW_SITEMAP, which the server check can't read
+ * and shows by its path. Press Refresh in the Technical tab and wait until every check of the new audit
+ * has answered (the report button is back). Run it after visitEverything(): Refresh empties the result boxes.
+ */
+export async function refreshWithOnlyRawSitemap() {
+  const robotsUrl = Object.keys(served).find((u) => u.endsWith("robots.txt"));
+  served[robotsUrl] = { ...served[robotsUrl], text: `User-agent: *\nDisallow: /checkout/\n\nSitemap: ${RAW_SITEMAP}\n` };
+  document.querySelector('#panel-technical [data-refresh="onpage"]').click();
+  await vi.waitFor(() => {
+    if (!document.querySelector("#panel-technical pre.code")?.textContent.includes(`Sitemap: ${RAW_SITEMAP}`)) throw new Error("new robots.txt not drawn");
+    if (document.getElementById("export-audit-header").hidden) throw new Error("audit not finished");
+  }, { timeout: 3000 });
+}
+
+/** The Technical tab's Sitemap card. */
+export const sitemapCard = () => [...document.querySelectorAll("#panel-technical .card")].find((c) => c.querySelector("h2")?.textContent === "Sitemap");
 
 /** Elements the page text made: there must be none. */
 export const injected = () => [...document.querySelectorAll(`[${MARK}], img[src="x"], [onerror]`)];

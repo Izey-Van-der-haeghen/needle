@@ -6,7 +6,7 @@
 // tests/popup-hostile-page-proof.test.js shows this test fails when escaping breaks.
 import { it, expect, vi, afterAll } from "vitest";
 import { loadPopup } from "./helpers/popup-harness.js";
-import { hostileOptions, hostileFetch, visitEverything, injected, hostileReport, MARK, RESULT_BOXES } from "./helpers/hostile-page.js";
+import { hostileOptions, hostileFetch, visitEverything, refreshWithOnlyRawSitemap, sitemapCard, injected, hostileReport, MARK, RESULT_BOXES } from "./helpers/hostile-page.js";
 
 afterAll(() => vi.unstubAllGlobals());
 
@@ -21,6 +21,13 @@ it("shows hostile texts as text in every tab, in History and in every check resu
   for (const id of ["panel-onpage", "panel-technical", "panel-ai", ...RESULT_BOXES]) {
     expect(document.getElementById(id).textContent, id).toContain(MARK);
   }
+
+  // Then robots.txt names one sitemap only, on a scheme the URL parser keeps as written ("x:" + the attempt).
+  // The server check can't read it and the Sitemap card shows its path, raw < > " ' and all.
+  // (tests/aikido-popup-sitemap-row.test.js tests that row without robots.txt, from a cached result.)
+  await refreshWithOnlyRawSitemap();
+  expect(injected().map((el) => el.outerHTML.slice(0, 120))).toEqual([]);
+  expect(sitemapCard().textContent).toContain(MARK);
 });
 
 it("keeps the hostile page's texts as text in the downloadable report too", () => {

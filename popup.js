@@ -484,8 +484,10 @@ async function init() {
 
 /** Put the link from the right-click menu in the first competitor field and show Compare. */
 function applyPendingCompare(p) {
-  if (!p?.url || Date.now() - (p.ts || 0) > 60 * 1000) return;
+  if (!p?.url) return;
+  // Read once, used or not: a link right-clicked a while ago is gone too, not left in storage for good.
   chrome.storage.local.remove('pendingCompare').catch(() => {});
+  if (Date.now() - (p.ts || 0) > 60 * 1000) return;
   const inp = document.querySelector('.competitor-url[data-idx="0"]');
   if (inp) inp.value = p.url;
   setStatePath('compare.competitorUrls', [...document.querySelectorAll('.competitor-url')].map((i) => i.value));
@@ -2034,6 +2036,27 @@ function renderImagesCard() {
   if (sum) sum.innerHTML = counts.issues ? tag(`${counts.issues} with issues`, 'warn') : imgs.length ? tag('no issues', 'good') : '';
 }
 
+/**
+ * May the popup load this page-chosen image (a thumbnail, the og:image or twitter:image preview)? An <img>
+ * may carry the browser's cookies, so a page could make Needle send a GET to a router or NAS on the
+ * user's network. An address written as local loads only when the audited page is local too.
+ * Not covered, an accepted risk: an <img> follows redirects and only the address as written is checked,
+ * so a public image address that redirects to the local network still leads the request there, with
+ * whatever cookies the browser sends for it. Loading previews with fetch() and no credentials would drop
+ * the cookies (not the request), and needs the site access Needle asks for only when a check needs it.
+ */
+function canPreview(src) {
+  return isSafeHttpUrl(src) && (isLocalUrl(pageUrl) || !isLocalUrl(src));
+}
+const LOCAL_NOT_LOADED = 'Local-network address, not loaded';
+const LOCAL_NO_THUMB = 'no preview: local-network address';
+
+/** A social preview's image, or a box that says why there is none. */
+function socialImage(src, none) {
+  if (!src) return `<div class="social-empty">${escapeHtml(none)}</div>`;
+  return canPreview(src) ? `<img src="${escapeHtml(src)}" alt="" referrerpolicy="no-referrer">` : `<div class="social-empty">${LOCAL_NOT_LOADED}</div>`;
+}
+
 function renderImageItems() {
   const filtered = getFilteredImages();
   if (!filtered.length) return '<li class="muted">No images match this filter.</li>';
@@ -2044,13 +2067,17 @@ function renderImageItems() {
   return filtered.slice(0, 100).map((img) => {
     const issues = imageIssues(img);
     const safe = isSafeHttpUrl(img.src) && !img.brokenLoad;
+    const preview = safe && canPreview(img.src);
     const dims = img.naturalWidth ? `${img.naturalWidth}×${img.naturalHeight}` : 'size unknown';
     // .item-meta is a flex row: "alt:" and the alt text stay one item, so a long alt wraps after "alt:".
+    // A thumbnail left out says why in the row's text, which keyboard, touch and screen reader users get too.
     return `<li class="item image-item">
-      ${safe ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy">` : '<span class="thumb thumb-empty" aria-hidden="true">✗</span>'}
+      ${!safe ? '<span class="thumb thumb-empty" aria-hidden="true">✗</span>'
+        : preview ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+        : '<span class="thumb" aria-hidden="true"></span>'}
       <div class="item-body" id="image-${escapeHtml(String(img.domIndex))}-row">
         <div class="item-title" title="${escapeHtml(img.src)}">${escapeHtml(imageFilename(img.src))}</div>
-        <div class="item-meta">${[escapeHtml(dims), img.brokenLoad ? '' : /^data:/i.test(img.src) ? 'inline' : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'].filter(Boolean).join(' · ')}</div>
+        <div class="item-meta">${[escapeHtml(dims), img.brokenLoad ? '' : /^data:/i.test(img.src) ? 'inline' : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown', safe && !preview ? LOCAL_NO_THUMB : ''].filter(Boolean).join(' · ')}</div>
         <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `<span>alt: ${pageText(img.alt)}</span>` : '<span class="muted">empty alt (decorative)</span>'}</div>
         ${issues.length ? `<div class="item-meta">${issues.map(([t, k]) => tag(t, k)).join(' ')}</div>` : ''}
       </div>
@@ -2308,12 +2335,12 @@ function renderOnpage(d, age) {
       <div class="card-body social-grid">
         <figure class="social-card">
           <figcaption>Facebook, LinkedIn, Slack</figcaption>
-          ${ogImage ? `<img src="${escapeHtml(ogImage)}" alt="">` : '<div class="social-empty">No og:image</div>'}
+          ${socialImage(ogImage, 'No og:image')}
           <div class="social-body"><div class="muted">${escapeHtml(host)}</div><strong>${pageText(d.og?.title || d.title) || missing('No title')}</strong><div>${pageText(d.og?.description || d.description)}</div></div>
         </figure>
         <figure class="social-card">
           <figcaption>X (${escapeHtml(d.twitter?.card || 'no card type')}${!d.twitter?.title && d.og?.title ? ', uses og: tags' : ''})</figcaption>
-          ${twitterImage ? `<img src="${escapeHtml(twitterImage)}" alt="">` : '<div class="social-empty">No image</div>'}
+          ${socialImage(twitterImage, 'No image')}
           <div class="social-body"><div class="muted">${escapeHtml(host)}</div><strong>${pageText(d.twitter?.title || d.og?.title || d.title) || missing('No title')}</strong></div>
         </figure>
       </div>
@@ -2575,7 +2602,7 @@ function renderTechnical(d, age) {
 
     <div class="card">
       <h2>Sitemap</h2>
-      ${row(sitemapPath, d.sitemap?.ok
+      ${row(escapeHtml(sitemapPath), d.sitemap?.ok
         ? `${tag('valid', 'good')}${{ rss: ' <span class="muted">RSS feed</span>', atom: ' <span class="muted">Atom feed</span>', text: ' <span class="muted">text file</span>' }[d.sitemap.format] || ''}`
         // On another site or compressed: Needle can't read it, which is no sign of a problem.
         : tag(d.sitemap?.reason || 'not found', d.sitemap?.unchecked ? 'neutral' : 'warn'))}
@@ -2703,6 +2730,27 @@ function renderComparison(raw, rendered) {
 // History
 // ---------------------------------------------------------------------------
 
+/** History keeps this many characters of a title: a page can make its <title> megabytes long. */
+const HISTORY_TITLE_MAX = 200;
+/**
+ * History leaves out a page whose address is longer than this. A page can make its own address megabytes
+ * long too (history.pushState; the side panel audits each new address), and a cut address would open
+ * another page. A sitemap may list only addresses under 2,048 characters (sitemaps.org).
+ */
+const HISTORY_URL_MAX = 2048;
+const historyKeeps = (url) => String(url ?? '').length <= HISTORY_URL_MAX;
+
+/** The first max characters of a text, counted by code point (an emoji is never cut in half). */
+function clipText(s, max) {
+  let out = '';
+  let n = 0;
+  for (const ch of String(s ?? '')) {
+    if (n++ === max) break;
+    out += ch;
+  }
+  return out;
+}
+
 async function saveToHistory(url, title, verdict = 'neutral', healthScore = null) {
   await withStoreLock('history', async () => {
     const { history = [] } = await chrome.storage.local.get('history');
@@ -2711,9 +2759,10 @@ async function saveToHistory(url, title, verdict = 'neutral', healthScore = null
     const previousScore = previous
       ? (previous.healthScore !== healthScore ? previous.healthScore : previous.previousScore ?? null)
       : null;
-    const rest = history.filter((h) => h.url !== url);
-    rest.unshift({ url, title, verdict, healthScore, previousScore, ts: Date.now() });
-    await chrome.storage.local.set({ history: rest.slice(0, 50) });
+    const rest = history.filter((h) => h.url !== url && historyKeeps(h.url));
+    if (historyKeeps(url)) rest.unshift({ url, title, verdict, healthScore, previousScore, ts: Date.now() });
+    // Every entry: one saved before the limits would otherwise hold its megabytes for 49 more audits.
+    await chrome.storage.local.set({ history: rest.slice(0, 50).map((h) => ({ ...h, title: clipText(h.title, HISTORY_TITLE_MAX) })) });
   });
 }
 
@@ -2770,6 +2819,8 @@ $('open-history').addEventListener('click', toggleHistory);
 $('close-history').addEventListener('click', closeHistory);
 confirmClick($('clear-history'), async () => {
   await withStoreLock('history', () => withStoreLock('snapshots', () => chrome.storage.local.set({ history: [], snapshots: {} })));
+  // A link right-clicked for Compare that never reached a view names a page too.
+  await chrome.storage.local.remove('pendingCompare');
   // The country and language picked per website name those sites too.
   SITE_CHOICE_KEYS.forEach((k) => setStatePath(k, undefined));
   if (pageUrl) applyMarket();
