@@ -13,7 +13,7 @@
     <header class="page-head">
       <div class="brand"><span class="brand-dot" aria-hidden="true"></span>needle</div>
       <h1>Privacy policy</h1>
-      <p class="muted">Last updated: 24 November 2026</p>
+      <p class="muted">Last updated: 25 November 2026</p>
     </header>
 
     <section>
@@ -37,7 +37,7 @@
         <li>the page's address, title, meta tags, headings, links, images, structured data, language tags and text (for word counts, readability, keyword checks and how easy the page is to quote);</li>
         <li>files on the same website that search engines read: the page's HTML as the server sends it, /robots.txt, the XML sitemap, /llms.txt and /llms-full.txt. These requests are made without your cookies.</li>
       </ul>
-      <p>To show image previews, Needle loads the page's images and its social preview images (og:image and twitter:image) from the servers that host them, as your browser does when it shows the page. A downloaded HTML report shows the same images, so opening the report loads them again from those servers.</p>
+      <p>To show image previews, Needle loads the page's images and its social preview images (og:image and twitter:image) from the servers that host them, as your browser does when it shows the page. A downloaded HTML report shows the same images, so opening the report loads them again from those servers. Like the page's own images, these requests may carry your cookies for those servers. Needle doesn't load an image whose address is on your local network (such as your router), in Needle or in the report, unless the audited page is on your local network too. An image address that redirects is still followed, also to your local network, and an image at a public web address whose name leads to your local network still loads: Needle can't see where a name leads before it loads the image.</p>
       <p><strong>Side panel:</strong> if you keep Needle open in the side panel and have allowed access to websites, it audits each tab you switch to, and each new page you open in it, while the panel is open, with the same checks, and adds the page to your history. Close the panel to stop this.</p>
       <p>Needle never reads tabs in the background, and it does not read form fields or passwords.</p>
     </section>
@@ -46,11 +46,11 @@
       <h2>What Needle stores, and where</h2>
       <p>Everything below stays in Chrome on your device:</p>
       <ul class="plain-list">
-        <li><strong>Audit results</strong>, so reopening Needle is instant: kept from 5 minutes to 12 hours depending on the check (the Core Web Vitals trend longest), at most 100 results.</li>
-        <li><strong>History</strong>: the last 50 pages you audited (address, title, score, time). Clear it any time in Settings.</li>
-        <li><strong>Snapshots</strong> of up to 200 audited pages (title, description, H1, canonical, robots meta and X-Robots-Tag, language, status, structured data types, counts and the checklist score), to show what changed since your last audit.</li>
+        <li><strong>Audit results</strong>, so reopening Needle is instant: kept from 5 minutes to 12 hours depending on the check (the Core Web Vitals trend longest), at most 100 results. An expired result stays on your device until Needle saves its next result. "Clear saved results" in Settings removes them all, and so does each Needle update.</li>
+        <li><strong>History</strong>: the last 50 pages you audited (address, title, score, time). "Clear history and snapshots", in Needle's History panel or in Settings, removes it any time.</li>
+        <li><strong>Snapshots</strong> of up to 200 audited pages (title, description, H1, canonical, robots meta and X-Robots-Tag, language, status, structured data types, counts and the checklist score), to show what changed since your last audit. They are removed with the history.</li>
         <li><strong>Your API credentials</strong> for DataForSEO, Google and Bing Webmaster Tools, if you add them. They are stored on this device only and are not synced to your Google account. They leave it only if you include them in a settings file you download yourself.</li>
-        <li><strong>Your last inputs and choices</strong>: the tab you had open, what you typed in Compare and Google results, the country and language you picked for each website, and the one-time "Needle was updated" note, so they are still there when you reopen Needle. Clearing the history also clears the countries and languages picked per website.</li>
+        <li><strong>Your last inputs and choices</strong>: the tab you had open, what you typed in Compare and Google results, the country and language you picked for each website, and the one-time "Needle was updated" note, so they are still there when you reopen Needle. Clearing the history also clears the countries and languages picked per website, and a link you right-clicked to compare that Needle has not opened yet.</li>
         <li><strong>Preferences</strong> (theme, default country and language, CSV separator, shortcuts, side panel, image checks). Chrome may sync these with your Google account if you use Chrome sync.</li>
       </ul>
       <p>Uninstalling Needle deletes all of it.</p>
@@ -64,7 +64,7 @@
         <li><strong>Core Web Vitals trend</strong>: the page address (or its site) and your API key go to <strong>Google's Chrome UX Report API</strong>, which returns real-user speed data. Google's <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">privacy policy</a> applies.</li>
         <li><strong>Bing data</strong>: the page address, your site's address and your API key go to <strong>Microsoft Bing Webmaster Tools</strong>, which returns your own search data for that page. Microsoft's <a href="https://privacy.microsoft.com/privacystatement" target="_blank" rel="noopener noreferrer">privacy statement</a> applies.</li>
         <li><strong>Keyword lookup and Google results (SERP)</strong>: the page address, its domain or your search keyword, the chosen country and language, and your DataForSEO login go to <strong>DataForSEO</strong>, which returns ranking data and bills your own DataForSEO account. DataForSEO's <a href="https://dataforseo.com/privacy-policy" target="_blank" rel="noopener noreferrer">privacy policy</a> applies.</li>
-        <li><strong>Link check, competitor comparison, hreflang alternates, http/https and www versions, and image sizes</strong>: Needle requests those web addresses directly from your browser, without your cookies. The websites involved receive an ordinary request, including your IP address, as when you visit them. Needle does not request addresses on your local network (such as your router) that a page points to, unless the audited page is itself on your local network; only a website that redirects there can still lead a request to such an address. These checks need the optional "access to websites" permission, which you can turn off in Settings.</li>
+        <li><strong>Link check, competitor comparison, hreflang alternates, http/https and www versions, and image sizes</strong>: Needle requests those web addresses directly from your browser, without your cookies. The websites involved receive an ordinary request, including your IP address, as when you visit them. Needle does not request addresses on your local network that a page points to, unless the audited page is itself on your local network. That includes your router's address and names that only work on your local network, such as http://intranet/ or nas.local: the link check reports a link to such a name without requesting it. Only a website that redirects there, or a public web address whose name leads there, can still lead a request to such an address. These checks need the optional "access to websites" permission, which you can turn off in Settings.</li>
       </ul>
       <p>Links to other tools (for example Rich Results Test, Ahrefs or Wayback Machine) open that tool's website in a new tab, with the page address in the link, only when you click them. The same goes for the links to Needle's changelog and source code on GitHub.</p>
       <p>Needle's author receives none of this data.</p>
