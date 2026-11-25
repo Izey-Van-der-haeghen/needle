@@ -48,3 +48,33 @@ describe("sitemaps and feeds with square brackets", () => {
     expect(readLocs(xml)).toEqual(parsed);
   });
 });
+
+describe("files that could make reading slow", () => {
+  // Each of these took seconds with a pattern that could try every split of the text.
+  // Read in one pass, they take well under a millisecond.
+  const timed = (fn) => {
+    const start = performance.now();
+    const result = fn();
+    return { result, ms: performance.now() - start };
+  };
+
+  it("reads a <loc> with a long run of spaces and no closing tag quickly", () => {
+    const xml = `<urlset>${`<url><loc>${" ".repeat(2000)}<x></url>`.repeat(2)}<url><loc> https://e.com/a </loc></url></urlset>`;
+    const { result, ms } = timed(() => readLocs(xml));
+    expect(result).toEqual(["https://e.com/a"]);
+    expect(ms).toBeLessThan(250);
+  });
+
+  it("reads an RSS <link> with a long run of spaces and no closing tag quickly", () => {
+    const rss = `<rss><channel><item><link>${" ".repeat(2000)}<x></item><item><link>https://e.com/b</link></item></channel></rss>`;
+    const { result, ms } = timed(() => sitemapEntries(rss, "rss"));
+    expect(result).toEqual(["https://e.com/b"]);
+    expect(ms).toBeLessThan(250);
+  });
+
+  it("reads a file full of unclosed <loc tags quickly", () => {
+    const { result, ms } = timed(() => readLocs(`<loc>https://e.com/c</loc>${"<loc".repeat(40000)}`));
+    expect(result).toEqual(["https://e.com/c"]);
+    expect(ms).toBeLessThan(250);
+  });
+});

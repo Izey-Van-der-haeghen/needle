@@ -60,3 +60,33 @@ describe("fmtKB under 1 KB (P3-20)", () => {
     expect(inlineImageLabel(gif)).toBe("Inline image (GIF, 42 bytes)");
   });
 });
+
+describe("the size of an inline image is the size it decodes to (P3-20)", () => {
+  it("leaves base64's '=' padding out", () => {
+    const gif = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
+    expect(Buffer.from(gif.split(",")[1], "base64")).toHaveLength(43);
+    expect(inlineImageLabel(gif)).toBe("Inline image (GIF, 43 bytes)");
+    // The same padding written as %3D, and with line breaks, as some pages have it.
+    expect(inlineImageLabel(gif.replace("==", "%3D%3D"))).toBe("Inline image (GIF, 43 bytes)");
+    expect(inlineImageLabel(gif.replace("R0lGODlh", "R0lG\nODlh "))).toBe("Inline image (GIF, 43 bytes)");
+  });
+
+  it("counts a percent-escape as one byte", () => {
+    expect(inlineImageLabel("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")).toBe("Inline image (SVG, 11 bytes)");
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"/>`;
+    expect(inlineImageLabel(`data:image/svg+xml,${encodeURIComponent(svg)}`)).toBe(`Inline image (SVG, ${svg.length} bytes)`);
+    expect(inlineImageLabel("data:image/svg+xml;utf8,<svg><text>é</text></svg>")).toBe("Inline image (SVG, 26 bytes)");
+  });
+
+  it("agrees with the decoded bytes for every length up to 1 KB", () => {
+    const wrong = [];
+    for (let n = 1; n < 1024; n++) {
+      const bytes = Buffer.from(Array.from({ length: n }, (_, i) => (i * 37 + n) % 256));
+      const svg = "é<".repeat(n).slice(0, n);
+      if (inlineImageLabel(`data:image/png;base64,${bytes.toString("base64")}`) !== `Inline image (PNG, ${fmtKB(n)})`) wrong.push(`base64 ${n}`);
+      const label = inlineImageLabel(`data:image/svg+xml,${encodeURIComponent(svg)}`);
+      if (label !== `Inline image (SVG, ${fmtKB(Buffer.byteLength(svg))})`) wrong.push(`escaped ${n}`);
+    }
+    expect(wrong).toEqual([]);
+  });
+});

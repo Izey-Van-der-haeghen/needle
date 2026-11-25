@@ -16,6 +16,8 @@ describe("displayUrl and punycode hosts (P3-18)", () => {
     expect(displayUrl("https://xn--80ak6aa92e.com/login")).toBe("https://xn--80ak6aa92e.com/login");
     expect(displayUrl("https://xn--pple-43d.com/")).toBe("https://xn--pple-43d.com/");
     expect(displayUrl("https://xn--psd.example/")).toBe("https://xn--psd.example/");
+    // Decoded, this host would read as google.com/login.
+    expect(displayUrl("https://google.xn--comlogin-634g.example/x")).toBe("https://google.xn--comlogin-634g.example/x");
   });
 
   it("decodes only the host, not punycode in the path or the query", () => {
