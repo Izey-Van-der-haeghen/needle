@@ -22,7 +22,7 @@
     "icons": "python3 tools/make-icons.py"
   },
   "devDependencies": {
-    "vitest": "^2.1.0",
-    "jsdom": "^25.0.0"
+    "jsdom": "^25.0.0",
+    "vitest": "^4.1.12"
   }
 }
