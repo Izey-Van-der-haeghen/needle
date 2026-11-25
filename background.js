@@ -155,6 +155,8 @@ const handlers = {
 
   async FETCH_SERP(msg) {
     const creds = await getSecrets();
+    // The login first, as in RUN_DFS: asking to allow DataForSEO makes no sense without an account.
+    if (!creds.dfsLogin || !creds.dfsPassword) throw new UserError("Add your DataForSEO login in Settings to search Google results.");
     if (!(await hasOrigins(DATAFORSEO))) return { error: NEEDS_PERMISSION, origins: DATAFORSEO };
     const p = msg.params || {};
     return cachedCall(

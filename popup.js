@@ -150,8 +150,9 @@ document.addEventListener('click', (e) => {
   if (e.target.closest?.('button[aria-disabled="true"]')) { e.preventDefault(); e.stopImmediatePropagation(); }
 }, true);
 
-function errorBox(title, detail, actionsHtml = '') {
-  announce(title);
+/** announce: false when the caller says one sentence for several notices (Compare). */
+function errorBox(title, detail, actionsHtml = '', { announce: say = true } = {}) {
+  if (say) announce(title);
   // Chrome's own network texts ("Failed to fetch") become plain words.
   const plain = typeof detail === 'string' ? (detail ? readableError({ message: detail }) : '') : detail;
   return `<div class="notice notice-bad">
@@ -177,6 +178,8 @@ function showToast(msg) {
   }
   el.innerHTML = `${ICON.check}<span></span>`;
   el.querySelector('span').textContent = msg;
+  // Measure the toast in its usual place at the bottom, not where the last toast went.
+  el.classList.remove('toast-top');
   void el.offsetWidth;
   el.classList.add('visible');
   const a = document.activeElement?.getBoundingClientRect?.();
@@ -233,8 +236,8 @@ function permissionNotice(why) {
   </div>`;
 }
 
-function dfsPermissionNotice() {
-  announce('Allow Needle to contact DataForSEO');
+function dfsPermissionNotice({ announce: say = true } = {}) {
+  if (say) announce('Allow Needle to contact DataForSEO');
   return `<div class="notice">
     <strong>Allow Needle to contact DataForSEO</strong>
     <div>Keyword lookups and Google results come from api.dataforseo.com, with your own login.</div>
@@ -1513,6 +1516,15 @@ function serpPositionFor(url, serpData) {
   return sameSite ? { position: sameSite.position, exact: false, url: sameSite.url } : null;
 }
 
+// Compare's Google positions: no DataForSEO login, so no request was sent.
+const NEEDS_LOGIN = 'needs-login';
+/** The title of the notice Compare shows instead of Google positions: on screen and in the announcement. */
+function serpNoticeTitle(serpError, keyword) {
+  if (serpError === NEEDS_LOGIN) return 'Add your DataForSEO login for Google positions';
+  if (serpError === NEEDS_PERMISSION) return 'Allow Needle to contact DataForSEO';
+  return `No Google positions for "${keyword}"`;
+}
+
 let compareRunning = false;
 async function loadCompare(force = false) {
   if (compareRunning) return;
@@ -1555,19 +1567,31 @@ async function loadCompare(force = false) {
     let serpData = null;
     let serpError = null;
     if (keyword) {
-      const market = marketFor(meData.url || pageUrl, meData.lang);
-      try {
-        serpData = (await sendWithRetry({ type: 'FETCH_SERP', params: { keyword, locationCode: market.code, languageCode: market.lang, device: 'desktop' }, force })).data;
-        sources.forEach((s) => { s.serp = serpPositionFor(s.data.url, serpData); s.serpPosition = s.serp?.exact ? s.serp.position : null; });
-      } catch (e) {
-        serpError = e.message;
+      // Without a login there is nothing to ask DataForSEO: say so, as Search Google does.
+      const { dfsLogin, dfsPassword } = await getSecrets();
+      if (!dfsLogin || !dfsPassword) serpError = NEEDS_LOGIN;
+      else {
+        const market = marketFor(meData.url || pageUrl, meData.lang);
+        try {
+          serpData = (await sendWithRetry({ type: 'FETCH_SERP', params: { keyword, locationCode: market.code, languageCode: market.lang, device: 'desktop' }, force })).data;
+          sources.forEach((s) => { s.serp = serpPositionFor(s.data.url, serpData); s.serpPosition = s.serp?.exact ? s.serp.position : null; });
+        } catch (e) {
+          serpError = e.message;
+        }
       }
     }
 
-    const failHtml = failures.length ? errorBox(`${failures.length} page${failures.length === 1 ? '' : 's'} could not be loaded`, failures.join(' · ')) : '';
+    // The notices don't announce themselves: one sentence says them all, in the order they show.
+    const failTitle = failures.length ? `${plural(failures.length, 'page')} could not be loaded` : '';
+    const failHtml = failTitle ? errorBox(failTitle, failures.join(' · '), '', { announce: false }) : '';
+    const compared = sources.filter((s) => s.data).length >= 2;
     rerender(result, failHtml + cachedBanner(oldest, 'compare') + renderCompareMulti(sources, serpData, keyword, serpError));
     attachCompareExportHandlers(sources, serpData, keyword);
-    announce(sources.filter((s) => s.data).length >= 2 ? 'Comparison ready' : 'Nothing to compare: at least two pages must load');
+    announce([
+      compared ? 'Comparison ready' : 'Nothing to compare: at least two pages must load',
+      failTitle,
+      compared && keyword && serpError && serpNoticeTitle(serpError, keyword)
+    ].filter(Boolean).join('. '));
   } catch (e) {
     rerender(result, errorBox('The comparison failed', e.message));
   } finally {
@@ -1587,9 +1611,10 @@ async function autoRestoreCompareResult() {
   attachCompareExportHandlers(sources, null, '');
 }
 
+/** The comparison. Its notices don't announce: loadCompare says one sentence for all of them. */
 function renderCompareMulti(sources, serpData, keyword, serpError) {
   const active = sources.filter((s) => s.data);
-  if (active.length < 2) return errorBox('Nothing to compare', 'At least two pages must load.');
+  if (active.length < 2) return errorBox('Nothing to compare', 'At least two pages must load.', '', { announce: false });
 
   const headers = active.map((s) => `<th scope="col" class="${s.isMe ? 'you' : ''}">${escapeHtml(s.label)}<small>${escapeHtml(bareHost(s.data.url))}</small></th>`).join('');
   const table = (title, rowsHtml) => `<div class="card compare-scroll"><h2>${escapeHtml(title)}</h2>
@@ -1632,10 +1657,15 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
       ${intent ? `<p>Search intent: ${tag(intent.label, 'info')}</p>` : ''}
       ${ai ? `<p class="muted">${ai.present ? 'Google shows an AI Overview for this search.' : 'No AI Overview for this search.'}</p>` : ''}
       <table class="compare-table"><thead><tr><th scope="col"><span class="visually-hidden">Metric</span></th>${headers}</tr></thead><tbody>${posRow}${aiRow}</tbody></table></div>`;
+  } else if (keyword && serpError === NEEDS_LOGIN) {
+    // Neutral, as in Search Google: a missing login is not an error, and the rest of the comparison stands.
+    serpBlock = `<div class="notice"><strong>${escapeHtml(serpNoticeTitle(serpError, keyword))}</strong>
+      <div>The comparison below doesn't need it.</div>
+      <div class="actions"><button type="button" class="secondary-btn" data-action="open-options" data-section="h-dfs">Open Settings</button></div></div>`;
   } else if (keyword && serpError === NEEDS_PERMISSION) {
-    serpBlock = dfsPermissionNotice().replace('data-grant="dataforseo"', 'data-grant="dataforseo" data-retry="run-compare"');
+    serpBlock = dfsPermissionNotice({ announce: false }).replace('data-grant="dataforseo"', 'data-grant="dataforseo" data-retry="run-compare"');
   } else if (keyword && serpError) {
-    serpBlock = errorBox(`No Google positions for "${keyword}"`, serpError);
+    serpBlock = errorBox(serpNoticeTitle(serpError, keyword), serpError, '', { announce: false });
   }
 
   const typeKey = (t) => (Array.isArray(t) ? t.join(',') : String(t));
@@ -1968,6 +1998,10 @@ function renderImagesCard() {
 function renderImageItems() {
   const filtered = getFilteredImages();
   if (!filtered.length) return '<li class="muted">No images match this filter.</li>';
+  // The list stops at 100: say so in the list itself, so a filter change redraws the note too.
+  // Copy as table copies every image, whatever the filter.
+  const more = filtered.length > 100
+    ? `<li class="muted">First 100 of ${fmtNum(filtered.length)} images. Copy as table lists all ${fmtNum(getBodyImages().length)}.</li>` : '';
   return filtered.slice(0, 100).map((img) => {
     const issues = imageIssues(img);
     const safe = isSafeHttpUrl(img.src) && !img.brokenLoad;
@@ -1982,7 +2016,7 @@ function renderImageItems() {
       </div>
       <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'image', index: img.domIndex, src: img.src }))}" aria-label="Show this image on the page" title="Show this image on the page">${ICON.locate}</button>
     </li>`;
-  }).join('');
+  }).join('') + more;
 }
 
 /** Ask servers for image sizes the browser didn't expose. Needs site access. */
@@ -2559,16 +2593,35 @@ async function variantsCheck(box) {
   const gen = auditGen;
   const r = await checkHostVariants(pageUrl);
   if (gen !== auditGen) return;
+  // Each version: no answer (offline, a wrong address, a timeout), an HTTP error, or a page.
+  const noAnswer = r.variants.filter((v) => v.error || !v.status).length;
+  const httpErrors = r.variants.filter((v) => !v.error && v.status >= 400);
+  const pages = r.variants.length - noAnswer - httpErrors.length;
+  const codes = `HTTP ${[...new Set(httpErrors.map((v) => v.status))].join(', ')}`;
   // One headline, shown and announced, so the screen and the screen reader say the same.
-  const [headline, kind] = r.consistent ? [`All versions end on ${r.target}`, 'good']
-    : r.target ? [`${plural(r.variants.filter((v) => v.error || !v.status).length, 'version')} could not be checked; the others end on ${r.target}`, 'warn']
-    : ['Versions end on different URLs', 'bad'];
+  let headline = 'Versions end on different URLs';
+  let kind = 'bad';
+  if (r.consistent) {
+    [headline, kind] = [`All versions end on ${r.target}`, 'good'];
+  } else if (!pages) {
+    // Nothing to compare: say what happened, and claim nothing about redirects.
+    const why = !httpErrors.length ? 'none of them answered'
+      : !noAnswer ? `all answered with an error (${codes})`
+      : `${fmtNum(httpErrors.length)} answered with an error (${codes}), ${fmtNum(noAnswer)} did not answer`;
+    [headline, kind] = [`Needle could not check the versions: ${why}`, 'neutral'];
+  } else if (r.target) {
+    const failed = [
+      httpErrors.length && `${plural(httpErrors.length, 'version')} ${httpErrors.length === 1 ? 'answers' : 'answer'} with an error (${codes})`,
+      noAnswer && `${plural(noAnswer, 'version')} could not be checked`
+    ].filter(Boolean).join(', ');
+    [headline, kind] = [`${failed}; ${pages === 1 ? 'the other ends on' : 'the others end on'} ${r.target}`, httpErrors.length ? 'bad' : 'warn'];
+  }
   announce(headline);
   rerender(box, `<p>${tag(headline, kind)}</p>
     <table class="data-table"><thead><tr><th scope="col">You type</th><th scope="col">You end on</th></tr></thead><tbody>
     ${r.variants.map((v) => `<tr><td class="mono">${escapeHtml(displayUrl(v.url))}</td><td class="mono">${v.error ? tag(v.error, 'bad') : `${escapeHtml(displayUrl(v.finalUrl))} <span class="muted">${v.status}</span>`}</td></tr>`).join('')}
     </tbody></table>
-    ${r.consistent ? '' : '<div class="hint">Redirect every version (http and https, with and without www) to one address with a permanent (301) redirect.</div>'}`);
+    ${r.consistent || !pages ? '' : '<div class="hint">Redirect every version (http and https, with and without www) to one address with a permanent (301) redirect.</div>'}`);
 }
 
 $('panel-technical').addEventListener('click', (e) => {
