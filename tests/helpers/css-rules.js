@@ -1,11 +1,11 @@
-// Reads popup.css or base.css into its style rules, for tests that check a rule is there.
+// Reads a stylesheet (popup.css, base.css) into its style rules, for tests that check a rule is there.
 // jsdom has no layout: what a rule does on screen is checked by the browser pass in dev/check/fullcheck.mjs.
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// A path, not a URL object: in a jsdom test the global URL is jsdom's.
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// The project root, two folders up from tests/helpers. A path, not a URL object: in a jsdom test the global URL is jsdom's.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 /** Splits text at each separator outside brackets, so ":is(.a, .b)" and "calc(…)" stay whole. */
 function splitTop(text, sep) {

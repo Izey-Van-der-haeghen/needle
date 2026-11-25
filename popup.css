@@ -123,7 +123,8 @@ details.sub > summary { color: var(--ink-2); font-size: 13px; overflow-wrap: any
 .social-card img, .social-empty { display: block; width: 100%; aspect-ratio: 1.91 / 1; object-fit: cover; background: var(--surface); }
 .social-empty { display: grid; place-items: center; color: var(--ink-2); font-size: 12px; }
 .social-body { padding: 8px; font-size: 13px; overflow-wrap: anywhere; }
-/* As the networks show them: two lines of title and of description. The full text is under Title and description. */
+/* As the networks show them: two lines of title and of description. The popup shows og: and twitter: text
+   only here, so a longer one is cut off; the downloaded report has it in full. */
 .social-body > strong, .social-body > strong + div { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 
 /* ----- Filters ----- */
@@ -195,11 +196,12 @@ details.sub > summary { color: var(--ink-2); font-size: 13px; overflow-wrap: any
 /* ----- Compare ----- */
 .compare-scroll { overflow-x: auto; }
 /* Fixed columns, so the "You" column starts at the same place in every Compare table:
-   the metric takes 30 %, the pages share the rest. At least 90 px for each page: in a narrow
-   side panel the table scrolls sideways in its card. --pages counts the page columns (2 to 4). */
+   the metric takes 30 %, the pages share the rest. At least 80 px for each page, so the table is
+   never wider than before (a 100 px metric and 90 px per page): 4 pages fit the popup at 150 % zoom.
+   In a narrow side panel the table scrolls sideways in its card. --pages counts the page columns (2 to 4). */
 .compare-table {
   --pages: 2;
-  width: 100%; min-width: calc(var(--pages) * 90px / .7); table-layout: fixed;
+  width: 100%; min-width: calc(var(--pages) * 80px / .7); table-layout: fixed;
   border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums;
 }
 .compare-table:has(th:nth-child(4)) { --pages: 3; }

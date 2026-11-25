@@ -4,7 +4,7 @@
 // same rules must reach them then, so each title is also tried as an h2.
 import { it, expect, beforeAll, vi } from "vitest";
 import { loadPopup } from "./helpers/popup-harness.js";
-import { readRules } from "./p3-css-parse.js";
+import { readRules } from "./helpers/css-rules.js";
 
 const popup = readRules("popup.css");
 

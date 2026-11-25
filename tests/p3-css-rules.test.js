@@ -2,7 +2,8 @@
 // as rules in popup.css and base.css. jsdom has no layout, so these tests check that each rule is there;
 // what it does on screen is checked by the browser pass in dev/check/fullcheck.mjs.
 import { describe, it, expect } from "vitest";
-import { readRules, declared } from "./p3-css-parse.js";
+import { readRules, declared } from "./helpers/css-rules.js";
+import { popupSizeForZoom } from "../lib/popup-helpers.js";
 
 const popup = readRules("popup.css");
 const base = readRules("base.css");
@@ -24,9 +25,9 @@ describe("P3 polish", () => {
     expect(declared(popup, ".compare-table tr > :first-child", "width")).toBe("30%");
   });
 
-  it("P3-17: each page column keeps at least 90 px, for 2, 3 and 4 pages", () => {
-    // The pages share the 70 % the metric leaves: pages × 90 px / 0.7 makes each page column 90 px.
-    expect(declared(popup, ".compare-table", "min-width")).toBe("calc(var(--pages) * 90px / .7)");
+  it("P3-17: each page column keeps at least 80 px, for 2, 3 and 4 pages", () => {
+    // The pages share the 70 % the metric leaves: pages × 80 px / 0.7 makes each page column 80 px.
+    expect(declared(popup, ".compare-table", "min-width")).toBe("calc(var(--pages) * 80px / .7)");
     expect(declared(popup, ".compare-table", "--pages")).toBe("2");
     expect(declared(popup, ".compare-table:has(th:nth-child(4))", "--pages")).toBe("3");
     expect(declared(popup, ".compare-table:has(th:nth-child(5))", "--pages")).toBe("4");
@@ -34,6 +35,23 @@ describe("P3 polish", () => {
     for (const sel of [".compare-table th", ".compare-table td", ".compare-table tbody th"]) {
       expect(declared(popup, sel, "min-width")).toBeUndefined();
     }
+  });
+
+  it("P3-17: 4 pages fit the popup at 100 % and 150 % zoom next to a 17 px scrollbar, and no table is wider than before", () => {
+    const [, perPage, share] = declared(popup, ".compare-table", "min-width").match(/^calc\(var\(--pages\) \* (\d+)px \/ (\.\d+)\)$/);
+    // The share the pages get is what the 30 % metric column leaves.
+    expect(Number(share)).toBeCloseTo(1 - parseFloat(declared(popup, ".compare-table tr > :first-child", "width")) / 100);
+    const tableMin = (pages) => (pages * Number(perPage)) / Number(share);
+    // The table takes main's width: the popup minus main's padding, minus a classic scrollbar (Windows, Linux,
+    // or macOS with "always show scroll bars"). popup.js narrows the popup at zoom with popupSizeForZoom.
+    const popupWidth = Number(declared(popup, "html", "width").match(/^var\(--popup-w, (\d+)px\)$/)[1]);
+    const mainSides = 2 * parseFloat(declared(popup, "main", "padding").split(" ")[1]);
+    for (const zoom of [1, 1.5]) {
+      const width = popupSizeForZoom(zoom)?.width ?? popupWidth;
+      expect(tableMin(4), `at ${zoom * 100} %`).toBeLessThanOrEqual(width - mainSides - 17);
+    }
+    // Before fixed columns the cells had a minimum: 100 px for the metric, 90 px for each page.
+    for (const pages of [2, 3, 4]) expect(tableMin(pages), `${pages} pages`).toBeLessThanOrEqual(100 + 90 * pages);
   });
 
   it("P3-21: a social card shows two lines of title and of description", () => {
