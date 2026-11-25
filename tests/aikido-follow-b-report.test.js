@@ -54,6 +54,11 @@ it("draws the images of a page on the reader's own network, which are that page'
   expect(srcs(doc)).not.toContain(SHARE);
   expect(doc.body.textContent).not.toContain(LOCAL_NO_THUMB);
   expect(doc.body.textContent).not.toContain(LOCAL_NOT_LOADED);
+  // The social previews are drawn here: they send no Referer either, like the content images.
+  const social = [...doc.querySelectorAll("#social .card img")];
+  expect(social.map((i) => i.getAttribute("src"))).toEqual([ROUTER, NAS]);
+  expect(social.map((i) => i.getAttribute("referrerpolicy"))).toEqual(["no-referrer", "no-referrer"]);
+  expect([...doc.querySelectorAll("img")].filter((i) => i.getAttribute("referrerpolicy") !== "no-referrer").map((i) => i.outerHTML)).toEqual([]);
 });
 
 it("says 'not checked' for a Googlebot verdict that ran out of time, never 'blocked'", () => {

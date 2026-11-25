@@ -1872,25 +1872,43 @@ async function runLinkCheck() {
   }
 }
 
-function applyLinkCheckResults(results, ageMs) {
-  const map = new Map(results.map((r) => [r.url, r]));
-  onpageData.links.details.forEach((l) => { const r = map.get(l.href); if (r) l.checkedStatus = r; });
-  // A link to a one-word address (http://intranet/) is reported broken without a request: it isn't "checked".
-  const checked = results.filter((r) => !r.oneWordHost);
-  const notRequested = results.length - checked.length;
+/**
+ * Links the link check reports without requesting them (lib/link-checker.js), and why: they aren't
+ * "checked". A one-word address (http://intranet/), a local-network address on a public page, and a
+ * link to a website that already gave no answer on another link.
+ */
+const NOT_REQUESTED = [
+  [(r) => r.oneWordHost, 'link to an address without a dot', 'links to addresses without a dot'],
+  [(r) => r.kind === 'skipped', 'link to a local-network address', 'links to local-network addresses'],
+  [(r) => r.hostTimedOut, 'link to a website that already gave no answer', 'links to websites that already gave no answer']
+];
+
+/** The link check's summary: what the requested links did, then what was not requested and why. */
+function linkCheckSummary(results) {
+  const notRequested = (r) => NOT_REQUESTED.some(([is]) => is(r));
+  const checked = results.filter((r) => !notRequested(r));
   const count = (k) => checked.filter((r) => r.kind === k).length;
   const parts = [['ok', 'works', 'work'], ['redirect', 'redirects', 'redirect'], ['broken', 'broken', 'broken'], ['blocked', 'refused the check', 'refused the check'], ['timeout', 'timed out', 'timed out']]
     .filter(([k]) => count(k)).map(([k, one, many]) => plural(count(k), one, many));
-  const summary = [
-    checked.length || !notRequested ? `${plural(checked.length, 'link')} checked${parts.length ? `: ${parts.join(', ')}` : ''}` : '',
-    notRequested ? `${plural(notRequested, 'link')} not requested (address without a dot)` : ''
+  const reasons = NOT_REQUESTED.map(([is, one, many]) => [results.filter(is).length, one, many])
+    .filter(([n]) => n).map(([n, one, many]) => plural(n, one, many));
+  return [
+    checked.length || !reasons.length ? `${plural(checked.length, 'link')} checked${parts.length ? `: ${parts.join(', ')}` : ''}` : '',
+    reasons.length ? `Not requested: ${reasons.join(', ')}` : ''
   ].filter(Boolean).join('. ');
+}
+
+function applyLinkCheckResults(results, ageMs) {
+  const map = new Map(results.map((r) => [r.url, r]));
+  onpageData.links.details.forEach((l) => { const r = map.get(l.href); if (r) l.checkedStatus = r; });
+  const summary = linkCheckSummary(results);
   rerender($('link-check-status'), `<p>${escapeHtml(summary)}${ageMs ? ` <span class="muted">(saved ${escapeHtml(formatAge(ageMs))})</span>` : ''}</p>`);
   $('check-broken').textContent = 'Check again';
   renderCheckFilters();
   renderLinkList();
   renderFindings();
-  announce(`${plural(checked.length, 'link')} checked`);
+  // Screen readers hear the whole summary, the links that were not requested included.
+  announce(summary);
 }
 
 const FILTER_GROUP_NAME = { kind: 'Filter links by type', ctx: 'Filter links by place on the page', checkStatus: 'Filter links by check result' };

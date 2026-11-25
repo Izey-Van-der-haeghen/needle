@@ -14,10 +14,11 @@ it("is dated 25 November 2026", () => {
   expect(policy).toContain("Last updated: 25 November 2026");
 });
 
-it("says which images Needle and the report don't load, that redirects are followed, and that cookies may go along", () => {
+it("says which images Needle and the report don't load, that redirects and public names that lead to the local network still load, and that cookies may go along", () => {
   const images = policy.match(/<p>To show image previews,(.*?)<\/p>/)?.[1] || "";
   expect(images).toContain("Needle doesn't load an image whose address is on your local network (such as your router), in Needle or in the report, unless the audited page is on your local network too.");
-  expect(images).toContain("An image address that redirects is still followed, also to your local network.");
+  // isLocalUrl reads the address as written: a public name that leads to the local network still loads.
+  expect(images).toContain("An image address that redirects is still followed, also to your local network, and an image at a public web address whose name leads to your local network still loads: Needle can't see where a name leads before it loads the image.");
   expect(images).toContain("Like the page's own images, these requests may carry your cookies for those servers.");
 });
 
