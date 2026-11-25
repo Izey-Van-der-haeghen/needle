@@ -55,9 +55,16 @@ const ICON = {
 };
 
 const DFS_LOOKUP_COST = DFS_COST.rankedKeywords + DFS_COST.domainOverview;
-/** "1 link", "1,280 links". */
 /** Dollar amount with at most 3 decimals and no trailing zeros, e.g. $0.025. */
 const usd = (n) => `$${Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`;
+/** The page's own text, escaped, in <bdi>: right-to-left text keeps its punctuation next to Needle's words. */
+const pageText = (text) => (text ? `<bdi>${escapeHtml(text)}</bdi>` : '');
+/** One example of a finding. A heading's text comes from the page: it goes in <bdi>, after "H4 " for a skipped level. */
+function exampleHtml(findingId, example) {
+  if (findingId === 'h1-multiple') return pageText(example);
+  const skip = findingId === 'heading-skips' && /^(H[1-6]) ([\s\S]*)$/.exec(example);
+  return skip ? `${skip[1]} ${pageText(skip[2])}` : escapeHtml(example);
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -878,7 +885,7 @@ function renderFindings() {
           <div class="finding-head">${tag(SEVERITY_LABEL[x.severity], SEV_KIND[x.severity])} <span class="finding-title" id="ft-${escapeHtml(x.id)}">${escapeHtml(x.title)}</span> ${locate}</div>
           <details class="sub" data-fid="${escapeHtml(x.id)}"${openWhy.has(x.id) ? ' open' : ''}><summary id="why-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}">Why and how · ${escapeHtml(x.area)}</summary>
             <p>${escapeHtml(x.why)}</p><p><strong>Fix:</strong> ${escapeHtml(x.fix)}</p>
-            ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${fmtNum(x.examples.length - 8)} more</p>` : ''}` : ''}
+            ${x.examples?.length ? `<ul class="plain-list mono">${x.examples.slice(0, 8).map((e) => `<li>${exampleHtml(x.id, e)}</li>`).join('')}</ul>${x.examples.length > 8 ? `<p class="muted">…and ${fmtNum(x.examples.length - 8)} more</p>` : ''}` : ''}
           </details>
         </li>`;
       }).join('')}</ol>
@@ -929,7 +936,7 @@ async function showChanges(score, gen = auditGen) {
   if (gen !== auditGen || !slot || !res.changes.length) return;
   const fmt = (v) => (v === '' || v == null ? '(empty)' : String(v));
   rerender(slot, `<details class="card collapsible" open>
-    <summary><h2 class="card-title">Changed since your audit ${escapeHtml(timeAgo(res.since))}</h2> ${tag(`${res.changes.length} change${res.changes.length === 1 ? '' : 's'}`, 'info')}</summary>
+    <summary><h2 class="card-title">Changed since your audit ${escapeHtml(timeAgo(res.since))}</h2> ${tag(plural(res.changes.length, 'change'), 'info')}</summary>
     <div class="card-body"><table class="data-table"><thead><tr><th scope="col">What</th><th scope="col">Before</th><th scope="col">Now</th></tr></thead><tbody>
       ${res.changes.map((c) => `<tr><th scope="row">${escapeHtml(c.label)}</th><td>${escapeHtml(fmt(c.before))}</td><td>${escapeHtml(fmt(c.after))}</td></tr>`).join('')}
     </tbody></table><p class="muted">Compared with your previous audit of this URL in this browser.</p></div>
@@ -1018,7 +1025,7 @@ async function loadGEO(gen = auditGen) {
       <h2>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h2>
       <p class="muted">Can AI search engines reach and quote this page? ${escapeHtml(AI_SCORE_NOTE)}</p>
       ${aiAccess.cloudflareManaged ? '<div class="hint">Cloudflare manages this robots.txt. Its AI Crawl Control may also block AI bots at the network level (HTTP 403), even ones allowed below. Check AI Crawl Control in the Cloudflare dashboard.</div>' : ''}
-      <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${blockedSearch.length} AI answer bot${blockedSearch.length === 1 ? '' : 's'} blocked`, 'bad') : tag('AI answer bots allowed', 'good')}</h3>
+      <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${plural(blockedSearch.length, 'AI answer bot')} blocked`, 'bad') : tag('AI answer bots allowed', 'good')}</h3>
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
           <li>
@@ -1239,7 +1246,7 @@ async function runBing() {
     rerender($('bing-result'), `${cachedBanner(res.age, null)}
       ${row('Site in your account', `<span class="mono">${escapeHtml(d.site)}</span>`)}
       ${d.crawl ? row('Last crawled by Bing', `${escapeHtml(d.crawl.lastCrawled || 'unknown')}${d.crawl.status ? ` <span class="muted">HTTP ${d.crawl.status}</span>` : ''}`) : ''}
-      ${row('Clicks and impressions', `${fmtNum(d.clicks)} clicks · ${fmtNum(d.impressions)} impressions <span class="muted">(the period Bing keeps)</span>`)}
+      ${row('Clicks and impressions', `${plural(d.clicks, 'click')} · ${plural(d.impressions, 'impression')} <span class="muted">(the period Bing keeps)</span>`)}
       ${d.queries.length ? `<table class="data-table"><thead><tr><th scope="col">Query</th><th scope="col">Clicks</th><th scope="col">Impr.</th><th scope="col">Pos.</th></tr></thead><tbody>
         ${d.queries.map((q) => `<tr><td>${escapeHtml(q.query)}</td><td class="num">${fmtNum(q.clicks)}</td><td class="num">${fmtNum(q.impressions)}</td><td class="num">${q.position ?? '—'}</td></tr>`).join('')}</tbody></table>`
         : '<p class="muted">Bing has no search data for this page yet.</p>'}`);
@@ -1281,7 +1288,7 @@ function renderPsi(d, age) {
       ${row('Best practices', scoreTag(p.bestPracticesScore))}
       ${row('SEO', scoreTag(p.seoScore))}
       ${field}
-      ${p.opportunities?.length ? `<details><summary>${p.opportunities.length} thing${p.opportunities.length === 1 ? '' : 's'} to improve</summary>
+      ${p.opportunities?.length ? `<details><summary>${plural(p.opportunities.length, 'thing')} to improve</summary>
         <ul class="plain-list">${p.opportunities.slice(0, 10).map((o) => `<li>${escapeHtml(o.title)}${o.displayValue ? ` <span class="muted">${escapeHtml(o.displayValue)}</span>` : ''}</li>`).join('')}</ul>
       </details>` : ''}
     </div>`;
@@ -1446,7 +1453,7 @@ function renderSerp(d, myDomain, age) {
     ${features.length ? `<div class="card"><h2>On this results page</h2><p>${features.map((f) => `<span class="chip">${escapeHtml(f)}</span>`).join(' ')}</p></div>` : ''}
     ${renderAiOverview(d.aiOverview, me)}
     <div class="card">
-      <h2>Top ${d.organic.length} results</h2>
+      <h2>Top ${plural(d.organic.length, 'result')}</h2>
       <div class="actions"><button type="button" class="secondary-btn" data-serp-copy>Copy results as table</button></div>
       <ol class="serp-list">
         ${d.organic.map((o) => {
@@ -1457,7 +1464,7 @@ function renderSerp(d, myDomain, age) {
               ${isMe ? tag('your site', 'good') : ''}${o.isFeaturedSnippet ? tag('featured snippet', 'info') : ''}</div>
             ${safe ? `<a class="serp-title" href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(o.title || o.url || o.domain || 'Untitled result')}</a>` : `<div class="serp-title">${escapeHtml(o.title)}</div>`}
             <div class="serp-snippet">${escapeHtml(o.snippet)}</div>
-            ${o.rating ? `<div class="muted">Rating ${escapeHtml(o.rating.value)} (${fmtNum(o.rating.count)} reviews)</div>` : ''}
+            ${o.rating ? `<div class="muted">Rating ${escapeHtml(o.rating.value)} (${plural(o.rating.count, 'review')})</div>` : ''}
           </li>`;
         }).join('') || '<li class="muted">No organic results.</li>'}
       </ol>
@@ -1602,11 +1609,15 @@ async function loadCompare(force = false) {
 async function autoRestoreCompareResult() {
   const competitorUrls = [...document.querySelectorAll('.competitor-url')].map((i) => i.value.trim()).filter(Boolean);
   const selfUrl = $('compare-self').value.trim();
-  if (!competitorUrls.length || !selfUrl) return;
-  const hits = await Promise.all([selfUrl, ...competitorUrls].map((u) => getCache(cacheKey('compare', u))));
+  if (!competitorUrls.length || (!selfUrl && !/^https?:/.test(pageUrl))) return;
+  const gen = auditGen;
+  const hits = await Promise.all(competitorUrls.map((u) => getCache(cacheKey('compare', u))));
   if (hits.some((h) => !h)) return;
-  const sources = hits.map((h, i) => ({ label: i === 0 ? 'You' : `Competitor ${i}`, data: h.data, isMe: i === 0 }));
-  rerender($('compare-result'), cachedBanner(Math.max(...hits.map((h) => h.age || 0)), 'compare') + renderCompareMulti(sources, null, '', null));
+  // With "Your page" empty, "You" is the current tab, read as loadCompare reads it.
+  const me = selfUrl ? await getCache(cacheKey('compare', selfUrl)) : { data: await snapshotCurrentTab(), age: 0 };
+  if (gen !== auditGen || !me?.data) return;
+  const sources = [me, ...hits].map((h, i) => ({ label: i === 0 ? 'You' : `Competitor ${i}`, data: h.data, isMe: i === 0 }));
+  rerender($('compare-result'), cachedBanner(Math.max(...[me, ...hits].map((h) => h.age || 0)), 'compare') + renderCompareMulti(sources, null, '', null));
   attachCompareExportHandlers(sources, null, '');
 }
 
@@ -1697,7 +1708,7 @@ function renderCompareMulti(sources, serpData, keyword, serpError) {
       ${numRow('Images', (d) => d.images)}
       ${numRow('Images without alt', (d) => d.imagesWithoutAlt, 'lower')}`)}
     ${allTypes.length ? `${table('Structured data', schemaRows)}
-      ${missing.length ? `<p class="muted">Competitors use ${missing.length} type${missing.length === 1 ? '' : 's'} you don't: ${missing.map((m) => `<strong>${escapeHtml(m)}</strong>`).join(', ')}</p>` : ''}` : ''}
+      ${missing.length ? `<p class="muted">Competitors use ${plural(missing.length, 'type')} you don't: ${missing.map((m) => `<strong>${escapeHtml(m)}</strong>`).join(', ')}</p>` : ''}` : ''}
     <div class="card">
       <h2>Export</h2>
       <div class="actions">
@@ -1828,7 +1839,7 @@ function applyLinkCheckResults(results, ageMs) {
   onpageData.links.details.forEach((l) => { const r = map.get(l.href); if (r) l.checkedStatus = r; });
   const count = (k) => results.filter((r) => r.kind === k).length;
   const parts = [['ok', 'works', 'work'], ['redirect', 'redirects', 'redirect'], ['broken', 'broken', 'broken'], ['blocked', 'refused the check', 'refused the check'], ['timeout', 'timed out', 'timed out']]
-    .filter(([k]) => count(k)).map(([k, one, many]) => `${fmtNum(count(k))} ${count(k) === 1 ? one : many}`);
+    .filter(([k]) => count(k)).map(([k, one, many]) => plural(count(k), one, many));
   rerender($('link-check-status'), `<p>${plural(results.length, 'link')} checked: ${escapeHtml(parts.join(', '))}${ageMs ? ` <span class="muted">(saved ${escapeHtml(formatAge(ageMs))})</span>` : ''}</p>`);
   $('check-broken').textContent = 'Check again';
   renderCheckFilters();
@@ -2009,8 +2020,8 @@ function renderImageItems() {
       ${safe ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy">` : '<span class="thumb thumb-empty" aria-hidden="true">✗</span>'}
       <div class="item-body">
         <div class="item-title" title="${escapeHtml(img.src)}">${escapeHtml(imageFilename(img.src))}</div>
-        <div class="item-meta">${escapeHtml(dims)} · ${img.brokenLoad ? '' : /^data:/i.test(img.src) ? 'inline' : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'}</div>
-        <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `alt: ${escapeHtml(img.alt)}` : '<span class="muted">empty alt (decorative)</span>'}</div>
+        <div class="item-meta">${[escapeHtml(dims), img.brokenLoad ? '' : /^data:/i.test(img.src) ? 'inline' : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'].filter(Boolean).join(' · ')}</div>
+        <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `alt: ${pageText(img.alt)}` : '<span class="muted">empty alt (decorative)</span>'}</div>
         ${issues.length ? `<div class="item-meta">${issues.map(([t, k]) => tag(t, k)).join(' ')}</div>` : ''}
       </div>
       <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'image', index: img.domIndex, src: img.src }))}" aria-label="Show this image on the page" title="Show this image on the page">${ICON.locate}</button>
@@ -2061,18 +2072,23 @@ async function measureImages() {
 // On-page rendering
 // ---------------------------------------------------------------------------
 
-/** Cut text to what fits in maxPx, the way Google adds an ellipsis. */
+/**
+ * Cut text to what fits in maxPx, the way Google adds an ellipsis. It cuts between characters as a
+ * reader sees them (graphemes), so an emoji, a flag or a letter with its accent is never split.
+ */
 function truncateToPx(text, maxPx, font) {
   if (!text || pixelWidth(text, font) <= maxPx) return text || '';
+  const chars = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map((g) => g.segment);
+  const upTo = (n) => chars.slice(0, n).join('');
   let lo = 0;
-  let hi = text.length;
+  let hi = chars.length;
   let fit = '';
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
-    const slice = text.slice(0, mid).replace(/\s+\S*$/, '') + '…';
+    const slice = upTo(mid).replace(/\s+\S*$/, '') + '…';
     if (pixelWidth(slice, font) <= maxPx) { fit = slice; lo = mid + 1; } else { hi = mid - 1; }
   }
-  return fit || text.slice(0, 20) + '…';
+  return fit || upTo(20) + '…';
 }
 
 /** og:image: 1.91:1 at 1200 px wide or more is the safe size for every network. */
@@ -2209,19 +2225,19 @@ function renderOnpage(d, age) {
 
     <details class="card collapsible" id="schema-card">
       <summary><h2 class="card-title">Structured data</h2>
-        ${validated.length === 0 && !microdataTypes.length ? tag('none found', 'warn') : schemaErrors ? tag(`${schemaErrors} error${schemaErrors === 1 ? '' : 's'}`, 'bad') : tag('valid', 'good')}
-        ${suggestions.length ? tag(`${suggestions.length} suggestion${suggestions.length === 1 ? '' : 's'}`, 'info') : ''}</summary>
+        ${validated.length === 0 && !microdataTypes.length ? tag('none found', 'warn') : schemaErrors ? tag(plural(schemaErrors, 'error'), 'bad') : tag('valid', 'good')}
+        ${suggestions.length ? tag(plural(suggestions.length, 'suggestion'), 'info') : ''}</summary>
       <div class="card-body">
         ${allTypes.length ? `<p>${allTypes.map((t) => `<span class="chip">${escapeHtml(t)}${microdataTypes.includes(t) && !jsonLdTypes.includes(t) ? ' <span class="muted">microdata or RDFa</span>' : ''}</span>`).join(' ')}</p>` : '<p class="muted">No JSON-LD, microdata or RDFa on this page.</p>'}
         ${suggestions.length ? `<h3>Worth adding</h3><ul class="plain-list">${suggestions.map((s) => `<li><strong>${escapeHtml(s.type)}</strong> <span class="muted">${escapeHtml(s.priority)} priority</span><div class="hint">${escapeHtml(s.reason)}</div></li>`).join('')}</ul>` : ''}
-        ${faqDupes.length ? `<div class="notice"><strong>${faqDupes.length} repeated FAQ question${faqDupes.length === 1 ? '' : 's'}</strong>
+        ${faqDupes.length ? `<div class="notice"><strong>${plural(faqDupes.length, 'repeated FAQ question')}</strong>
           <ul class="plain-list">${faqDupes.map((q) => `<li>"${escapeHtml(q.question)}" appears ${q.count} times</li>`).join('')}</ul>
           <div class="hint">Usually a template or plugin mistake. Keep each question once.</div></div>` : ''}
         ${validated.map((s, i) => {
           const errors = s.issues.filter((x) => x.level === 'error');
           const warns = s.issues.filter((x) => x.level === 'warn');
           return `<details class="sub"${errors.length ? ' open' : ''}>
-            <summary>${escapeHtml(s.types.join(', ') || 'Unknown type')} #${i + 1} ${errors.length ? tag(`${errors.length} error${errors.length === 1 ? '' : 's'}`, 'bad') : warns.length ? tag(`${warns.length} warning${warns.length === 1 ? '' : 's'}`, 'warn') : tag('valid', 'good')}</summary>
+            <summary>${escapeHtml(s.types.join(', ') || 'Unknown type')} #${i + 1} ${errors.length ? tag(plural(errors.length, 'error'), 'bad') : warns.length ? tag(plural(warns.length, 'warning'), 'warn') : tag('valid', 'good')}</summary>
             ${s.issues.length ? `<ul class="plain-list">${s.issues.map((iss) => `<li>${tag(...(SCHEMA_LEVEL[iss.level] || SCHEMA_LEVEL.info))} ${escapeHtml(iss.msg)}</li>`).join('')}</ul>` : ''}
             <pre class="code" tabindex="0" role="region" aria-label="${escapeHtml(`JSON-LD #${i + 1}: ${s.types.join(', ') || 'Unknown type'}`)}">${escapeHtml(JSON.stringify(s.raw, null, 2))}</pre>
           </details>`;
@@ -2240,7 +2256,7 @@ function renderOnpage(d, age) {
     </details>` : ''}
 
     <details class="card collapsible" id="content-card">
-      <summary><h2 class="card-title">Content and keywords</h2> <span class="muted">${fmtNum(d.mainContentWordCount ?? d.wordCount)} words</span></summary>
+      <summary><h2 class="card-title">Content and keywords</h2> <span class="muted">${plural(d.mainContentWordCount ?? d.wordCount, 'word')}</span></summary>
       <div class="card-body">
         ${row('Words in the main content', d.mainContentWordCount != null ? `${fmtNum(d.mainContentWordCount)} <span class="muted">(${escapeHtml(d.mainContentSelector)})</span>` : '<span class="muted">main content not detected</span>')}
         ${row('Words on the whole page', `${fmtNum(d.wordCount)} <span class="muted">incl. menus and footer</span>`)}
@@ -2262,12 +2278,12 @@ function renderOnpage(d, age) {
         <figure class="social-card">
           <figcaption>Facebook, LinkedIn, Slack</figcaption>
           ${ogImage ? `<img src="${escapeHtml(ogImage)}" alt="">` : '<div class="social-empty">No og:image</div>'}
-          <div class="social-body"><div class="muted">${escapeHtml(host)}</div><strong>${escapeHtml(d.og?.title || d.title) || missing('No title')}</strong><div>${escapeHtml(d.og?.description || d.description)}</div></div>
+          <div class="social-body"><div class="muted">${escapeHtml(host)}</div><strong>${pageText(d.og?.title || d.title) || missing('No title')}</strong><div>${pageText(d.og?.description || d.description)}</div></div>
         </figure>
         <figure class="social-card">
           <figcaption>X (${escapeHtml(d.twitter?.card || 'no card type')}${!d.twitter?.title && d.og?.title ? ', uses og: tags' : ''})</figcaption>
           ${twitterImage ? `<img src="${escapeHtml(twitterImage)}" alt="">` : '<div class="social-empty">No image</div>'}
-          <div class="social-body"><div class="muted">${escapeHtml(host)}</div><strong>${escapeHtml(d.twitter?.title || d.og?.title || d.title) || missing('No title')}</strong></div>
+          <div class="social-body"><div class="muted">${escapeHtml(host)}</div><strong>${pageText(d.twitter?.title || d.og?.title || d.title) || missing('No title')}</strong></div>
         </figure>
       </div>
     </details>
@@ -2289,7 +2305,7 @@ async function loadTextAnalysis() {
       ? `<p class="muted">Readability is scored for English, Dutch, French and German pages; this page is "${escapeHtml(read.lang)}".</p>`
       : read.tooShort ? '<p class="muted">Too little text to score readability.</p>'
       : `${row('Readability', `${tag(`${read.score}/100, ${read.band}`, read.score >= 60 ? 'good' : read.score >= 30 ? 'warn' : 'bad')} <span class="muted">${escapeHtml(read.formula)}</span>`)}
-         ${row('Average sentence', `${read.avgSentence} words`)}
+         ${row('Average sentence', plural(read.avgSentence, 'word'))}
          ${row('Long sentences (25+ words)', `${fmtNum(read.longSentences)} of ${fmtNum(read.sentences)}`)}`;
     const list = (items) => items.length ? `<ol class="plain-list">${items.map((x) => `<li>${escapeHtml(x.term)} <span class="muted">${x.count}× (${x.pct}%)</span></li>`).join('')}</ol>` : '<p class="muted">None repeated.</p>';
     rerender(box, `<h3>Readability</h3>${readHtml}
@@ -2357,7 +2373,9 @@ async function runHreflangCluster() {
   renderFindings();
   const bad = rows.filter((r) => r.problems.length).length;
   const partly = total > rows.length ? ` <span class="muted">Checked the first ${rows.length} of ${total} alternates.</span>` : '';
-  const headline = bad ? `${bad} of ${rows.length} alternates with problems` : rows.length === total ? `All ${rows.length} alternates link back` : `All ${rows.length} checked alternates link back`;
+  const headline = rows.length === 1 ? (bad ? 'The alternate has problems' : 'The alternate links back')
+    : bad ? `${fmtNum(bad)} of ${plural(rows.length, 'alternate')} with problems`
+    : `All ${plural(rows.length, rows.length === total ? 'alternate' : 'checked alternate')} link back`;
   announce(headline);
   rerender(box, `<p>${tag(headline, bad ? 'warn' : 'good')}${partly}</p>
     <table class="data-table"><thead><tr><th scope="col" class="lang">hreflang</th><th scope="col">Alternate</th><th scope="col">Result</th></tr></thead><tbody>
@@ -2368,7 +2386,7 @@ async function runHreflangCluster() {
 
 function renderHreflang(d) {
   const issues = validateHreflang(d.hreflang, withoutTracking(pageUrl));
-  if (d.hreflangOutsideHead) issues.unshift({ level: 'error', msg: `${d.hreflangOutsideHead} hreflang link${d.hreflangOutsideHead === 1 ? '' : 's'} outside <head>`, hint: 'Google only reads hreflang links in <head>.' });
+  if (d.hreflangOutsideHead) issues.unshift({ level: 'error', msg: `${plural(d.hreflangOutsideHead, 'hreflang link')} outside <head>`, hint: 'Google only reads hreflang links in <head>.' });
   const passed = !issues.some((iss) => iss.level !== 'info');
   const issueHtml = `${passed ? `<p>${tag('All hreflang checks passed', 'good')}</p>` : ''}${issues.length
     ? `<ul class="plain-list">${issues.map((iss) => `<li>${tag(...HREFLANG_LEVEL[iss.level])} ${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}`;
@@ -2498,7 +2516,7 @@ function renderTechnical(d, age) {
       <div class="actions"><button type="button" class="secondary-btn" id="variants-check">Check http, https and www versions</button></div>
       <div id="variants-result"></div>
       ${onpageData ? row('Mixed content', onpageData.mixedContent?.length
-        ? `${tag(`${onpageData.mixedContent.length} http: file${onpageData.mixedContent.length === 1 ? '' : 's'}`, 'bad')}<ul class="plain-list mono">${onpageData.mixedContent.slice(0, 5).map((m) => `<li>${escapeHtml(m.url)}</li>`).join('')}</ul>`
+        ? `${tag(plural(onpageData.mixedContent.length, 'http: file'), 'bad')}<ul class="plain-list mono">${onpageData.mixedContent.slice(0, 5).map((m) => `<li>${escapeHtml(m.url)}</li>`).join('')}</ul>`
         : /^https:/.test(d.finalUrl) ? tag('none', 'good') : '<span class="muted">not an https page</span>') : ''}
     </div>
 
@@ -2511,7 +2529,7 @@ function renderTechnical(d, age) {
       <p class="muted">These limit what Google may quote in results and in AI Overviews.</p>
       ${row('Directives', dirs.length ? dirs.map((x) => tag(x, limitsSnippets(x) ? 'warn' : 'info')).join(' ') : '<span class="muted">none (Google may quote freely)</span>')}
       ${copilot ? row('Microsoft Copilot', tag(copilot === 'nocache' ? 'link, title and snippet only' : 'left out of answers', 'warn')) : ''}
-      ${row('data-nosnippet', `${onpageData.dataNosnippetCount ? `${fmtNum(onpageData.dataNosnippetCount)} element${onpageData.dataNosnippetCount === 1 ? '' : 's'} kept out of snippets` : '<span class="muted">none</span>'}${onpageData.dataNosnippetIgnored ? `<div class="hint">${fmtNum(onpageData.dataNosnippetIgnored)} more on other elements, which Google ignores: use it on a span, div or section.</div>` : ''}`)}
+      ${row('data-nosnippet', `${onpageData.dataNosnippetCount ? `${plural(onpageData.dataNosnippetCount, 'element')} kept out of snippets` : '<span class="muted">none</span>'}${onpageData.dataNosnippetIgnored ? `<div class="hint">${fmtNum(onpageData.dataNosnippetIgnored)} more on other elements, which Google ignores: use it on a span, div or section.</div>` : ''}`)}
       ${limited ? '<div class="hint">Some text may not be quoted in search snippets or AI answers. Check that this is intended.</div>' : ''}
     </div>`;
     })() : ''}
@@ -2567,7 +2585,7 @@ async function sitemapCheck(box) {
       ? `<p>${tag('could not read the sitemap', 'neutral')}</p><div class="hint">The sitemap did not answer, is a compressed .gz file, or is on another site: this check can't read those. Open it in a tab to check it.</div>`
       : r.found
       ? `<p>${tag('listed', 'good')} in <span class="mono">${escapeHtml(r.sitemap)}</span></p>`
-      : `<p>${tag('not listed', 'warn')} <span class="muted">${r.complete ? `checked ${r.filesRead} sitemap file${r.filesRead === 1 ? '' : 's'}` : r.unread ? `${r.unread} of ${r.filesRead} sitemap files could not be read` : `checked the first ${r.filesRead} files only`}</span></p>
+      : `<p>${tag('not listed', 'warn')} <span class="muted">${r.complete ? `checked ${plural(r.filesRead, 'sitemap file')}` : r.unread ? `${fmtNum(r.unread)} of ${plural(r.filesRead, 'sitemap file')} could not be read` : `checked the first ${r.filesRead} files only`}</span></p>
          <div class="hint">Pages you want in Google belong in the sitemap. Sitemaps on another site can't be read from here.</div>`);
   } catch (e) {
     rerender(box, errorBox('The sitemap check failed', e.message));
@@ -2827,8 +2845,8 @@ $('export-audit-header').addEventListener('click', async () => {
 const TAB_KEYS = { 1: 'onpage', 2: 'technical', 3: 'ai', 4: 'offpage', 5: 'compare', 6: 'serp' };
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !$('history-panel').hidden) { closeHistory(); return; }
-  if (e.target.matches?.('input, textarea, select') || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key === 'Escape' && currentTab && /^https?:/.test(pageUrl)) {
+  // Esc clears the marks from anywhere, a text field too; other single keys are typing there.
+  if (e.key === 'Escape' && !e.ctrlKey && !e.metaKey && !e.altKey && currentTab && /^https?:/.test(pageUrl)) {
     safeSendTabMessage(currentTab.id, { type: 'UNHIGHLIGHT_LINKS' }).catch(() => {});
     safeSendTabMessage(currentTab.id, { type: 'UNHIGHLIGHT_HEADINGS' }).catch(() => {});
     safeSendTabMessage(currentTab.id, { type: 'UNHIGHLIGHT_ISSUES' }).catch(() => {});
@@ -2841,6 +2859,7 @@ document.addEventListener('keydown', (e) => {
     if ($('highlight-count')) $('highlight-count').textContent = '';
     return;
   }
+  if (e.target.matches?.('input, textarea, select') || e.ctrlKey || e.metaKey || e.altKey) return;
   if (!shortcutsOn) return;
   if (TAB_KEYS[e.key]) {
     if (!$('history-panel').hidden) closeHistory();
