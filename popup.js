@@ -3,7 +3,7 @@ import { validateSchema, detectFaqDuplicates, collectAllSchemaTypes, suggestMiss
 import { getCache, setCache, cacheKey, cachedCall, pageId, formatAge } from './lib/cache.js';
 import { LOCATIONS, LANGUAGES, FEATURE_LABELS } from './lib/serp.js';
 import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetchLlmsTxt, AI_SCORE_NOTE, keepsOutOfAnswers, schemaAuthor } from './lib/geo.js';
-import { buildHtmlReport } from './lib/export.js';
+import { buildHtmlReport, mayLoadPageImage, LOCAL_NOT_LOADED, LOCAL_NO_THUMB, ROBOTS_NOT_CHECKED_NOTE } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
 import { readableHost } from './lib/idn.js';
@@ -1036,7 +1036,9 @@ async function loadGEO(gen = auditGen) {
   geoData = { aiAccess, eeat, citability, llmsTxt, score, robotsKnown };
   renderFindings();
 
-  const blockedSearch = aiAccess.bots.filter((b) => !b.allowed && keepsOutOfAnswers(b));
+  // allowed is null when robots.txt had too many rules to check in time (lib/robots.js): neither blocked nor allowed.
+  const blockedSearch = aiAccess.bots.filter((b) => b.allowed === false && keepsOutOfAnswers(b));
+  const uncheckedSearch = aiAccess.bots.filter((b) => b.allowed === null && keepsOutOfAnswers(b));
   const signalRows = (rows, failText) => rows.map((s) => `
     <div class="row"><div class="k">${escapeHtml(s.label)}</div>
       <div class="v">${tag(...signalStatus(s, failText))} <span class="muted">${escapeHtml(s.value)}</span>
@@ -1047,14 +1049,14 @@ async function loadGEO(gen = auditGen) {
       <h2>AI search readiness ${robotsKnown ? tag(`${score.score}/100`, score.level) : tag(`${score.score}/100, robots.txt not read`, 'neutral')}</h2>
       <p class="muted">Can AI search engines reach and quote this page? ${escapeHtml(AI_SCORE_NOTE)}</p>
       ${aiAccess.cloudflareManaged ? '<div class="hint">Cloudflare manages this robots.txt. Its AI Crawl Control may also block AI bots at the network level (HTTP 403), even ones allowed below. Check AI Crawl Control in the Cloudflare dashboard.</div>' : ''}
-      <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${plural(blockedSearch.length, 'AI answer bot')} blocked`, 'bad') : tag('AI answer bots allowed', 'good')}</h3>
+      <h3>AI crawlers in robots.txt ${!robotsKnown ? tag('robots.txt not read', 'warn') : blockedSearch.length ? tag(`${plural(blockedSearch.length, 'AI answer bot')} blocked`, 'bad') : uncheckedSearch.length ? tag(`${plural(uncheckedSearch.length, 'AI answer bot')} not checked`, 'neutral') : tag('AI answer bots allowed', 'good')}</h3>
       <ul class="bot-list">
         ${aiAccess.bots.map((b) => `
           <li>
             ${tag(...botStatus(b, robotsKnown))}
             <span class="bot-name">${escapeHtml(b.ua)}</span>
             <span class="muted">${escapeHtml(b.vendor)} · ${BOT_KIND_LABEL[b.kind]}</span>
-            ${!b.allowed && b.rule ? `<span class="mono bot-rule">${escapeHtml(b.rule)}</span>` : ''}
+            ${b.allowed === false && b.rule ? `<span class="mono bot-rule">${escapeHtml(b.rule)}</span>` : ''}
             <span class="bot-purpose">${escapeHtml(b.purpose)}</span>
           </li>`).join('')}
       </ul>
@@ -1797,8 +1799,11 @@ function linkCheckHint(l) {
   const cs = l.checkedStatus;
   if (!cs) return '';
   // The URL gets its own line in the code font, like the link's own URL above it (long URLs wrap there).
+  // A public link that lands on the user's own network: no advice to link there (lib/link-checker.js).
+  if (cs.kind === 'redirect' && cs.local) return `<div class="hint">Redirects to a local-network address, which Needle doesn't check:<div class="item-url">${escapeHtml(displayUrl(cs.finalUrl || ''))}</div></div>`;
   if (cs.kind === 'redirect' && cs.finalUrl && cs.finalUrl !== l.href) return `<div class="hint">Redirects. Link straight to the final URL:<div class="item-url">${escapeHtml(displayUrl(cs.finalUrl))}</div></div>`;
   if (cs.kind === 'ok' && cs.language && cs.finalUrl) return `<div class="hint">Looks like it opens the reader's language version. Keep this link: it works for every language.<div class="item-url">${escapeHtml(displayUrl(cs.finalUrl))}</div></div>`;
+  if (cs.kind === 'broken' && cs.oneWordHost) return '<div class="hint">Not requested: an address without a dot only works on the reader\'s own network.</div>';
   if (cs.kind === 'broken') return `<div class="hint">${cs.status ? `HTTP ${cs.status}` : 'No answer'}. Fix or remove this link.</div>`;
   if (cs.kind === 'blocked') return `<div class="hint">The site refused an automated check (HTTP ${cs.status}). Open it to be sure.</div>`;
   if (cs.kind === 'timeout') return `<div class="hint">${cs.hostTimedOut ? 'Not requested: this website already gave no answer on another link.' : 'No answer within 8 seconds, twice.'} Try again later.</div>`;
@@ -1870,15 +1875,22 @@ async function runLinkCheck() {
 function applyLinkCheckResults(results, ageMs) {
   const map = new Map(results.map((r) => [r.url, r]));
   onpageData.links.details.forEach((l) => { const r = map.get(l.href); if (r) l.checkedStatus = r; });
-  const count = (k) => results.filter((r) => r.kind === k).length;
+  // A link to a one-word address (http://intranet/) is reported broken without a request: it isn't "checked".
+  const checked = results.filter((r) => !r.oneWordHost);
+  const notRequested = results.length - checked.length;
+  const count = (k) => checked.filter((r) => r.kind === k).length;
   const parts = [['ok', 'works', 'work'], ['redirect', 'redirects', 'redirect'], ['broken', 'broken', 'broken'], ['blocked', 'refused the check', 'refused the check'], ['timeout', 'timed out', 'timed out']]
     .filter(([k]) => count(k)).map(([k, one, many]) => plural(count(k), one, many));
-  rerender($('link-check-status'), `<p>${plural(results.length, 'link')} checked: ${escapeHtml(parts.join(', '))}${ageMs ? ` <span class="muted">(saved ${escapeHtml(formatAge(ageMs))})</span>` : ''}</p>`);
+  const summary = [
+    checked.length || !notRequested ? `${plural(checked.length, 'link')} checked${parts.length ? `: ${parts.join(', ')}` : ''}` : '',
+    notRequested ? `${plural(notRequested, 'link')} not requested (address without a dot)` : ''
+  ].filter(Boolean).join('. ');
+  rerender($('link-check-status'), `<p>${escapeHtml(summary)}${ageMs ? ` <span class="muted">(saved ${escapeHtml(formatAge(ageMs))})</span>` : ''}</p>`);
   $('check-broken').textContent = 'Check again';
   renderCheckFilters();
   renderLinkList();
   renderFindings();
-  announce(`${plural(results.length, 'link')} checked`);
+  announce(`${plural(checked.length, 'link')} checked`);
 }
 
 const FILTER_GROUP_NAME = { kind: 'Filter links by type', ctx: 'Filter links by place on the page', checkStatus: 'Filter links by check result' };
@@ -2037,19 +2049,13 @@ function renderImagesCard() {
 }
 
 /**
- * May the popup load this page-chosen image (a thumbnail, the og:image or twitter:image preview)? An <img>
- * may carry the browser's cookies, so a page could make Needle send a GET to a router or NAS on the
- * user's network. An address written as local loads only when the audited page is local too.
- * Not covered, an accepted risk: an <img> follows redirects and only the address as written is checked,
- * so a public image address that redirects to the local network still leads the request there, with
- * whatever cookies the browser sends for it. Loading previews with fetch() and no credentials would drop
- * the cookies (not the request), and needs the site access Needle asks for only when a check needs it.
+ * May the popup load this page-chosen image (a thumbnail, the og:image or twitter:image preview)? The
+ * same rule as the downloaded report (mayLoadPageImage in lib/export.js): an address written as local
+ * loads only when the audited page is local too.
  */
 function canPreview(src) {
-  return isSafeHttpUrl(src) && (isLocalUrl(pageUrl) || !isLocalUrl(src));
+  return mayLoadPageImage(src, pageUrl);
 }
-const LOCAL_NOT_LOADED = 'Local-network address, not loaded';
-const LOCAL_NO_THUMB = 'no preview: local-network address';
 
 /** A social preview's image, or a box that says why there is none. */
 function socialImage(src, none) {
@@ -2594,7 +2600,10 @@ function renderTechnical(d, age) {
     <div class="card">
       <h2>robots.txt</h2>
       ${row('File', robots.ok ? tag('found', 'good') : robots.status >= 400 && robots.status < 500 ? '<span class="muted">none (everything allowed)</span>' : tag(robots.status ? `HTTP ${robots.status}` : 'not reachable', 'warn'))}
-      ${robots.pathAllowed ? row('This URL for Googlebot', robots.pathAllowed.allowed ? tag('allowed', 'good') : `${tag('blocked', 'bad')} <span class="mono">${escapeHtml(robots.pathAllowed.rule || '')}</span>`) : ''}
+      ${robots.pathAllowed ? row('This URL for Googlebot', robots.pathAllowed.allowed === null
+        // The rules were too many to check in time: no verdict either way.
+        ? `${tag('not checked', 'neutral')} <span class="muted">${escapeHtml(ROBOTS_NOT_CHECKED_NOTE)}</span>`
+        : robots.pathAllowed.allowed ? tag('allowed', 'good') : `${tag('blocked', 'bad')} <span class="mono">${escapeHtml(robots.pathAllowed.rule || '')}</span>`) : ''}
       ${row('Sitemaps listed', robots.sitemaps?.length ? fmtNum(robots.sitemaps.length) : '<span class="muted">none</span>')}
       ${robots.sitemaps?.length ? `<ul class="plain-list mono">${robots.sitemaps.slice(0, 10).map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : ''}
       ${robots.ok ? `<details class="sub"><summary>Show robots.txt</summary><pre class="code" tabindex="0" role="region" aria-label="robots.txt">${escapeHtml((robots.text || '').slice(0, 20000))}</pre></details>` : ''}
@@ -2739,6 +2748,8 @@ const HISTORY_TITLE_MAX = 200;
  */
 const HISTORY_URL_MAX = 2048;
 const historyKeeps = (url) => String(url ?? '').length <= HISTORY_URL_MAX;
+/** History shows this many characters of an address; its buttons keep the whole address. */
+const HISTORY_SHOWN_MAX = 200;
 
 /** The first max characters of a text, counted by code point (an emoji is never cut in half). */
 function clipText(s, max) {
@@ -2751,6 +2762,16 @@ function clipText(s, max) {
   return out;
 }
 
+/**
+ * The address as the history shows it: readable (displayUrl), cut to HISTORY_SHOWN_MAX characters with
+ * "…" when longer. Each entry stores this copy; the url itself stays whole, so its links keep working.
+ */
+function historyShown(url) {
+  const full = displayUrl(url);
+  const cut = clipText(full, HISTORY_SHOWN_MAX);
+  return cut.length < full.length ? `${cut}…` : cut;
+}
+
 async function saveToHistory(url, title, verdict = 'neutral', healthScore = null) {
   await withStoreLock('history', async () => {
     const { history = [] } = await chrome.storage.local.get('history');
@@ -2760,7 +2781,7 @@ async function saveToHistory(url, title, verdict = 'neutral', healthScore = null
       ? (previous.healthScore !== healthScore ? previous.healthScore : previous.previousScore ?? null)
       : null;
     const rest = history.filter((h) => h.url !== url && historyKeeps(h.url));
-    if (historyKeeps(url)) rest.unshift({ url, title, verdict, healthScore, previousScore, ts: Date.now() });
+    if (historyKeeps(url)) rest.unshift({ url, shown: historyShown(url), title, verdict, healthScore, previousScore, ts: Date.now() });
     // Every entry: one saved before the limits would otherwise hold its megabytes for 49 more audits.
     await chrome.storage.local.set({ history: rest.slice(0, 50).map((h) => ({ ...h, title: clipText(h.title, HISTORY_TITLE_MAX) })) });
   });
@@ -2789,7 +2810,7 @@ async function toggleHistory() {
         return `<li class="item history-item">
           <div class="item-body">
             <div class="item-title">${escapeHtml(h.title || 'Untitled page')}</div>
-            <div class="item-url">${escapeHtml(displayUrl(h.url))}</div>
+            <div class="item-url">${escapeHtml(h.shown ?? historyShown(h.url))}</div>
             <div class="item-meta muted">${escapeHtml(timeAgo(h.ts))}${h.healthScore != null ? ` · score ${h.healthScore}${delta ? ` (${delta > 0 ? '+' : ''}${delta})` : ''}` : ''}${verdictWord ? ` · ${verdictWord}` : ''}</div>
           </div>
           <div class="history-actions">
