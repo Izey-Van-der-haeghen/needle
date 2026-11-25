@@ -881,11 +881,26 @@
       if (parsed["@graph"] !== undefined) return flattenJsonLd([].concat(parsed["@graph"]), parsed["@context"] ?? context);
       return [context && !parsed["@context"] ? { "@context": context, ...parsed } : parsed];
     };
+    // A block nested deeper than this is reported as unreadable instead of passed on. Thousands of
+    // levels overflowed the popup's recursive readers, and its pretty-printed JSON grows with the
+    // square of the depth. Real markup stays far below it. Measured with a stack, not recursion.
+    const JSONLD_MAX_DEPTH = 64;
+    const nestedTooDeep = (value) => {
+      const stack = value && typeof value === "object" ? [[value, 1]] : [];
+      while (stack.length) {
+        const [node, depth] = stack.pop();
+        if (depth > JSONLD_MAX_DEPTH) return true;
+        for (const v of Object.values(node)) if (v && typeof v === "object") stack.push([v, depth + 1]);
+      }
+      return false;
+    };
     const schema = $$('script[type="application/ld+json"]').map(s => {
       const text = (s.textContent || "").trim();
       if (!text) return []; // an empty block holds no structured data
       try {
-        return flattenJsonLd(JSON.parse(text)).map(item => ({
+        const parsed = JSON.parse(text);
+        if (nestedTooDeep(parsed)) throw new Error(`Nested more than ${JSONLD_MAX_DEPTH} levels deep`);
+        return flattenJsonLd(parsed).map(item => ({
           type: item["@type"] ? (Array.isArray(item["@type"]) ? item["@type"].join(", ") : item["@type"]) : "Unknown",
           raw: item
         }));
@@ -1042,7 +1057,9 @@
     const hasArticleTag = document.querySelectorAll("article").length > 0;
     const faqQuestionCount = Array.from(document.querySelectorAll("h2, h3, h4")).filter(h => /[?？؟]$/.test(cleanText(h))).length;
 
-    const hasPricing = /(?:€|\$|£)\s*\d|\d[\d.,]*\s*(?:€|\$|£)|\d[.,]\d{2}\s*(?:eur|usd|gbp)\b/i.test(bodyText);
+    // A number before the sign is tried from the start of its run of digits, dots and commas only:
+    // from every digit, a long run of digits (a page of pi) took seconds. Same answers as before.
+    const hasPricing = /(?:€|\$|£)\s*\d|(?<![\d.,])[.,]*\d[\d.,]*\s*(?:€|\$|£)|\d[.,]\d{2}\s*(?:eur|usd|gbp)\b/i.test(bodyText);
 
     // Page-content detection in several languages (data, not UI text).
     const cartKeywords = /\b(add to cart|add to basket|in cart|in winkelwagen|toevoegen aan|ajouter au panier|in den warenkorb|comprar|aggiungi|voeg toe)\b/i;
@@ -1192,14 +1209,52 @@
   // Rendered snapshot, compared with the raw HTML in the Technical tab
   // ---------------------------------------------------------------------------
 
-  // Keep the word count in sync with extractWordCount in lib/technical.js.
+  // Keep the word count in sync with extractWordCount in lib/technical.js (and its helpers
+  // withoutHidden and withoutElements). Linear in the length of the HTML: outerHTML has no size
+  // limit, and the text of <xmp> or <iframe> can hold thousands of unclosed "<!--" or "<script".
   function htmlWordCount(html) {
-    const bodyMatch = html.match(/<body[\s\S]*$/i);
+    // Comments and these elements, left to right; one that isn't closed runs to the end.
+    function withoutHidden(s) {
+      const open = /<!--|<(script|style|template|noscript|svg)(?=[\s/>])/gi;
+      let out = "";
+      let from = 0;
+      for (let m; (m = open.exec(s));) {
+        out += s.slice(from, m.index) + " ";
+        let end = s.length;
+        if (m[1]) {
+          const close = new RegExp("</" + m[1] + ">", "gi");
+          close.lastIndex = open.lastIndex;
+          if (close.exec(s)) end = close.lastIndex;
+        } else {
+          const close = s.indexOf("-->", open.lastIndex);
+          if (close >= 0) end = close + 3;
+        }
+        from = open.lastIndex = end;
+        if (end === s.length) break;
+      }
+      return out + s.slice(from);
+    }
+    // As s.replace(/<name[\s>][\s\S]*?<\/name\s*>/gi, " "): when one has no end tag after it, no later one has.
+    function withoutElements(s, name, once) {
+      const open = new RegExp("<" + name + "[\\s>]", "gi");
+      const close = new RegExp("</" + name + "\\s*>", "gi");
+      let out = "";
+      let from = 0;
+      for (let m; (m = open.exec(s));) {
+        close.lastIndex = open.lastIndex;
+        if (!close.exec(s)) break;
+        out += s.slice(from, m.index) + " ";
+        from = open.lastIndex = close.lastIndex;
+        if (once) break;
+      }
+      return out + s.slice(from);
+    }
+    const body = html.search(/<body/i);
     // The <body> tag is optional: without it, leave out the <head> part (the title isn't page text).
-    const stripped = (bodyMatch ? bodyMatch[0] : html.replace(/<head[\s>][\s\S]*?<\/head\s*>/i, " ").replace(/<title[\s>][\s\S]*?<\/title\s*>/gi, " "))
-      .replace(/<!--[\s\S]*?-->/g, " ")
-      .replace(/<(script|style|template|noscript|svg)\b[\s\S]*?<\/\1>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
+    const text = withoutHidden(body >= 0 ? html.slice(body) : withoutElements(withoutElements(html, "head", true), "title"));
+    // After the last ">" no tag can end, so that part is left as it is.
+    const last = text.lastIndexOf(">");
+    const stripped = (text.slice(0, last + 1).replace(/<[^>]+>/g, " ") + text.slice(last + 1))
       .replace(/&nbsp;|&#160;/gi, " ")
       .replace(/\s+/g, " ")
       .trim();
