@@ -17,7 +17,8 @@ export async function launchChrome(chromePath = DEFAULT_CHROME) {
   ], { stdio: ['ignore', 'ignore', 'pipe'] });
   const close = async () => {
     if (proc.exitCode === null && proc.signalCode === null) await new Promise((r) => { proc.once('exit', r); proc.kill(); });
-    fs.rmSync(profile, { recursive: true, force: true });
+    // Chrome can still be writing to its profile for a moment after it exits: retry (ENOTEMPTY, 25 November 2026).
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   };
 
   try {
