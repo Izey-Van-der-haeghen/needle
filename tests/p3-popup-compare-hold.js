@@ -9,7 +9,7 @@ import { parseCompetitorHtml } from "../lib/parse-competitor.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const FX = JSON.parse(readFileSync(path.join(ROOT, "dev/preview/fixtures/riverside.json"), "utf8"));
-export const RIVAL = "https://rival.example/repairs";
+const RIVAL = "https://rival.example/repairs";
 const TAB_READ_BYTES = 5 * 1024 * 1024;
 
 // The page fetches its own address through chrome.scripting (the server check and Compare's "You").

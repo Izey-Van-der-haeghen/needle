@@ -95,3 +95,11 @@ describe("explanations show addresses as people read them (steps 3-7, P2-8)", ()
     expect(f.find((x) => x.id === "canonical-js")?.why).toContain("The server HTML names https://e.be/fr/région;");
   });
 });
+
+describe("after the P3 round", () => {
+  it("calls weak trust signals what they are: 'missing or weak', since 1 or 2 citations count as too few", () => {
+    const eeat = [{ ok: false }, { ok: false }, { ok: false, failText: "too few" }];
+    const f = collectFindings({ onpage: { url: "https://e.be/", title: "T", description: "D", headings: [], links: { details: [] }, images: [], hreflang: [], schema: [] }, geo: { eeat }, imageRules: {} });
+    expect(f.find((x) => x.id === "eeat")?.title).toBe("3 trust signals missing or weak");
+  });
+});

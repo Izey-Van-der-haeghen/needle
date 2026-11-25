@@ -6,7 +6,8 @@ import { analyzeAIAccess, analyzeEEAT, analyzeCitability, aiReadinessScore, fetc
 import { buildHtmlReport } from './lib/export.js';
 import { buildCompareCsv, buildCompareMd, compareExportFilename } from './lib/compare-export.js';
 import { classifyIntent } from './lib/intent.js';
-import { plural, escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate, inlineImageLabel, displayUrl, pathSlug } from './lib/popup-helpers.js';
+import { readableHost } from './lib/idn.js';
+import { plural, pageText, exampleHtml, escapeHtml, tag, row, pixelWidth, pixelTag, charTag, fmtKB, cachedBanner, cwvTag, timeAgo, fmtNum, SNIPPET, sheetCell, tsv, hasUncleanFilename, popupSizeForZoom, isHtmlDocument, notHtmlNotice, localDate, inlineImageLabel, displayUrl, pathSlug } from './lib/popup-helpers.js';
 import { computeHealthScore, computeIndexability, detectMarketFromUrl, snippetDirectives, limitsSnippets, robotsBlocksIndexing, copilotLimit } from './lib/popup-compute.js';
 import { sendWithRetry, safeSendTabMessage } from './lib/popup-messaging.js';
 import { readableError } from './lib/errors.js';
@@ -55,21 +56,8 @@ const ICON = {
 };
 
 const DFS_LOOKUP_COST = DFS_COST.rankedKeywords + DFS_COST.domainOverview;
-/** "1 link", "1,280 links". */
 /** Dollar amount with at most 3 decimals and no trailing zeros, e.g. $0.025. */
 const usd = (n) => `$${Number(n).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}`;
-/** The page's own text, escaped, in <bdi>: right-to-left text keeps its punctuation next to Needle's words. */
-const pageText = (text) => (text ? `<bdi>${escapeHtml(text)}</bdi>` : '');
-/**
- * One example of a finding. For a heading ("H4 Text"), the heading's text is page text: it goes in <bdi>.
- * The same rule as the report's exampleHtml in lib/export.js.
- */
-function exampleHtml(example, target) {
-  const e = String(example);
-  const text = target?.kind === 'heading' ? String(target.text ?? '') : '';
-  if (!text || !e.endsWith(text)) return escapeHtml(e);
-  return `${escapeHtml(e.slice(0, e.length - text.length))}${pageText(text)}`;
-}
 
 // ---------------------------------------------------------------------------
 // State
@@ -2183,7 +2171,8 @@ function renderOnpage(d, age) {
   }
   const ogSize = ogImage ? ogSizeVerdict(ogW, ogH) : null;
   const twitterImage = isSafeHttpUrl(d.twitter?.image) ? d.twitter.image : ogImage;
-  let crumbs = host;
+  // The host as Google shows it: a readable internationalised domain, punycode where it could mislead.
+  let crumbs = readableHost(host);
   try {
     const parts = new URL(d.url).pathname.split('/').filter(Boolean).slice(0, 2).map(displayUrl);
     if (parts.length) crumbs += ' › ' + parts.join(' › ');

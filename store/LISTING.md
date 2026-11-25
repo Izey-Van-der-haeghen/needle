@@ -71,14 +71,14 @@ Needle has no server, no analytics and no ads. It installs with no access to web
 
 Free and open source (MIT). No account needed for the on-page, technical and AI checks. Source code: github.com/Izey-Van-der-haeghen/needle
 
-WHAT'S NEW IN 1.0.2
-• Rules checked against Google's own documentation: fewer false alarms in structured data, robots.txt, sitemaps, hreflang, images and headings
-• Pages in Japanese, Chinese and Thai are no longer called thin, and words with accents or soft hyphens stay whole
-• AI tab: Claude-User, Applebot and DuckAssistBot are checked, and Bing's noarchive is flagged for Copilot
-• A page set to noindex gets a shorter list, and shows what it left out
-• A link that opens the reader's language version counts as working
-• Clearer messages when a page can't be read, for example without internet
-• Labels that are only information now have an outline, so they don't look like something to fix
+WHAT'S NEW IN 1.0.3
+• Screen readers hear every result in the words on the screen, and each button has its own name
+• Long words, long addresses and right-to-left text no longer push the side panel or the report sideways, also at 200% zoom
+• Addresses show their letters (Région, bücher.example); characters that could disguise an address stay encoded
+• The http/https/www check says when versions didn't answer, instead of calling them different
+• Compare offers "Allow DataForSEO" or "Open Settings" when Google positions need them, and keeps its result after reopening
+• One main button per tab, and Settings turns Save coral only while something is unsaved
+• robots.txt: "Allow: /dir/index.html" also allows /dir/, as Google's own parser does
 Every change, version by version: github.com/Izey-Van-der-haeghen/needle/blob/main/CHANGELOG.md
 
 > Replace this section with each new version (the store has no separate field for release notes). The lines are the same as `WHATS_NEW` in `lib/whats-new.js`, which the extension shows after an update.
