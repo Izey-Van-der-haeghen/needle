@@ -123,3 +123,34 @@ describe("isAllowedByRobots: groups as Google's parser forms them", () => {
     expect(at("User-agent: *\nDisallow: /\n")).toBe(false);
   });
 });
+
+// Google's parser reads "Allow: /dir/index.html" as allowing "/dir/" too (robots.cc, HandleAllow).
+// Its own test calls this Google-specific, so Needle applies it for Googlebot only.
+describe("isAllowedByRobots: index.html allows its directory, for Googlebot", () => {
+  // Google's test GoogleOnly_IndexHTMLisDirectory (robots_test.cc), with its four URLs.
+  const google = "User-Agent: *\nAllow: /allowed-slash/index.html\nDisallow: /\n";
+  it("passes Google's four cases", () => {
+    expect(isAllowedByRobots(google, "/allowed-slash/", "Googlebot").allowed).toBe(true);
+    expect(isAllowedByRobots(google, "/allowed-slash/index.htm", "Googlebot").allowed).toBe(false);
+    expect(isAllowedByRobots(google, "/allowed-slash/index.html", "Googlebot").allowed).toBe(true);
+    expect(isAllowedByRobots(google, "/anyother-url", "Googlebot").allowed).toBe(false);
+  });
+
+  const blog = "User-agent: *\nDisallow: /blog/\nAllow: /blog/index.html\n";
+  it("lets the longer directory rule win, and names the rule as written", () => {
+    expect(isAllowedByRobots(blog, "/blog/", "Googlebot")).toEqual({ allowed: true, rule: "Allow: /blog/index.html" });
+    expect(isAllowedByRobots(blog, "/blog/post", "Googlebot")).toEqual({ allowed: false, rule: "Disallow: /blog/" });
+  });
+
+  it("applies to a bot that follows Googlebot's rules", () => {
+    expect(isAllowedByRobots(blog, "/blog/", "Applebot", "googlebot").allowed).toBe(true);
+  });
+
+  it("leaves other bots as they were", () => {
+    for (const ua of ["GPTBot", "ClaudeBot", "Bingbot", "*"]) {
+      expect(isAllowedByRobots(google, "/allowed-slash/", ua)).toEqual({ allowed: false, rule: "Disallow: /" });
+      expect(isAllowedByRobots(google, "/allowed-slash/index.html", ua).allowed).toBe(true);
+      expect(isAllowedByRobots(blog, "/blog/", ua)).toEqual({ allowed: false, rule: "Disallow: /blog/" });
+    }
+  });
+});
