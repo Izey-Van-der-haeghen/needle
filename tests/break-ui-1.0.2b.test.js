@@ -23,7 +23,7 @@ describe("Break UI round", () => {
   it("an inline image is named by its type and size, not its base64", () => {
     const src = "data:image/png;base64," + "A".repeat(4096);
     expect(inlineImageLabel(src)).toBe("Inline image (PNG, 3.0 KB)");
-    expect(inlineImageLabel("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")).toBe("Inline image (SVG, 0.0 KB)");
+    expect(inlineImageLabel("data:image/svg+xml,%3Csvg%3E%3C/svg%3E")).toBe("Inline image (SVG, 19 bytes)"); // under 1 KB: bytes (P3-20)
   });
 
   it("a result saved a moment ago says 'just now'", () => {
