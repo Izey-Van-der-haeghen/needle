@@ -114,7 +114,8 @@ describe("the report's HTML", () => {
 describe("the report's JSON-LD blocks", () => {
   it("are named regions keyboard users can reach, since they scroll", () => {
     const html = buildHtmlReport({ url: "https://e.be/", onpage: { url: "https://e.be/", title: "T", headings: [], links: {}, images: [], hreflang: [], og: {}, twitter: {}, schema: [{ type: "Organization", raw: {} }, { type: "WebSite", raw: {} }] }, technical: null, geo: null, health: null, verdict: null, theme: "light", version: "0", offpage: null });
-    const pres = [...new JSDOM(html).window.document.querySelectorAll("#schema pre")];
-    expect(pres.map((p) => [p.getAttribute("tabindex"), p.getAttribute("role"), p.getAttribute("aria-label")])).toEqual([["0", "region", "JSON-LD #1: Organization"], ["0", "region", "JSON-LD #2: WebSite"]]);
+    const blocks = [...new JSDOM(html).window.document.querySelectorAll("#schema section.code-block")];
+    expect(blocks.map((b) => [b.getAttribute("tabindex"), b.getAttribute("aria-label"), !!b.querySelector("pre")])).toEqual([["0", "JSON-LD #1: Organization", true], ["0", "JSON-LD #2: WebSite", true]]);
+    expect(html).toMatch(/\.code-block\s*\{[^}]*overflow:\s*auto/);
   });
 });
