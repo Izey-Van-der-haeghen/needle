@@ -81,3 +81,17 @@ describe("the report in the popup's words", () => {
     expect(text).toContain("1,400.0 KB");
   });
 });
+
+describe("explanations show addresses as people read them (steps 3-7, P2-8)", () => {
+  const op = { url: "https://e.be/fr/accueil", canonical: "https://e.be/fr/accueil", robots: "", title: "T", description: "D", headings: [], links: { details: [] }, images: [], hreflang: [], schema: [] };
+  const tech = { status: 200, redirected: true, finalUrl: "https://e.be/fr/r%C3%A9gion", headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true } } };
+  it("in the redirect verdict and its finding", () => {
+    expect(computeIndexability(op, tech).issues.map((i) => i.msg).join(" ")).toContain("redirects to https://e.be/fr/région");
+    expect(collectFindings({ onpage: op, tech, imageRules: {} }).find((f) => f.id === "redirect")?.why).toBe("It ends on https://e.be/fr/région; Google indexes that one.");
+  });
+  it("in the served-against-rendered canonical finding", () => {
+    const raw = { canonical: "https://e.be/fr/r%C3%A9gion" };
+    const f = collectFindings({ onpage: op, tech: { status: 200, headers: {}, robotsTxt: { ok: true, pathAllowed: { allowed: true } }, raw }, imageRules: {} });
+    expect(f.find((x) => x.id === "canonical-js")?.why).toContain("The server HTML names https://e.be/fr/région;");
+  });
+});
