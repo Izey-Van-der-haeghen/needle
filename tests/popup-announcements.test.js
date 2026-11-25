@@ -30,13 +30,23 @@ const click = (id) => document.getElementById(id).click();
 // One popup for the whole file (popup.js runs once); each test may answer the worker's messages.
 const runtime = {};
 let chrome;
+let analysed = "";
 beforeAll(async () => {
   ({ chrome } = await loadPopup({
     runtime,
     scripting: async ({ func, args, files }) => [{ result: files ? undefined : func?.name === "pageFetchAll" ? pageFetchAll(args?.[0]) : undefined }]
   }));
-  // The audit's own announcement comes 30 ms after the page shows: let it pass before a test listens.
-  await vi.waitFor(() => expect(said()).toBe("Page analysed"));
+  // The audit's own announcement comes once the server check is in: let it pass before a test listens.
+  await vi.waitFor(() => expect(said()).toMatch(/^Page analysed/));
+  analysed = said();
+});
+
+it("says the verdict and the score once the server check is in, as the screen shows them", () => {
+  const verdict = document.querySelector("#verdict-slot .verdict-title").textContent;
+  const score = document.querySelector("#verdict-slot .health").textContent.match(/^Score (\d+)\/100$/)?.[1];
+  expect(verdict).not.toBe("Checking the server…");
+  expect(score).toMatch(/^\d+$/);
+  expect(analysed).toBe(`Page analysed: ${verdict}, score ${score}`);
 });
 
 it("announces each result's headline, as the screen shows it", async () => {

@@ -590,6 +590,8 @@ function followTabs() {
 }
 
 function panelAccessNotice() {
+  // Said as permissionNotice says its title: a screen-reader user hears why the switch shows no audit.
+  announce('Click the Needle button to audit this tab');
   return `<div class="notice"><strong>Click the Needle button to audit this tab</strong>
     <div>The side panel can read a tab after you click Needle's toolbar button on it, or after you allow access to websites.</div>
     <div class="actions"><button type="button" class="primary-btn" data-grant="all-sites" data-retry="panel-retry">Allow access to websites</button></div></div>`;
@@ -609,7 +611,7 @@ function showWhatsNewIfNeeded() {
   // it filled the popup). Older versions are in the changelog.
   const newest = w.sections[0];
   banner.innerHTML = `
-    <strong>Needle was updated to ${escapeHtml(w.version)}</strong>
+    <h2>Needle was updated to ${escapeHtml(w.version)}</h2>
     ${newest ? `<details class="sub"><summary>What's new</summary>
       <ul class="plain-list">${newest.items.map((i) => `<li>${escapeHtml(i)}</li>`).join('')}</ul>
       ${w.sections.length > 1 ? `<p class="muted">More changed since ${escapeHtml(w.from)}: see the full changelog.</p>` : ''}
@@ -637,8 +639,8 @@ async function showOnboardingIfNeeded() {
   const banner = document.createElement('div');
   banner.className = 'notice onboarding';
   banner.innerHTML = `
-    <strong>Welcome to Needle</strong>
-    <details class="sub"><summary>What Needle reads, and when</summary><div>Needle reads a page only when you open it there, or, while it is open in the side panel with access to websites on, each tab you switch to and each page you open in it. Nothing leaves your browser unless you start a check that says it does, like the speed test or a keyword lookup.</div></details>
+    <h2>Welcome to Needle</h2>
+    <details class="sub"><summary>What Needle reads, and when</summary><div>Needle reads the page you open it on. In the side panel, with access to websites on, it also reads each tab you switch to and each page you open in it. Nothing leaves your browser unless you start a check that says so, like the speed test or a keyword lookup.</div></details>
     <div class="actions">
       <button type="button" class="primary-btn" data-onb-dismiss>Got it</button>
       <button type="button" class="link-btn" data-action="open-options">Settings and API keys</button>
@@ -793,7 +795,6 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
       if (main) main.scrollTop = keep.main;
       window.scrollTo(0, keep.win);
     }
-    announce('Page analysed');
   }
 
   const tech = await techPromise;
@@ -802,8 +803,9 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
   if (tech.error) {
     technicalData = null;
     // When the page itself can't be read, the On-page tab already says why (one alert, not two).
+    // With the page read, "Page analysed" below says the failure in its one sentence.
     rerender(technicalPanel, onpageData
-      ? errorBox('The server check failed', tech.error, `<button type="button" class="primary-btn" data-refresh="onpage">Try again</button>`)
+      ? errorBox('The server check failed', tech.error, `<button type="button" class="primary-btn" data-refresh="onpage">Try again</button>`, { announce: false })
       : '<p class="muted">The server check needs the page too; see the On-page tab.</p>');
   } else {
     technicalData = tech.data;
@@ -820,6 +822,8 @@ async function loadOnpageAndTechnical(forceRefresh = false) {
     loadGEO(gen).finally(() => { if (gen === auditGen) $('export-audit-header').hidden = false; });
     const verdict = computeIndexability(onpageData, technicalData);
     const health = computeHealthScore(onpageData, technicalData, snippetPx());
+    // One sentence once the server check is in: the verdict and the score, as the screen shows them.
+    announce(`Page analysed: ${verdict.verdict}, score ${health.score}${tech.error ? '. The server check failed' : ''}`);
     // Without a server answer the score is incomplete and the headers are unknown: that is no change
     // to record ("X-Robots-Tag: noindex → (empty)"), and no score for the history.
     const serverAnswered = !!technicalData?.status;
@@ -834,13 +838,26 @@ const snippetPx = () => ({
   descPx: pixelWidth(onpageData?.description || '', SNIPPET.descFont)
 });
 
+// The Show/Hide on page toggles say their state in their label only. With aria-pressed as well, a
+// screen reader said "Hide on page, toggle button, pressed": the same state twice.
+const shownOnPage = (btn) => btn?.textContent === 'Hide on page';
+function setPageToggle(btn, on, offLabel = 'Show on page') {
+  if (!btn) return;
+  btn.removeAttribute('aria-pressed');
+  btn.textContent = on ? 'Hide on page' : offLabel;
+}
+/** A Show/Hide on page toggle. Its name is the label, then what it marks: "Show on page (links)".
+ *  The "(links)" part is a hidden span named by aria-labelledby, so the name follows the label
+ *  wherever the label is set. */
+const pageToggle = (id, what, on = false, offLabel = 'Show on page') =>
+  `<button type="button" class="secondary-btn" id="${id}" aria-labelledby="${id} ${id}-what">${on ? 'Hide on page' : offLabel}</button><span id="${id}-what" hidden>(${what})</span>`;
+
 let showAllFindings = false;
 // Whether "Show all on page" marks are on the page. Kept here, not read from the button: Fix this
 // first can redraw while the page answers, and the new button must still say "Hide on page".
 let issuesShown = false;
 function setIssuesButton() {
-  const b = $('toggle-issues');
-  if (b) { b.setAttribute('aria-pressed', String(issuesShown)); b.textContent = issuesShown ? 'Hide on page' : 'Show all on page'; }
+  setPageToggle($('toggle-issues'), issuesShown, 'Show all on page');
 }
 
 /** "Fix this first": every problem from every check, most important first. */
@@ -872,7 +889,7 @@ function renderFindings() {
       ${f.length ? `<ol class="finding-list">${shown.map((x, i) => {
         const targets = x.targets || [];
         const locate = targets.length === 1
-          ? `<button type="button" class="locate" id="loc-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-highlight="${escapeHtml(JSON.stringify(targets[0]))}" aria-label="Show on the page">${ICON.locate}</button>`
+          ? `<button type="button" class="locate" id="loc-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-highlight="${escapeHtml(JSON.stringify(targets[0]))}" aria-label="Show on the page" title="Show on the page">${ICON.locate}</button>`
           : targets.length > 1 ? `<button type="button" class="link-btn" id="show-${escapeHtml(x.id)}" aria-describedby="ft-${escapeHtml(x.id)}" data-finding-show="${i}">Show ${targets.length} on page</button>` : '';
         return `<li class="finding">
           <div class="finding-head">${tag(SEVERITY_LABEL[x.severity], SEV_KIND[x.severity])} <span class="finding-title" id="ft-${escapeHtml(x.id)}">${escapeHtml(x.title)}</span> ${locate}</div>
@@ -885,7 +902,7 @@ function renderFindings() {
       ${f.length > 8 ? `<button type="button" class="link-btn" id="findings-more">${showAllFindings ? 'Show the top 8' : `Show all ${f.length}`}</button>` : ''}`
       : '<p class="muted">The automated checks found nothing to fix. Still read the page as a visitor would.</p>'}
       <div class="actions">
-        ${f.some((x) => x.targets?.length) ? `<button type="button" class="secondary-btn" id="toggle-issues" aria-pressed="${issuesShown}">${issuesShown ? 'Hide on page' : 'Show all on page'}</button>` : ''}
+        ${f.some((x) => x.targets?.length) ? pageToggle('toggle-issues', 'findings', issuesShown, 'Show all on page') : ''}
         <button type="button" class="secondary-btn copy-btn" id="copy-dev" data-copy-fn="issuesMarkdown">Copy for a developer</button>
         <button type="button" class="secondary-btn copy-btn" id="copy-ai" data-copy-fn="aiPrompt">Copy for AI</button>
       </div>
@@ -936,12 +953,22 @@ async function showChanges(score, gen = auditGen) {
   </details>`);
 }
 
+// The best answer the server check can give: a 200 for this address, with a canonical to itself.
+// Its real answer can't make a score check better than that.
+const bestServerAnswer = (url) => ({ status: 200, finalUrl: url, headers: { link: `<${url}>; rel="canonical"` } });
+
 function renderVerdict() {
   const slot = $('verdict-slot');
   if (!slot || !onpageData) return;
   const verdict = computeIndexability(onpageData, techPending ? { pending: true } : technicalData);
   const health = computeHealthScore(onpageData, technicalData, snippetPx());
-  const failing = health.checks.filter((c) => c.score < 1);
+  // While the server check runs, each check is also scored with the best answer. A check that fails
+  // even then is missing already (no viewport fails Technical basics). One that passes then, but not
+  // without an answer, waits for the server check.
+  const best = techPending ? computeHealthScore(onpageData, bestServerAnswer(onpageData.url), snippetPx()) : health;
+  const bestScore = new Map(best.checks.map((c) => [c.label, c.score]));
+  const waiting = health.checks.filter((c) => c.score < 1 && bestScore.get(c.label) === 1).map((c) => c.label);
+  const failing = best.checks.filter((c) => c.score < 1);
   const hasIssues = verdict.issues.length && verdict.issues[0].msg !== 'All checks passed';
   const sym = verdict.level === 'good' ? '✓' : verdict.level === 'warn' ? '!' : verdict.level === 'pending' ? '…' : '✗';
   const scoreOpen = !!slot.querySelector('.score-details')?.open;
@@ -949,13 +976,13 @@ function renderVerdict() {
     <div class="verdict verdict-${verdict.level}">
       <div class="verdict-head">
         <span class="verdict-sym" aria-hidden="true">${sym}</span>
-        <span class="verdict-title">${escapeHtml(verdict.verdict)}</span>
+        <h2 class="verdict-title">${escapeHtml(verdict.verdict)}</h2>
         <span class="health" title="A checklist score for this page, not a ranking prediction">${techPending ? '<span class="muted">Score <span aria-hidden="true">…</span><span class="visually-hidden">after the server check</span></span>' : `Score ${health.score}<span class="muted">/100</span>`}</span>
       </div>
       ${hasIssues ? `<ul class="verdict-reasons">${verdict.issues.map((iss) => `<li>${escapeHtml(iss.msg)}${iss.hint ? `<div class="hint">${escapeHtml(iss.hint)}</div>` : ''}</li>`).join('')}</ul>` : ''}
-      ${failing.length ? `<details class="score-details"${scoreOpen ? ' open' : ''}><summary id="score-summary">What the score is missing (${failing.length})</summary>
+      ${failing.length || waiting.length ? `<details class="score-details"${scoreOpen ? ' open' : ''}><summary id="score-summary">${failing.length ? `What the score is missing (${failing.length})` : 'What the score is waiting for'}</summary>
         <p class="muted">A checklist score for this page, not a ranking prediction.</p>
-        <ul class="plain-list">${failing.map((c) => `<li>${escapeHtml(c.label)}: ${Math.round(c.score * 100)}%</li>`).join('')}</ul>
+        <ul class="plain-list">${failing.map((c) => `<li>${escapeHtml(c.label)}: ${Math.round(c.score * 100)}%</li>`).join('')}${waiting.length ? `<li class="muted">${escapeHtml(new Intl.ListFormat('en-GB').format(waiting))}: waiting for the server check</li>` : ''}</ul>
       </details>` : ''}
     </div>`);
   renderFindings();
@@ -1782,12 +1809,15 @@ function renderLinkList() {
       const [label, kind] = CHECK_LABEL[l.checkedStatus.kind] || [l.checkedStatus.kind, 'neutral'];
       flags.push(tag(l.checkedStatus.status ? `${label} (${l.checkedStatus.status})` : label, kind));
     }
+    // Every locate button is named "Show this link on the page": its description, the link's text and
+    // address, tells them apart.
+    const row = `link-${escapeHtml(String(l.index))}`;
     return `<li class="item">
-      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'link', index: l.index, href: l.href }))}" aria-label="Show this link on the page" title="Show this link on the page">${ICON.locate}</button>
+      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'link', index: l.index, href: l.href }))}" aria-label="Show this link on the page" title="Show this link on the page" aria-describedby="${row}-text ${row}-url">${ICON.locate}</button>
       <div class="item-body">
         <div class="item-meta">${ctxMark(l.context)}<span class="muted">${escapeHtml(CONTEXT_NAME[l.context] || l.context)}</span> ${flags.join(' ')}</div>
-        <div class="item-title">${escapeHtml(l.text) || '<em class="muted">no link text</em>'}</div>
-        <div class="item-url">${escapeHtml(displayUrl(l.href))}</div>
+        <div class="item-title" id="${row}-text">${escapeHtml(l.text) || '<em class="muted">no link text</em>'}</div>
+        <div class="item-url" id="${row}-url">${escapeHtml(displayUrl(l.href))}</div>
         ${linkCheckHint(l)}
       </div>
     </li>`;
@@ -1866,9 +1896,7 @@ function linkHighlightFilter() {
 async function setLinkHighlight(on) {
   try {
     const res = await safeSendTabMessage(currentTab.id, on ? { type: 'HIGHLIGHT_LINKS', filter: linkHighlightFilter() } : { type: 'UNHIGHLIGHT_LINKS' });
-    const btn = $('toggle-links');
-    btn.setAttribute('aria-pressed', String(on));
-    btn.textContent = on ? 'Hide on page' : 'Show on page';
+    setPageToggle($('toggle-links'), on);
     $('highlight-count').textContent = on ? `${res?.matched || 0} marked on the page` : '';
   } catch (e) {
     showToast(e.message);
@@ -1973,7 +2001,7 @@ function renderImagesCard() {
   const body = card.querySelector('.card-body');
   rerender(body, imgs.length
     ? `${filterButtons('kind', opts, imageFilter.kind, 'Filter images by type')}
-      <div class="actions"><button type="button" class="secondary-btn copy-btn" data-copy-fn="imagesTsv">Copy as table</button></div>
+      <div class="actions"><button type="button" class="secondary-btn copy-btn" data-copy-fn="imagesTsv">Copy as table<span class="visually-hidden"> (images)</span></button></div>
       ${(() => {
         // The Discover check, on articles only (as in Fix this first).
         const lead = discoverCheck(imgs, onpageData);
@@ -2007,13 +2035,13 @@ function renderImageItems() {
     const dims = img.naturalWidth ? `${img.naturalWidth}×${img.naturalHeight}` : 'size unknown';
     return `<li class="item image-item">
       ${safe ? `<img class="thumb" src="${escapeHtml(img.src)}" alt="" loading="lazy">` : '<span class="thumb thumb-empty" aria-hidden="true">✗</span>'}
-      <div class="item-body">
+      <div class="item-body" id="image-${escapeHtml(String(img.domIndex))}-row">
         <div class="item-title" title="${escapeHtml(img.src)}">${escapeHtml(imageFilename(img.src))}</div>
         <div class="item-meta">${escapeHtml(dims)} · ${img.brokenLoad ? '' : /^data:/i.test(img.src) ? 'inline' : img.bytes ? escapeHtml(fmtKB(img.bytes)) : 'file size unknown'}</div>
         <div class="item-meta">${imgMissingAlt(img) ? '<em>no alt attribute</em>' : img.alt ? `alt: ${escapeHtml(img.alt)}` : '<span class="muted">empty alt (decorative)</span>'}</div>
         ${issues.length ? `<div class="item-meta">${issues.map(([t, k]) => tag(t, k)).join(' ')}</div>` : ''}
       </div>
-      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'image', index: img.domIndex, src: img.src }))}" aria-label="Show this image on the page" title="Show this image on the page">${ICON.locate}</button>
+      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'image', index: img.domIndex, src: img.src }))}" aria-label="Show this image on the page" title="Show this image on the page" aria-describedby="image-${escapeHtml(String(img.domIndex))}-row">${ICON.locate}</button>
     </li>`;
   }).join('') + more;
 }
@@ -2098,9 +2126,9 @@ function renderOnpage(d, age) {
     const from = prev;
     prev = h.level;
     return `<li class="h-row" style="--indent:${(h.level - 1) * 14}px">
-      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'heading', index: i, level: h.level, text: h.text }))}" aria-label="Show this heading on the page" title="Show this heading on the page">${ICON.locate}</button>
-      <span class="h-level">H${h.level}</span>
-      <span class="h-text">${escapeHtml(h.text) || '<em class="muted">empty heading</em>'}</span>
+      <button type="button" class="locate" data-highlight="${escapeHtml(JSON.stringify({ kind: 'heading', index: i, level: h.level, text: h.text }))}" aria-label="Show this heading on the page" title="Show this heading on the page" aria-describedby="heading-${i}-level heading-${i}-text">${ICON.locate}</button>
+      <span class="h-level" id="heading-${i}-level">H${h.level}</span>
+      <span class="h-text" id="heading-${i}-text">${escapeHtml(h.text) || '<em class="muted">empty heading</em>'}</span>
       ${skipped ? tag(`skips from H${from}`, 'warn') : ''}
     </li>`;
   }).join('');
@@ -2164,7 +2192,7 @@ function renderOnpage(d, age) {
           ${metaField('Author', author ? escapeHtml(author) : '<span class="muted">not found</span>')}
           ${metaField('Meta keywords', d.keywords ? escapeHtml(d.keywords) : '<span class="muted">not set (Google ignores this tag)</span>')}
           <div class="actions">
-            <button type="button" class="secondary-btn copy-btn" data-copy-fn="metaTsv">Copy as table</button>
+            <button type="button" class="secondary-btn copy-btn" data-copy-fn="metaTsv">Copy as table<span class="visually-hidden"> (meta tags)</span></button>
             <button type="button" class="secondary-btn copy-btn" data-copy-fn="fullJson">Copy all data (JSON)</button>
           </div>
         </details>
@@ -2177,7 +2205,7 @@ function renderOnpage(d, age) {
       <div class="card-body">
         <p class="muted">${[1, 2, 3, 4, 5, 6].map((l) => `H${l}: ${fmtNum(d.headings.filter((h) => h.level === l).length)}`).join(' · ')}</p>
         <div class="actions">
-          <button type="button" class="secondary-btn" id="toggle-headings" aria-pressed="false">Show on page</button>
+          ${pageToggle('toggle-headings', 'headings')}
           <button type="button" class="secondary-btn copy-btn" data-copy-fn="headingsMarkdown">Copy as Markdown</button>
         </div>
         <ul class="h-tree">${headingsTree || '<li class="muted">No headings on this page.</li>'}</ul>
@@ -2189,9 +2217,9 @@ function renderOnpage(d, age) {
         <span class="muted">${fmtNum(d.links.internal)} internal · ${fmtNum(d.links.external)} external</span></summary>
       <div class="card-body">
         ${d.links.total ? `<div class="actions">
-          <button type="button" class="secondary-btn" id="toggle-links" aria-pressed="false">Show on page</button>
+          ${pageToggle('toggle-links', 'links')}
           <button type="button" class="secondary-btn" id="check-broken">Check if links work</button>
-          <button type="button" class="secondary-btn copy-btn" data-copy-fn="linksTsv">Copy as table</button>
+          <button type="button" class="secondary-btn copy-btn" data-copy-fn="linksTsv">Copy as table<span class="visually-hidden"> (links)</span></button>
           <span id="highlight-count" class="muted" role="status"></span>
         </div>` : ''}
         <div id="link-check-status"></div>
@@ -2249,7 +2277,7 @@ function renderOnpage(d, age) {
         <h3>Check a keyword</h3>
         <div class="inline-form">
           <label class="field"><span>Keyword or phrase</span><input type="text" id="kw-input" placeholder="e.g. trail running shoes" autocomplete="off"></label>
-          <button type="button" class="secondary-btn" id="kw-check">Check</button>
+          <button type="button" class="secondary-btn" id="kw-check">Check<span class="visually-hidden"> keyword</span></button>
         </div>
         <div id="kw-result"></div>
       </div>
@@ -2404,13 +2432,13 @@ $('panel-onpage').addEventListener('click', async (e) => {
     } else {
       linkFilter[group] = filterBtn.dataset.filterVal;
       renderLinkList();
-      if ($('toggle-links')?.getAttribute('aria-pressed') === 'true') setLinkHighlight(true);
+      if (shownOnPage($('toggle-links'))) setLinkHighlight(true);
     }
     return;
   }
   const t = e.target.closest('button');
   if (!t) return;
-  if (t.id === 'toggle-links') setLinkHighlight(t.getAttribute('aria-pressed') !== 'true');
+  if (t.id === 'toggle-links') setLinkHighlight(!shownOnPage(t));
   else if (t.id === 'check-broken') runLinkCheck();
   else if (t.id === 'measure-images') measureImages();
   else if (t.id === 'kw-check') checkKeyword();
@@ -2431,11 +2459,10 @@ $('panel-onpage').addEventListener('click', async (e) => {
   }
   else if (t.id === 'hreflang-check') runHreflangCluster();
   else if (t.id === 'toggle-headings') {
-    const on = t.getAttribute('aria-pressed') !== 'true';
+    const on = !shownOnPage(t);
     try {
       await safeSendTabMessage(currentTab.id, { type: on ? 'HIGHLIGHT_HEADINGS' : 'UNHIGHLIGHT_HEADINGS' });
-      t.setAttribute('aria-pressed', String(on));
-      t.textContent = on ? 'Hide on page' : 'Show on page';
+      setPageToggle(t, on);
     } catch (err) { showToast(err.message); }
   } else if (t.dataset.copyFn) {
     const toast = { title: 'Title copied', description: 'Description copied', issuesMarkdown: 'Issues copied as Markdown', aiPrompt: 'Prompt copied: paste it into your AI assistant', linksTsv: 'Links copied: paste into a spreadsheet', imagesTsv: 'Images copied: paste into a spreadsheet' }[t.dataset.copyFn];
@@ -2834,7 +2861,7 @@ document.addEventListener('keydown', (e) => {
     safeSendTabMessage(currentTab.id, { type: 'UNHIGHLIGHT_ISSUES' }).catch(() => {});
     ['toggle-links', 'toggle-headings'].forEach((id) => {
       const b = $(id);
-      if (b) { b.setAttribute('aria-pressed', 'false'); b.textContent = 'Show on page'; }
+      setPageToggle(b, false);
     });
     issuesShown = false;
     setIssuesButton();

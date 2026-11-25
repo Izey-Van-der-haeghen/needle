@@ -14,7 +14,7 @@ it("shows what changed, links the changelog, and goes away with Got it", async (
   const version = JSON.parse(readFileSync(MANIFEST, "utf8")).version;
   const note = document.querySelector(".whats-new");
   expect(note).not.toBeNull();
-  expect(note.querySelector("strong").textContent).toBe(`Needle was updated to ${version}`);
+  expect(note.querySelector("h2").textContent).toBe(`Needle was updated to ${version}`);
   expect(note.querySelectorAll("li").length).toBeGreaterThan(0);
   expect(note.querySelector('a[href$="/CHANGELOG.md"]').getAttribute("rel")).toBe("noopener noreferrer");
   expect(document.querySelector(".onboarding")).toBeNull();
