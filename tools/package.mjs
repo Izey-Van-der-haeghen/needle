@@ -4,11 +4,12 @@
 // It refuses to build when a file outside the allow-list is referenced, when
 // the manifest version and package.json disagree, or when the shipped files
 // mention things that must not be published.
-import { readFileSync, statSync, mkdirSync, existsSync, rmSync } from "node:fs";
+import { readFileSync, statSync, mkdirSync, mkdtempSync, existsSync, rmSync, utimesSync } from "node:fs";
 import { join, relative } from "node:path";
+import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { packagedFiles, notPackaged } from "./package-files.mjs";
+import { packagedFiles, notPackaged, copyPackage, ZIP_TIME } from "./package-files.mjs";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 // The allow-list (INCLUDE) is in tools/package-files.mjs.
@@ -49,6 +50,15 @@ const outDir = join(ROOT, "dist");
 mkdirSync(outDir, { recursive: true });
 const zip = join(outDir, `needle-${manifest.version}.zip`);
 if (existsSync(zip)) rmSync(zip);
-execFileSync("zip", ["-X", "-q", zip, ...files], { cwd: ROOT });
+// zip stores each file's modification time. A copy with one fixed time on every file makes the zip
+// depend only on the files' contents: the same commit always gives the same zip, byte for byte.
+// TZ=UTC because zip writes the time in local time.
+const stage = copyPackage(ROOT, mkdtempSync(join(tmpdir(), "needle-package-")));
+try {
+  for (const f of files) utimesSync(join(stage, f), ZIP_TIME, ZIP_TIME);
+  execFileSync("zip", ["-X", "-q", zip, ...files], { cwd: stage, env: { ...process.env, TZ: "UTC" } });
+} finally {
+  rmSync(stage, { recursive: true, force: true });
+}
 const kb = (statSync(zip).size / 1024).toFixed(0);
 console.log(`Wrote ${relative(ROOT, zip)} (${files.length} files, ${kb} KB)`);

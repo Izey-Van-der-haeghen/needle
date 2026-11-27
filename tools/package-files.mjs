@@ -3,6 +3,10 @@
 import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, copyFileSync } from "node:fs";
 import { join, posix, dirname } from "node:path";
 
+// The one modification time every file in the zip gets: 1 January 1980, 00:00 UTC, the earliest
+// time a zip can hold (the usual choice for a zip that depends only on its files' contents).
+export const ZIP_TIME = new Date(Date.UTC(1980, 0, 1));
+
 export const INCLUDE = [
   "manifest.json",
   "background.js",
