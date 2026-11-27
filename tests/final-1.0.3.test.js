@@ -20,6 +20,9 @@ it("names Fix this first's crosshairs and 'Why and how' after their finding", as
 
 it("announces the 'Allow Needle to contact Bing Webmaster Tools' notice", async () => {
   // A second popup in this file would need a fresh module: the same popup, now asked for Bing data.
+  // First the first test's analysis must be done: its "Page analysed" (when the server check
+  // answers) could otherwise come after the Bing notice and replace it.
+  await vi.waitFor(() => expect(said()).toMatch(/^Page analysed/), { timeout: 3000 });
   await chrome.storage.local.set({ bingKey: "test-key" });
   chrome.runtime.sendMessage = async (m) => (m?.type === "RUN_BING" ? { error: "needs-permission" } : { error: `test: ${m?.type}` });
   document.getElementById("tab-offpage").click();
